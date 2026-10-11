@@ -42,7 +42,7 @@ Punkt -> Datei (Tests: tests/phase2a.test.mjs, angepasst: formulas/production/pr
 6. Hammerwut nur auf manuelle Klicks (Autoklick nutzt den ungebufften Klickwert) -> js/core/formulas.js (rates)
 9. Speichern nach Neuguss/Shop-Kauf (bei Autosave an) -> js/systems/prestige.js, js/core/save.js (autoSave)
 10. bulkPlan Max: gecachte Summenreihe + Galopp/Binärsuche (Ergebnis identisch zur alten Schleife, per Referenztest belegt) -> js/core/formulas.js; updateOrbs cached Elemente -> js/ui/effects.js
-11. Stats auf 1e300 geklemmt -> js/core/state.js; pagehide/visibilitychange speichern nur bei Autosave an -> js/main.js. Offen: kein Mehr-Tab-Schutz.
+11. Stats auf 1e300 geklemmt -> js/core/state.js; pagehide/visibilitychange speichern nur bei Autosave an -> js/main.js. Mehr-Tab-Schutz in der Release-Runde ergänzt (js/core/multitab.js).
 12. Erfolge "alle Forschungen/Boosts" aus Datenlänge -> js/data/achievements.js
 13. Tooltip `1·10^3` -> js/data/achievements.js; kind0 entfernt, lastRates-Seiteneffekt beim Modulladen entfernt -> js/ui/render.js; safe(-Infinity) -> js/core/formulas.js; acc/Golden-Reset bei loaded/prestige -> js/systems/{autobuyers,achievements,golden}.js + js/main.js; legacy/ gelöscht -> README.md
 
@@ -77,4 +77,4 @@ Details und Zahlen: docs/GAME-DESIGN.md. Tests: tests/phase2b.test.mjs (56 Tests
 - Befund 7 (Konverter-Stahl ohne Stahl-Multiplikatoren): Rezept-Flag `boosted` (Standard true), Ausgaben × `researchMult(Ausgaberessource)`; Prestige/Erfolge/Buffs stecken schon in den Eingängen (kein Doppelzählen). Balance in docs/GAME-DESIGN.md geprüft, keine Zahlenänderung. -> js/core/formulas.js (rates), js/data/recipes.js; Tests tests/release.test.mjs
 - Befund 8 (Autobuyer ohne Priorität): Reihenfolge Klick > Forschung > Boosts > Generatoren; Generatoren dürfen keine Ressource unter die Reserve drücken, die ein in Reichweite liegendes Ziel (>= 25 % aller Kosten vorhanden) mit aktivem Autobuyer braucht; Durchläufe pro Takt skalieren (5 % des größten Bestands, 5..50, Round-Robin über alle Generatoren). -> js/systems/autobuyers.js; Tests tests/release.test.mjs
 - Befund 11, Rest (Mehr-Tab-Schutz): localStorage-Lock `eisenwerk-idle-lock` mit Heartbeat (2 s, Ablauf 7 s), Tab-ID in sessionStorage (Neuladen erbt den Lock). Zweiter Tab: `pauseSaving(true)`, Event `multitab` -> Toast (main.js). Bewusst: ein einmal blockierter Tab bleibt pausiert bis zum Neuladen, damit ein veralteter Stand den neueren nie überschreibt. -> js/core/multitab.js, js/core/save.js (pauseSaving), js/main.js; Tests tests/release.test.mjs
-- Status: Alle Befunde 1-13 sind erledigt (Phase 2a/2b + Release-Runde); keine bewusst akzeptierten offenen Punkte. Gesamtstand `node --test`: 298 grün.
+- Status: Alle Befunde 1-13 sind erledigt (Phase 2a/2b + Release-Runde); keine bewusst akzeptierten offenen Punkte. Gesamtstand `node --test`: 299 grün.

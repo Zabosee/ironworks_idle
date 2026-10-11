@@ -29,7 +29,7 @@ Jeder abgeschlossene Schritt wird als Git-Commit in diesem Ordner gesichert (`gi
 - [x] Phase 4: Live-Tests im Browser (tools/e2e.mjs, 82/82 PASS) + Fixes (Phase 4b)
 - [x] Phase 5: release-gatekeeper 1. Durchlauf: 7/10, Freigabe ja (teilweise: Emojis→SVG, Review-Befunde 7/8/Mehr-Tab, README veraltet)
 - [x] Release-Runde: Emojis durch SVG (items.svg) ersetzt, Befunde 7 und 8 sowie Mehr-Tab-Schutz erledigt, README aktualisiert. 299 Unit-Tests grün, E2E 82/82 PASS. Hinweis: E2E-Läufe nie parallel starten, parallele Läufe im selben Chrome erzeugen Schein-Fehler.
-- [ ] Gatekeeper 2. Durchlauf
+- [x] Gatekeeper 2. Durchlauf: 8/10, FREIGEGEBEN (keine Blocker). Offene Empfehlungen: render.js aufteilen, leere Forschungsebenen ausblenden, Werk-Hinweis max. 10 Sprites, Emoji-Fallbacks entfernen.
 
 ## Notizen / Entscheidungen
 - Live-Browser starten: `"C:/Program Files/Google/Chrome/Application/chrome.exe" --remote-debugging-port=9222 --user-data-dir=<tmp> http://localhost:8080/`
