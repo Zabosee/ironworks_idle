@@ -211,10 +211,10 @@ export function isRevealed(kind, id) {
   if (levelOf(kind, id) > 0) return true;
   return missingReqs(defOf(kind, id)).every(q => missingReqs(RESEARCH_MAP[q]).length === 0);
 }
-/** Material erscheint erst, wenn seine Forschung abgeschlossen ist oder schon etwas davon da ist. */
+/** Material erscheint im aktuellen Lauf: Forschung fertig, Bestand oder Produktion dieses Laufs (nicht Gesamtstatistik). */
 export function resVisible(id) {
   const req = RES[id].req;
-  return !req || req.every(q => state.research[q]) || state.res[id] > 0 || state.stats.total[id] > 0;
+  return !req || req.every(q => state.research[q]) || state.res[id] > 0 || state.stats.run[id] > 0;
 }
 
 const MAX_BULK = 1000;

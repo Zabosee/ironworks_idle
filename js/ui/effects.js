@@ -13,12 +13,13 @@ const MAX_SPARKS = 24;
 const reducedQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 const animationsOn = () => state.settings.particles && !reducedQuery.matches;
 
-export function floatText(parent, text, color, x = '50%', y = '30%', cls = '') {
+export function floatText(parent, text, color, x = '50%', y = '30%', cls = '', max = MAX_PARTICLES) {
   if (!animationsOn()) return;
-  if (parent.querySelectorAll(':scope > .particle').length >= MAX_PARTICLES) return;
+  if (parent.querySelectorAll(':scope > .particle').length >= max) return;
   const p = h('span', { class: 'particle' + (cls ? ' ' + cls : ''), text });
   p.style.cssText = `left:${x};top:${y};color:${color};--dx:${((Math.random() - 0.5) * 60).toFixed(0)}px`;
   p.addEventListener('animationend', () => p.remove());
+  setTimeout(() => p.remove(), 1600);   // Sicherheitsnetz: in verborgenen Elementen feuert animationend nie
   parent.append(p);
 }
 
@@ -91,7 +92,7 @@ export function updateOrbs(r, dt) {
     if (!active || !animationsOn()) continue;
     const perSec = Math.min(8, 1 + Math.log10(1 + rps) * 1.5);
     acc[k] = Math.min(acc[k] + dt * perSec, 2);
-    for (; acc[k] >= 1; acc[k]--) floatText(orb, '+' + fmt(rps / perSec), RES[k].color);
+    for (; acc[k] >= 1; acc[k]--) floatText(orb, '+' + fmt(rps / perSec), RES[k].color, '50%', '50%', 'orb-float', 3);
   }
 }
 

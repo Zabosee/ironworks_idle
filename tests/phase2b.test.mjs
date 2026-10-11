@@ -559,8 +559,11 @@ describe('Gestaffelte Freischaltung', () => {
     state.res.copper = 1;
     assert.equal(F.resVisible('copper'), true);
     reset();
-    state.stats.total.gold = 5;
+    state.stats.run.gold = 5;
     assert.equal(F.resVisible('gold'), true);
+    reset();
+    state.stats.total.gold = 5;   // nur frueherer Lauf: nach Neuguss verborgen
+    assert.equal(F.resVisible('gold'), false);
   });
   test('isRevealed: nur Eintraege, deren Voraussetzungen direkt erreichbar sind', () => {
     assert.equal(F.isRevealed('research', 'geology'), true);

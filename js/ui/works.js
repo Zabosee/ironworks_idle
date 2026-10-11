@@ -102,9 +102,8 @@ function updateLane(L, animate) {
 }
 
 function updateAll(animate = false) {
-  let any = false;
-  for (const L of lanes) any = updateLane(L, animate) || any;
-  if (empty) empty.hidden = any;
+  for (const L of lanes) updateLane(L, animate);
+  if (empty) empty.hidden = lanes.some(L => L.lv > 0);
 }
 
 function evolve(id, tier) {

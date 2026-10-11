@@ -1,5 +1,5 @@
 // Einstellungen-Tab: Zahlenformat, Autosave, Export/Import, Reset.
-import { state, AUTOSAVE_OPTIONS } from '../core/state.js';
+import { state, setSetting, AUTOSAVE_OPTIONS } from '../core/state.js';
 import { FORMATS, setFormat } from '../core/format.js';
 import { save, exportSave, importSave, resetGame, isSaveLocked } from '../core/save.js';
 import { on } from '../core/events.js';
@@ -12,21 +12,20 @@ export function applySettings() {
 
 export function initSettings() {
   const root = $('#settings-root');
-  const se = state.settings;
 
   const formatSel = h('select', { id: 'set-format' }, FORMATS.map(f => h('option', { value: f.id, text: f.label })));
-  formatSel.value = se.format;
-  formatSel.addEventListener('change', () => { se.format = formatSel.value; applySettings(); refresh(); });
+  formatSel.value = state.settings.format;
+  formatSel.addEventListener('change', () => { setSetting('format', formatSel.value); applySettings(); refresh(); });
 
-  const particles = h('input', { type: 'checkbox', id: 'set-particles', checked: se.particles });
-  particles.addEventListener('change', () => { se.particles = particles.checked; });
+  const particles = h('input', { type: 'checkbox', id: 'set-particles', checked: state.settings.particles });
+  particles.addEventListener('change', () => { setSetting('particles', particles.checked); });
 
-  const autosave = h('input', { type: 'checkbox', id: 'set-autosave', checked: se.autosave });
-  autosave.addEventListener('change', () => { se.autosave = autosave.checked; });
+  const autosave = h('input', { type: 'checkbox', id: 'set-autosave', checked: state.settings.autosave });
+  autosave.addEventListener('change', () => { setSetting('autosave', autosave.checked); });
 
   const interval = h('select', { id: 'set-interval' }, AUTOSAVE_OPTIONS.map(s => h('option', { value: String(s), text: `alle ${s} Sekunden` })));
-  interval.value = String(se.autosaveSec);
-  interval.addEventListener('change', () => { se.autosaveSec = Number(interval.value); });
+  interval.value = String(state.settings.autosaveSec);
+  interval.addEventListener('change', () => { setSetting('autosaveSec', Number(interval.value)); });
 
   const status = h('p', { class: 'status', role: 'status', 'aria-live': 'polite' });
   const say = (msg, bad = false) => { status.textContent = msg; status.classList.toggle('bad', bad); };

@@ -42,6 +42,9 @@ export function replaceState(next) {
   Object.assign(state, next);
 }
 
+/** Schreibt immer ins aktuelle state.settings (bleibt nach replaceState gueltig). */
+export function setSetting(key, value) { state.settings[key] = value; }
+
 /** Schreibt Produktion gut und führt Statistik. */
 export function addResource(id, amount) {
   if (!(amount > 0) || !Number.isFinite(amount)) return;
