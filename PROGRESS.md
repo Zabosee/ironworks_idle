@@ -1,0 +1,30 @@
+# Fortschritt / Übergabe (Checkpoints)
+
+Diese Datei ist der Wiederaufsetzpunkt, falls eine Sitzung abbricht (Tokenlimit o.ä.).
+Jeder abgeschlossene Schritt wird als Git-Commit in diesem Ordner gesichert (`git log --oneline`).
+
+## Auftrag (Lukas, 2026-10-11)
+1. Gesamtes Spiel mit allen Subagents logisch reviewen.
+2. Kaufmenge (x1/x10/x100/Max) nur noch im Generatoren-Tab anzeigen.
+3. Hauptanzeige: echte Bilder für die Anzahl jedes Generators; Bilder entwickeln sich bei neuer Stufe (alle 10 Level / Meilenstein) weiter.
+4. Forschung soll wie ein Labor aussehen.
+5. Timer: Upgrades/Forschung werden nicht sofort freigeschaltet, sondern nach einer Laufzeit.
+6. Weitere Upgrades, Generatoren und Materialien (Vorbild: Revolution Idle).
+7. Freigabe erst, wenn der release-gatekeeper zufrieden ist (>= 7/10).
+8. Zwischenstände speichern (diese Datei + Git-Commits).
+9. Aufgaben und Tests live im sichtbaren Browser durchführen (Chrome via CDP, `tools/live.mjs`).
+
+## Umgebung
+- Spiel: `eisenwerk-idle/`, Server: `py -m http.server 8080` in diesem Ordner → http://localhost:8080
+- Tests: `node --test` in `eisenwerk-idle/`
+- Live-Browser: Chrome mit `--remote-debugging-port=9222`, gesteuert über `node tools/live.mjs <befehl>`
+
+## Status
+- [x] Checkpoint 0: Ausgangsstand (176/176 Tests grün, Redesign mit SVGs)
+- [ ] Phase 1: Review (code-reviewer, security-auditor, qa-engineer, ui-designer) + Plan
+- [ ] Phase 2: Logik (neue Materialien/Generatoren/Upgrades, Timer-System, Save-Migration, Tests)
+- [ ] Phase 3: UI (Kaufmenge nur Generatoren, Generator-Showcase mit Evolutionsstufen, Labor-Look, Timer-Anzeige)
+- [ ] Phase 4: Live-Tests im Browser
+- [ ] Phase 5: release-gatekeeper >= 7
+
+## Notizen / Entscheidungen

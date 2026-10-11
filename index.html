@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Eisenwerk Idle – ein Idle-Game mit Prestige, Erfolgen und goldenen Events.">
+<title>Eisenwerk Idle</title>
+<link rel="icon" type="image/svg+xml" href="assets/icons/furnace.svg">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#app-main">Zum Hauptinhalt springen</a>
+
+<div id="boot-error" class="boot-error" role="alert" hidden></div>
+<noscript><div class="boot-error">Dieses Spiel benötigt JavaScript.</div></noscript>
+
+<div class="bg-fx" aria-hidden="true">
+  <img class="bg-skyline" src="assets/bg/skyline.svg" alt="">
+  <img class="bg-gear g1" src="assets/icons/gear.svg" alt="">
+  <img class="bg-gear g2" src="assets/icons/gear.svg" alt="">
+  <img class="bg-gear g3" src="assets/icons/gear.svg" alt="">
+  <div class="embers"><span style="--x:11%;--d:7s;--delay:-0.0s;--s:2px"></span><span style="--x:48%;--d:10s;--delay:-2.3s;--s:3px"></span><span style="--x:85%;--d:7s;--delay:-4.6s;--s:4px"></span><span style="--x:22%;--d:10s;--delay:-6.9s;--s:2px"></span><span style="--x:59%;--d:7s;--delay:-0.2s;--s:3px"></span><span style="--x:96%;--d:10s;--delay:-2.5s;--s:4px"></span><span style="--x:33%;--d:7s;--delay:-4.8s;--s:2px"></span><span style="--x:70%;--d:10s;--delay:-7.1s;--s:3px"></span><span style="--x:7%;--d:7s;--delay:-0.4s;--s:4px"></span><span style="--x:44%;--d:10s;--delay:-2.7s;--s:2px"></span><span style="--x:81%;--d:7s;--delay:-5.0s;--s:3px"></span><span style="--x:18%;--d:10s;--delay:-7.3s;--s:4px"></span><span style="--x:55%;--d:7s;--delay:-0.6s;--s:2px"></span><span style="--x:92%;--d:10s;--delay:-2.9s;--s:3px"></span></div>
+</div>
+
+<div class="app">
+  <aside class="sidebar" aria-label="Ressourcen und Hauptaktion">
+    <h1 class="logo"><img class="logo-img" src="assets/icons/furnace.svg" alt="" width="40" height="40"><span>Eisenwerk Idle</span></h1>
+    <div id="meters" class="meters"></div>
+
+    <div id="click-zone" class="click-zone">
+      <button id="collect" class="collect" type="button" aria-describedby="clickVal">
+        <span class="collect-icon" aria-hidden="true"><img src="assets/icons/furnace.svg" alt="" width="72" height="72" draggable="false"></span>
+        <span class="collect-label">Erz sammeln</span>
+      </button>
+      <div id="clickVal" class="click-val"></div>
+    </div>
+
+    <ul id="buffs" class="buffs" aria-label="Aktive Effekte"></ul>
+    <div id="conv" class="note"></div>
+    <div class="side-foot"><span id="saved">Noch nicht gespeichert</span></div>
+  </aside>
+
+  <main id="app-main" class="main" tabindex="-1">
+    <div class="topbar">
+      <nav id="tabs" class="tabs" role="tablist" aria-label="Bereiche">
+        <button class="tab" role="tab" id="tabbtn-gens" data-tab="gens" aria-controls="tab-gens" type="button">🏭 Generatoren</button>
+        <button class="tab" role="tab" id="tabbtn-upgrades" data-tab="upgrades" aria-controls="tab-upgrades" type="button">⬆️ Upgrades</button>
+        <button class="tab" role="tab" id="tabbtn-research" data-tab="research" aria-controls="tab-research" type="button">🔬 Forschung</button>
+        <button class="tab" role="tab" id="tabbtn-prestige" data-tab="prestige" aria-controls="tab-prestige" type="button">🔥 Hochofen<span id="prestige-dot" class="dot" hidden><span class="sr-only"> (Neuguss möglich)</span></span></button>
+        <button class="tab" role="tab" id="tabbtn-achievements" data-tab="achievements" aria-controls="tab-achievements" type="button">🏆 Erfolge</button>
+        <button class="tab" role="tab" id="tabbtn-stats" data-tab="stats" aria-controls="tab-stats" type="button">📊 Statistik</button>
+        <button class="tab" role="tab" id="tabbtn-settings" data-tab="settings" aria-controls="tab-settings" type="button">⚙️ Einstellungen</button>
+      </nav>
+      <div id="buyamount" class="buyamount" role="group" aria-label="Kaufmenge">
+        <span class="buyamount-label">Kaufmenge</span>
+        <button type="button" data-amount="1" aria-pressed="true">×1</button>
+        <button type="button" data-amount="10" aria-pressed="false">×10</button>
+        <button type="button" data-amount="100" aria-pressed="false">×100</button>
+        <button type="button" data-amount="max" aria-pressed="false">Max</button>
+      </div>
+    </div>
+
+    <section id="tab-gens" class="panel" role="tabpanel" aria-labelledby="tabbtn-gens">
+      <p class="hint">Alle 10 Stufen verdoppelt sich die Produktion eines Generators. Ab Stufe 10 (Elite) kostet jede Stufe zusätzlich Titan.</p>
+      <div id="list-gens" class="grid"></div>
+    </section>
+
+    <section id="tab-upgrades" class="panel" role="tabpanel" aria-labelledby="tabbtn-upgrades" hidden>
+      <h2>Klick-Effizienz</h2>
+      <div id="list-upgrades" class="grid"></div>
+      <h2>Elite-Boosts <span class="sub">(benötigen Titan, einmalig)</span></h2>
+      <div id="list-boosts" class="grid"></div>
+      <h2>Auto-Buyer <span class="sub">(im Hochofen-Shop freischalten)</span></h2>
+      <div id="list-auto" class="grid toggles"></div>
+    </section>
+
+    <section id="tab-research" class="panel" role="tabpanel" aria-labelledby="tabbtn-research" hidden>
+      <p class="hint">Der Forschungsbaum: Technologien benötigen Vorgänger aus niedrigeren Ebenen.</p>
+      <div id="list-research"></div>
+    </section>
+
+    <section id="tab-prestige" class="panel" role="tabpanel" aria-labelledby="tabbtn-prestige" hidden>
+      <div id="prestige-root" class="panel-grid"></div>
+    </section>
+
+    <section id="tab-achievements" class="panel" role="tabpanel" aria-labelledby="tabbtn-achievements" hidden>
+      <div id="ach-root"></div>
+    </section>
+
+    <section id="tab-stats" class="panel" role="tabpanel" aria-labelledby="tabbtn-stats" hidden>
+      <div id="stats-root" class="panel-grid"></div>
+    </section>
+
+    <section id="tab-settings" class="panel" role="tabpanel" aria-labelledby="tabbtn-settings" hidden>
+      <div id="settings-root" class="panel-grid"></div>
+    </section>
+  </main>
+</div>
+
+<div id="goldenLayer" class="golden-layer"></div>
+<div id="flash" class="flash" aria-hidden="true"></div>
+<div id="toasts" class="toasts" role="status" aria-live="polite" aria-atomic="false"></div>
+
+<script>
+  // Hinweis, falls die Seite per file:// geöffnet wurde oder das Modul nicht lädt.
+  setTimeout(function () {
+    if (window.__eisenwerk) return;
+    var box = document.getElementById('boot-error');
+    if (!box || box.textContent) return;
+    box.hidden = false;
+    box.textContent = location.protocol === 'file:'
+      ? 'ES-Module funktionieren nicht über file://. Bitte einen lokalen Webserver starten (siehe README.md), z. B. "npx serve" oder "python -m http.server".'
+      : 'Das Spiel konnte nicht geladen werden. Prüfe die Browser-Konsole.';
+  }, 2000);
+</script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
