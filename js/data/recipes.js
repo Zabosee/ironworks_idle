@@ -3,6 +3,8 @@
 //   share:   Anteil der Brutto-Produktion jedes Eingangs, der dem Rezept zugeführt wird (0..1)
 //   inputs:  Verbrauch pro Zyklus   { res: menge }
 //   outputs: Ertrag pro Zyklus      { res: menge }
+//   boosted: (optional, Standard true) Ausgaben werden mit den Forschungs-/Boost-Multiplikatoren der Ausgaberessource
+//            multipliziert (researchMult); Prestige/Erfolge/Buffs wirken bereits über die Eingänge. false = Rohmenge.
 // Zyklen/s = min über alle Eingänge von (share * Produktion[res] / inputs[res]).
 // Rezepte werden in Listenreihenfolge ausgewertet; spätere Rezepte sehen die Ausgänge früherer
 // (Kette Kohle -> Koks -> Stahl: Rezepte in dieser Reihenfolge eintragen).

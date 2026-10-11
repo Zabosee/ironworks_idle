@@ -121,7 +121,12 @@ export function rates() {
     const cycles = recipeCycles(rc, r);
     const flow = { id: rc.id, cycles, inputs: {}, outputs: {} };
     for (const k in rc.inputs) { flow.inputs[k] = cycles * rc.inputs[k]; r[k] -= flow.inputs[k]; }
-    for (const k in rc.outputs) { flow.outputs[k] = cycles * rc.outputs[k]; r[k] += flow.outputs[k]; }
+    // boosted (Standard true): Ausgaben erhalten die Forschungs-/Boost-Multiplikatoren ihrer Ressource.
+    // Globale Faktoren (Prestige, Erfolge, Buffs) stecken bereits in den Eingängen und werden nicht doppelt angewandt.
+    for (const k in rc.outputs) {
+      flow.outputs[k] = cycles * rc.outputs[k] * (rc.boosted === false ? 1 : researchMult(k));
+      r[k] += flow.outputs[k];
+    }
     r.flows.push(flow);
   }
   for (const k of RES_IDS) r[k] = safe(r[k]);

@@ -72,3 +72,6 @@ Details und Zahlen: docs/GAME-DESIGN.md. Tests: tests/phase2b.test.mjs (56 Tests
 - Evolution: genTier/tierName/tierPips, Event gen:evolve -> js/data/generators.js, js/systems/production.js
 - Minimal-UI: Warteschlangen-Listen mit Abbrechen, Restzeit auf Karten, gestaffelte Sichtbarkeit, Emoji-Fallback für fehlende Icons (js/ui/assets.js) -> js/ui/render.js, index.html, css/styles.css
 - Debug-Hook `window.__eisenwerk = { state, F, timers, buy, save, refresh }` nur auf localhost/127.0.0.1 -> js/main.js
+
+# Erledigt in Release-Runde
+- Befund 7 (Konverter-Stahl ohne Stahl-Multiplikatoren): Rezept-Flag `boosted` (Standard true), Ausgaben × `researchMult(Ausgaberessource)`; Prestige/Erfolge/Buffs stecken schon in den Eingängen (kein Doppelzählen). Balance in docs/GAME-DESIGN.md geprüft, keine Zahlenänderung. -> js/core/formulas.js (rates), js/data/recipes.js; Tests tests/release.test.mjs
