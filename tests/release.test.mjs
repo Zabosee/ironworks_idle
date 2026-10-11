@@ -91,3 +91,66 @@ describe('Autobuyer-Priorität (System)', () => {
     assert.ok(state.gens.mine - before > 5, 'mehr als 5 Käufe pro Takt bei großem Bestand');
   });
 });
+
+import { createGuard, readLock, heldByOther, LOCK_KEY, LOCK_TTL_MS } from '../js/core/multitab.js';
+import * as S from '../js/core/save.js';
+import { collect } from './helpers.mjs';
+
+describe('Mehr-Tab-Schutz', () => {
+  const mem = () => { const m = new Map(); return { getItem: k => m.get(k) ?? null, setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k) }; };
+
+  test('erster Tab erhält den Lock, zweiter wird erkannt', () => {
+    const st = mem(); let t = 1000; const now = () => t;
+    const a = createGuard({ storage: st, now, id: 'A' });
+    let conflicts = 0;
+    const b = createGuard({ storage: st, now, id: 'B', onConflict: () => conflicts++ });
+    assert.equal(a.claim(), true);
+    assert.equal(b.claim(), false);
+    assert.equal(conflicts, 1);
+    assert.equal(b.blocked, true);
+    assert.equal(readLock(st).id, 'A');
+  });
+  test('Heartbeat hält den Lock frisch; blockierter Tab bleibt blockiert, auch wenn A endet', () => {
+    const st = mem(); let t = 0; const now = () => t;
+    const a = createGuard({ storage: st, now, id: 'A' }), b = createGuard({ storage: st, now, id: 'B' });
+    a.claim(); b.claim();
+    t = 5000; assert.equal(a.beat(), true); assert.equal(readLock(st).t, 5000);
+    a.release();
+    assert.equal(st.getItem(LOCK_KEY), null);
+    t = 6000; assert.equal(b.beat(), false);
+  });
+  test('verwaister Lock (kein Heartbeat) wird übernommen', () => {
+    const st = mem(); let t = 0; const now = () => t;
+    createGuard({ storage: st, now, id: 'A' }).claim();
+    t = LOCK_TTL_MS + 1;
+    const b = createGuard({ storage: st, now, id: 'B' });
+    assert.equal(b.claim(), true);
+    assert.equal(readLock(st).id, 'B');
+  });
+  test('gleiche ID (Neuladen) ist kein Konflikt; kaputter Lock wird ignoriert', () => {
+    const st = mem(); const now = () => 10;
+    createGuard({ storage: st, now, id: 'A' }).claim();
+    assert.equal(createGuard({ storage: st, now, id: 'A' }).claim(), true);
+    st.setItem(LOCK_KEY, 'kaputt{');
+    assert.equal(readLock(st), null);
+    assert.equal(createGuard({ storage: st, now, id: 'C' }).claim(), true);
+  });
+  test('heldByOther', () => {
+    assert.equal(heldByOther(null, 'A', 0), false);
+    assert.equal(heldByOther({ id: 'B', t: 0 }, 'A', 100), true);
+    assert.equal(heldByOther({ id: 'A', t: 0 }, 'A', 100), false);
+    assert.equal(heldByOther({ id: 'B', t: 0 }, 'A', LOCK_TTL_MS), false);
+  });
+  test('pauseSaving sperrt save() und autoSave(); danach wieder frei', () => {
+    const ls = installStorage();
+    const failed = collect('save-failed');
+    S.pauseSaving(true);
+    assert.equal(S.save(), false);
+    assert.equal(ls.getItem(S.SAVE_KEY), null);
+    assert.equal(failed.got.length, 1);
+    S.pauseSaving(false);
+    assert.equal(S.save(), true);
+    assert.ok(ls.getItem(S.SAVE_KEY));
+    failed.stop();
+  });
+});

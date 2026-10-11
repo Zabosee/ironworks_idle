@@ -154,12 +154,17 @@ let saveLocked = false;
 /** true, wenn ein unlesbarer Spielstand gefunden wurde: Speichern ist gesperrt, bis Import oder Reset den Zustand ersetzt. */
 export const isSaveLocked = () => saveLocked;
 
+let savePaused = false;
+/** Mehr-Tab-Schutz: pausiert jedes Speichern (unabhängig von Import/Reset), solange eine andere Instanz läuft. */
+export const pauseSaving = on => { savePaused = !!on; };
+export const isSavePaused = () => savePaused;
+
 const store = () => { try { return globalThis.localStorage ?? null; } catch { return null; } };
 
 export const serialize = () => JSON.stringify({ v: SAVE_VERSION, t: Date.now(), state });
 
 export function save() {
-  if (saveLocked) { emit('save-failed'); return false; }
+  if (saveLocked || savePaused) { emit('save-failed'); return false; }
   try {
     state.savedAt = Date.now();
     store().setItem(SAVE_KEY, serialize());

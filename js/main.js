@@ -1,8 +1,9 @@
 // Bootstrap und Game-Loop (requestAnimationFrame mit Delta-Time).
 import { state } from './core/state.js';
-import { on, toast } from './core/events.js';
+import { on, emit, toast } from './core/events.js';
 import { fmt, fmtTime } from './core/format.js';
-import { load, save, autoSave, applyOffline } from './core/save.js';
+import { load, save, autoSave, applyOffline, pauseSaving } from './core/save.js';
+import { createGuard, HEARTBEAT_MS } from './core/multitab.js';
 import { RES, RES_IDS } from './data/resources.js';
 import { tick, buy } from './systems/production.js';
 import * as autobuyers from './systems/autobuyers.js';
@@ -29,6 +30,14 @@ function announceOffline(info) {
 
 function boot() {
   initToasts($('#toasts'));   // zuerst, damit Toasts aus load()/applyOffline() nicht verloren gehen
+  // Mehr-Tab-Schutz vor dem Laden: ein zweiter Tab pausiert das Speichern und meldet 'multitab'.
+  on('multitab', () => toast('Das Spiel läuft bereits in einem anderen Tab. Speichern ist hier pausiert, damit kein Fortschritt überschrieben wird. Schließe diesen Tab oder lade ihn neu, sobald der andere zu ist.', 'warn'));
+  // Tab-ID in sessionStorage: ein Neuladen desselben Tabs erbt den Lock (auch wenn pagehide ihn nicht freigegeben hat).
+  let tabId; try { tabId = sessionStorage.getItem('eisenwerk-tab-id') || undefined; if (!tabId) { tabId = Math.random().toString(36).slice(2); sessionStorage.setItem('eisenwerk-tab-id', tabId); } } catch { /* ohne sessionStorage: Zufalls-ID */ }
+  const guard = createGuard({ storage: globalThis.localStorage, id: tabId, onConflict: () => { pauseSaving(true); emit('multitab'); } });
+  guard.claim();
+  setInterval(() => guard.beat(), HEARTBEAT_MS);
+  addEventListener('pagehide', () => guard.release());
   const loaded = load();
   applySettings();
   if (loaded.loaded) {
