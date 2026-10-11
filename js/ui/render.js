@@ -5,7 +5,7 @@ import { fmt, fmtInt, fmtTime, fmtClock } from '../core/format.js';
 import {
   rates, bulkPlan, duration, levelOf, lockReason, genOutputAt, clickBaseAt, milestone, researchMult, achievementBonus,
   prestigeMult, globalMult, buffMult, prestigeGain, oreForGain, shopLevel, shopCost, autobuyerUnlocked, researchDepth,
-  pendingOf, isRevealed, resVisible, queueSlots, queueCapacity,
+  pendingOf, isRevealed, resVisible, queueSlots, queueCapacity, eraDef, eraIndex, nextEra, eraMult, eraProgress, eraNeeds,
 } from '../core/formulas.js';
 import { RES, RES_IDS } from '../data/resources.js';
 import { GENS, ELITE_FROM, EXTRA_MILESTONES, MILESTONE_STEP } from '../data/generators.js';
@@ -25,7 +25,9 @@ import { buildFlask, ensureClipDefs } from './lab.js';
 import { h, $, clear, setText, setClass, setAttr, confirmDialog } from './dom.js';
 import { activeTab } from './tabs.js';
 import { restartAnim, clearOneShots, updateOrbs } from './effects.js';
-import { sample, spark, drawSparkline, drawHistory } from './charts.js';
+import { sample, drawHistory } from './charts.js';
+import { buildIndustry, renderIndustry } from './industry.js';
+import { initResearchMap, updateNodeStates, updateResearchPanel } from './research-map.js';
 
 /** Kleines ui.svg-Symbol (currentColor). */
 function svgUse(name, cls = '') {
@@ -56,6 +58,7 @@ export function initRender() {
     meters: $('#meters'), clickVal: $('#clickVal'), conv: $('#conv'), buffs: $('#buffs'), saved: $('#saved'),
     buyAmount: $('#buyamount'), prestigeDot: $('#prestige-dot'),
     castCount: $('#cast-count'), castPoints: $('#cast-points'), castBonus: $('#cast-bonus'),
+    eraName: $('#era-name'), eraBonus: $('#era-bonus'), eraIco: $('#era-ico'), eraFill: $('#era-fill'), eraNext: $('#era-next'),
   };
   buildMeters();
   buildCards();
@@ -64,6 +67,7 @@ export function initRender() {
   buildPrestige();
   buildAchievements();
   buildStats();
+  buildIndustry($('#industry-root'));
   bindActions();
 
   on('buy', e => {
@@ -74,6 +78,8 @@ export function initRender() {
     refresh();
   });
   on('shop', refresh);
+  on('evo', refresh);
+  on('era', refresh);
   for (const ev of ['timer:queued', 'timer:cancel']) on(ev, refresh);
   on('timer:done', e => {
     // Fertig: kurzes Aufblitzen der Karte (der Toast kommt aus dem Timer-System)
@@ -104,7 +110,7 @@ function buildMeters() {
     const r = RES[k];
     const m = {
       amt: h('span', { class: 'amt' }), rps: h('span', { class: 'rps' }),
-      delta: h('span', { class: 'delta' }), canvas: h('canvas', { class: 'spark', 'aria-hidden': 'true' }),
+      delta: h('span', { class: 'delta' }),
     };
     meters[k] = m;
     m.el = h('div', { class: 'meter', style: `--c:${r.color}` },
@@ -112,8 +118,7 @@ function buildMeters() {
         h('span', { class: 'ring' }), h('span', { class: 'orb-core' }, imgFor(r) ? h('img', { src: imgFor(r), alt: '', draggable: 'false' }) : r.icon)),
       h('div', { class: 'meter-body' },
         h('div', { class: 'meter-row' }, h('span', { class: 'meter-name', text: r.name }), m.amt),
-        h('div', { class: 'meter-row small' }, h('span', {}, m.rps, '/s'), m.delta),
-        m.canvas));
+        h('div', { class: 'meter-row small' }, h('span', {}, m.rps, '/s'), m.delta)));
     (BASE_RES.includes(k) ? els.meters : moreList).append(m.el);
   }
   els.meters.append(els.more);
@@ -172,17 +177,8 @@ function buildCards() {
   for (const c of CLICKS) add(ups, 'click', c);
   for (const b of BOOSTS) add(boosts, 'boost', b);
 
-  const depths = new Map();
-  for (const r of RESEARCH) {
-    const d = researchDepth(r.id);
-    if (!depths.has(d)) depths.set(d, []);
-    depths.get(d).push(r);
-  }
-  for (const d of [...depths.keys()].sort((a, b) => a - b)) {
-    const grid = h('div', { class: 'grid' });
-    rs.append(h('section', { class: 'tier lab-shelf' }, h('h3', { text: `Ebene ${d + 1}` }), grid));
-    for (const r of depths.get(d)) add(grid, 'research', r);
-  }
+  // Research: Neue Map-Struktur
+  initResearchMap(rs);
 }
 
 function bindActions() {
@@ -431,6 +427,12 @@ function renderProgress(c, o) {
 }
 
 function renderCards(kinds) {
+  // Research nutzt neue Map-Struktur
+  if (kinds.includes('research')) {
+    updateNodeStates();
+    return;
+  }
+
   for (const c of cards) {
     if (!kinds.includes(c.kind)) continue;
     const o = describe(c);
@@ -748,13 +750,34 @@ function renderTop(r) {
   setText(els.castPoints, fmtInt(state.prestige.total));
   const bonus = (prestigeMult() - 1) * 100;
   setText(els.castBonus, `(+${bonus >= 100 ? fmtInt(bonus) : bonus.toFixed(1).replace('.', ',')} % Produktion)`);
+  renderEra();
   renderBadges();
   renderBuffs();
+}
+
+/** Zeitalter-Anzeige in der Seitenleiste: Name, Gesamtbonus, Fortschritt zum nächsten Zeitalter (log. Skala). */
+function renderEra() {
+  const e = eraDef(eraIndex()), nx = nextEra();
+  setText(els.eraIco, e.sym);
+  setText(els.eraName, e.name);
+  setText(els.eraBonus, `(Bonus ×${eraMult().toFixed(2).replace('.', ',')})`);
+  const f = eraProgress().toFixed(3);
+  if (els.eraFill._f !== f) { els.eraFill._f = f; els.eraFill.style.transform = `scaleX(${f})`; }
+  const n = eraNeeds();
+  let txt = 'Höchstes Zeitalter erreicht';
+  if (nx) {
+    txt = `Nächstes: ${nx.name} – ab ${fmt(nx.at)} Erz und ${fmtTime(nx.minTime)} Spielzeit`;
+    if (n.ore && !n.time) txt += ` (Erz erreicht, noch ${fmtTime(n.missingTime)} Spielzeit)`;
+    else if (!n.ore && n.time) txt += ' (Spielzeit erreicht, Erz fehlt)';
+    else if (!n.ore) txt += ` (noch ${fmtTime(n.missingTime)} Spielzeit)`;
+  }
+  setText(els.eraNext, txt);
 }
 
 function renderActive() {
   switch (activeTab()) {
     case 'gens': renderCards(['gen']); break;
+    case 'industry': renderIndustry(); break;
     case 'upgrades': renderCards(['click', 'boost']); renderQueues(['workshop']); renderAutobuyers(); break;
     case 'research': renderCards(['research']); renderQueues(['lab']); break;
     case 'prestige': renderPrestige(); break;
@@ -782,10 +805,10 @@ export function frame(r, dt) {
   renderTop(r);
   renderActive();
   updateOrbs(r, step);
+  updateResearchPanel();
   if (sparkAcc >= 1) {
     sparkAcc = 0;
     sample(r);
-    for (const k of RES_IDS) drawSparkline(meters[k].canvas, spark[k], RES[k].color);
     if (activeTab() === 'stats') drawHistory(sv.canvas);
   }
 }

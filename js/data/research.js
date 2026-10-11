@@ -3,6 +3,7 @@
 // Freischaltungen laufen über `req` in Generatoren, Rezepten, Boosts, Klick-Upgrades und Ressourcen.
 //   time:   Dauer in Sekunden (Labor-Warteschlange), vor Zeitverkürzung (Shop `q_speed`, Forschung `automation`)
 //   liquid: Farbe der Flüssigkeit im Labor-Gefäß
+//   era:    optional, Mindest-Zeitalter (Index in data/eras.js); darunter ist die Forschung sichtbar, aber gesperrt
 //   cat:    Gefäßform in der UI: 'mining' Erlenmeyer, 'metal' Reagenzglas, 'chem' Rundkolben, 'tech' Retorte
 const LIQ = { ore: '#f97316', steel: '#38bdf8', titan: '#d946ef', all: '#fbbf24', coal: '#64748b', coke: '#a8a29e', copper: '#ea8a52', manganese: '#a78bfa', chrome: '#5eead4', nickel: '#a3e635', alloy: '#38bdf8', tungsten: '#f472b6', gold: '#fbbf24' };
 const r = (id, icon, name, desc, cost, time, cat, liq, extra = {}) => ({ id, icon, name, desc, cost, time, cat, liquid: LIQ[liq], ...extra });
@@ -33,5 +34,24 @@ export const RESEARCH = [
   r('tungsten',   '☢️', 'Wolfram-Gewinnung',          'Schaltet den Wolframreaktor frei. Legierung, Chrom und Nickel werden zu Wolfram veredelt (8:2:2).', { titan: 2000, alloy: 400, chrome: 300, nickel: 300 }, 900, 'chem', 'tungsten', { req: ['chromium', 'refining'] }),
   r('supercond',  '🧲', 'Supraleiter',                '+100 % Produktion aller Materialien.',                              { titan: 1e4, tungsten: 100, alloy: 800 }, 1200, 'tech', 'tungsten', { req: ['tungsten'], mult: { all: 2 } }),
   r('goldsmith',  '👑', 'Goldschmiedekunst',          'Schaltet den Edelmetall-Tiegel frei. Wolfram wird teilweise zu Gold umgeschmolzen (20:1).', { titan: 3e4, tungsten: 300, alloy: 3000 }, 1800, 'chem', 'gold', { req: ['supercond'] }),
+
+  // Ostast: Energie und Industrialisierung (Phase 3)
+  r('energyfound',  '🔋', 'Energiefundamente',          '+25 % Erz- und Stahlproduktion. Grundlagen der modernen Energiewirtschaft.',  { ore: 6e4, steel: 1500, coal: 500 }, 120, 'tech', 'coal', { era: 1, req: ['resonance'], mult: { ore: 1.25, steel: 1.25 } }),
+  r('hydropower',   '💧', 'Wasserkraft',                '+25 % Erzproduktion durch Wasserkraftwerke.',                              { ore: 1e5, steel: 3000, coal: 1000 }, 150, 'mining', 'ore', { era: 1, req: ['energyfound'], mult: { ore: 1.25 } }),
+  r('steamengine',  '🚂', 'Dampfmaschine',              '+25 % aller Materialien. Die Kraft der Dampf revolutioniert die Fertigung.', { ore: 1.5e5, steel: 5000, coke: 500 }, 180, 'tech', 'coke', { era: 2, req: ['hydropower'], mult: { all: 1.25 } }),
+  r('dynamo',       '⚡', 'Dynamo',                      '+50 % Stahlproduktion durch elektrische Generierung.',                     { steel: 8e3, copper: 1500, coke: 300 }, 240, 'tech', 'copper', { era: 3, req: ['steamengine'], mult: { steel: 1.5 } }),
+  r('powersupply',  '🔌', 'Stromversorgung',            '+25 % aller Materialien. Flächendeckende elektrische Netze.',              { ore: 2e5, steel: 1e4, copper: 3000 }, 300, 'tech', 'all', { era: 3, req: ['dynamo'], mult: { all: 1.25 } }),
+  r('electrify',    '⚙️', 'Elektrifizierung',           '+50 % aller Materialien. Alle Prozesse laufen elektrisch.',                { steel: 1.5e4, copper: 5000, alloy: 500 }, 360, 'tech', 'all', { era: 3, req: ['powersupply'], mult: { all: 1.5 } }),
+  r('assembly',     '🛤️', 'Fließbandproduktion',        '+50 % Erz- und Stahlproduktion durch automatisierte Fertigungslinien.',    { ore: 3e5, steel: 2e4, alloy: 1000 }, 420, 'tech', 'ore', { era: 4, req: ['electrify'], mult: { ore: 1.5, steel: 1.5 } }),
+  r('robotics',     '🤖', 'Robotik',                     '+50 % aller Materialien. Intelligente Roboter übernehmen die Fertigung.',  { steel: 2.5e4, titan: 2000, alloy: 1500 }, 480, 'tech', 'all', { era: 4, req: ['assembly'], mult: { all: 1.5 } }),
+  r('massproduct',  '📦', 'Massenproduktion',            '+50 % aller Materialien. Unbegrenzte Skalierung der Fertigungskapazität.', { ore: 4e5, steel: 3e4, alloy: 3000 }, 540, 'tech', 'all', { era: 4, req: ['robotics'], mult: { all: 1.5 } }),
+  r('semiconductor','🖥️', 'Halbleitertechnik',          '+25 % aller Materialien. Mikroelektronische Revolution der Industrie.',     { steel: 4e4, copper: 1e4, tungsten: 500 }, 600, 'chem', 'all', { era: 5, req: ['massproduct'], mult: { all: 1.25 } }),
+  r('nanotech',     '🔬', 'Nanotechnologie',            '+100 % aller Materialien. Manipulation auf atomarer Ebene.',               { titan: 5e3, tungsten: 2000, alloy: 5000 }, 720, 'chem', 'all', { era: 5, req: ['semiconductor'], mult: { all: 2 } }),
+  r('synthmatter',  '🧪', 'Synthetische Materialien',   '+50 % aller Materialien. Künstlich erzeugte Stoffe übertreffen Natur.',    { titan: 8e3, tungsten: 3000, gold: 500, alloy: 8000 }, 900, 'chem', 'all', { era: 5, req: ['nanotech'], mult: { all: 1.5 } }),
+
+  // Verbesserungen in bestehenden Ästen
+  r('deepcoal',     '⛏️', 'Tiefenkohlebergbau',         '+50 % Kohleproduktion. Moderne Tiefbautechniken erschließen neue Vorkommen.', { ore: 8e4, steel: 2000, coal: 1000 }, 90, 'mining', 'coal', { req: ['coalmining'], mult: { coal: 1.5 } }),
+  r('copperenrich', '🏚️', 'Kupfererz-Konzentration',   '+50 % Kupferproduktion durch fortgeschrittene Aufbereitungstechnik.',       { ore: 2e5, steel: 5000, copper: 500 }, 180, 'metal', 'copper', { req: ['copperworks'], mult: { copper: 1.5 } }),
+  r('quantumopt',   '✨', 'Quantenoptik',                '+25 % aller Materialien. Licht und Quantenmechanik in der Messtechnik.',   { ore: 1.5e6, steel: 2e4, titan: 500, alloy: 5000 }, 1200, 'tech', 'all', { era: 4, req: ['quantum'], mult: { all: 1.25 } }),
 ];
 export const RESEARCH_MAP = Object.fromEntries(RESEARCH.map(x => [x.id, x]));

@@ -13,6 +13,8 @@ import * as F from '../js/core/formulas.js';
 import * as P from '../js/systems/production.js';
 import { doPrestige, buyShop } from '../js/systems/prestige.js';
 import { GENS } from '../js/data/generators.js';
+import { ERAS } from '../js/data/eras.js';
+import { buyEvo } from '../js/systems/evolution.js';
 import { RESEARCH } from '../js/data/research.js';
 import { BOOSTS, CLICKS } from '../js/data/upgrades.js';
 import { MILESTONES, SHOP, PRESTIGE } from '../js/data/prestige.js';
@@ -57,6 +59,18 @@ function buyGens(max = 30, pbLimit = 3000) {
   }
 }
 
+/** Ausbauten: kaufen, sobald bezahlbar und die Kosten höchstens 40 % des (gewichteten) Vorrats ausmachen. */
+function buyEvos() {
+  for (let again = true; again;) {
+    again = false;
+    for (const g of GENS) {
+      if (F.evoLock(g.id)) continue;
+      const cost = F.evoCost(g.id);
+      if (cost && F.canAfford(cost) && worth(cost) < 0.4 * worth(state.res) && buyEvo(g.id, { silent: true })) again = true;
+    }
+  }
+}
+
 function spendShop(log) {
   for (let again = true; again;) {
     again = false;
@@ -72,10 +86,10 @@ function spendShop(log) {
  * opts: hours (Obergrenze der aktiven Spielzeit), clicksPerSec, frac (Neuguss ab Gewinn >= frac * Gesamt),
  *       minRun (min. Sekunden je Durchlauf), dt (Schrittweite), stopAtAll (Abbruch, wenn alle Meilensteine erreicht).
  */
-export function simulate({ hours = 48, clicksPerSec = 4, frac = 0.5, policy = 'rate', minGain = 3, minRun = 300, dt = 2, stopAtAll = false } = {}) {
+export function simulate({ hours = 48, clicksPerSec = 4, frac = 0.5, policy = 'rate', minGain = 3, minRun = 300, dt = 2, stopAtAll = false, probe = [] } = {}) {
   replaceState(defaultState());
   state.settings.autosave = false;
-  const milestones = {}, prestiges = [], shopLog = [];
+  const milestones = {}, prestiges = [], shopLog = [], eraTimes = {}, probes = {};
   let t = 0;
   const hist = [], WIN = 120;
   while (t < hours * 3600) {
@@ -85,6 +99,9 @@ export function simulate({ hours = 48, clicksPerSec = 4, frac = 0.5, policy = 'r
     for (const b of BOOSTS) if (!state.boosts[b.id] && !F.lockReason('boost', b.id)) P.buy('boost', b.id);
     for (const c of CLICKS) if (!F.lockReason('click', c.id) && worth(F.bulkPlan('click', c.id, 1).cost) < 0.3 * state.res.ore) P.buy('click', c.id);
     buyGens();
+    buyEvos();
+    for (let i = 1; i < ERAS.length; i++) if (!(i in eraTimes) && F.eraIndex() >= i) eraTimes[i] = t;
+    for (const ph of probe) if (!(ph in probes) && t >= ph * 3600) probes[ph] = state.stats.total.ore;
     const gain = F.prestigeGain();
     let go = false;
     if (state.stats.runTime < 5) hist.length = 0;
@@ -107,7 +124,7 @@ export function simulate({ hours = 48, clicksPerSec = 4, frac = 0.5, policy = 'r
       if (stopAtAll && Object.keys(milestones).length === MILESTONES.length) break;
     }
   }
-  return { milestones, prestiges, shop: Object.fromEntries(SHOP.map(s => [s.id, F.shopLevel(s.id)])), shopLog, hours: t / 3600, total: state.prestige.total };
+  return { probes, eraTimes, milestones, prestiges, shop: Object.fromEntries(SHOP.map(s => [s.id, F.shopLevel(s.id)])), shopLog, hours: t / 3600, total: state.prestige.total };
 }
 
 const fh = s => (s < 3600 ? `${(s / 60).toFixed(0)} min` : `${(s / 3600).toFixed(1)} h`);
@@ -118,6 +135,7 @@ if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`) {
   console.log(`growth=${PRESTIGE.growth} perPoint=${PRESTIGE.perPoint} frac=${frac} clicks/s=${clicksPerSec}`);
   r.prestiges.slice(0, 40).forEach(p => console.log(`#${p.count} bei ${fh(p.t)} (Durchlauf ${fh(p.runTime)}) +${p.gain} -> ${p.total}`));
   console.log(`... ${r.prestiges.length} Neugüsse, ${r.hours.toFixed(1)} h, Gesamt ${r.total}`);
+  ERAS.slice(1).forEach((e, i) => console.log(`Zeitalter ${e.name}: ${r.eraTimes[i + 1] !== undefined ? fh(r.eraTimes[i + 1]) : 'NICHT erreicht'}`));
   for (const m of MILESTONES) console.log(`Meilenstein ${m.at}: ${r.milestones[m.at] ? fh(r.milestones[m.at].t) + ' (Neuguss ' + r.milestones[m.at].count + ')' : 'NICHT erreicht'}`);
   console.log('Shop:', JSON.stringify(r.shop));
   console.log('Käufe:', r.shopLog.join(' '));

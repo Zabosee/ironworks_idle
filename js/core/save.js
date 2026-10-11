@@ -10,11 +10,12 @@ import { CLICKS, BOOSTS } from '../data/upgrades.js';
 import { RESEARCH } from '../data/research.js';
 import { SHOP, AUTOBUYERS } from '../data/prestige.js';
 import { HISTORY_MAX } from '../data/prestige.js';
+import { EVO_MAX } from '../data/eras.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { BUFFS } from '../data/golden.js';
 import { QUEUES, QUEUE_IDS, MAX_ENTRIES } from '../data/timers.js';
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 // Der Schlüssel bleibt bewusst 'v2': die Formatversion steckt im Spielstand selbst (Feld v), so lädt der alte Spielstand ohne Umkopieren.
 export const SAVE_KEY = 'eisenwerk-idle-save-v2';
 export const BACKUP_KEY = SAVE_KEY + '-backup';
@@ -43,6 +44,10 @@ export function sanitize(d) {
   const rs = isObj(d.research) ? d.research : {}, bs = isObj(d.boosts) ? d.boosts : {};
   for (const r of RESEARCH) if (rs[r.id]) s.research[r.id] = 1;
   for (const b of BOOSTS) if (bs[b.id]) s.boosts[b.id] = 1;
+
+  // Generator-Ausbau (Zeitalter-System): nur bekannte Generatoren, Stufe 0..EVO_MAX
+  const ev = isObj(d.evo) ? d.evo : {};
+  for (const g of GENS) s.evo[g.id] = int(ev[g.id], EVO_MAX);
 
   // Warteschlangen: nur bekannte Aufträge der passenden Art, keine Duplikate, nichts bereits Abgeschlossenes
   const tm = isObj(d.timers) ? d.timers : {};
@@ -133,6 +138,11 @@ export function migrateV3toV4(old) {
   return out;
 }
 
+/** v4 -> v5: Generator-Ausbau (`evo`) kommt neu hinzu; das Zeitalter wird aus stats.total.ore abgeleitet und nicht gespeichert. */
+export function migrateV4toV5(old) {
+  return { ...old, evo: {} };
+}
+
 /** Bringt beliebige bekannte Formate auf die aktuelle Version: { v, t, state }. */
 export function migrate(data) {
   if (!isObj(data)) throw new Error('Spielstand hat kein gültiges Format.');
@@ -151,6 +161,7 @@ export function migrate(data) {
   let st = data.state;
   if (v < 3) st = migrateV2toV3(st);
   if (v < 4) st = migrateV3toV4(st);
+  if (v < 5) st = migrateV4toV5(st);
   return { v: SAVE_VERSION, t: num(data.t, Date.now(), 0, 8.64e15), state: st };
 }
 

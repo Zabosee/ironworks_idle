@@ -17,6 +17,10 @@ export function installStorage() {
   return ls;
 }
 
+import { ERAS } from '../js/data/eras.js';
+/** Setzt Erz und Spielzeit genau auf die Schwellen des Zeitalters i (beide Bedingungen erfüllt). */
+export function setEra(i) { state.stats.total.ore = ERAS[i].at; state.stats.playTime = ERAS[i].minTime; }
+
 export const reset = () => replaceState(defaultState());
 
 /** Sammelt Events eines Namens; stop() entfernt den Handler. */

@@ -19,6 +19,7 @@ export function doPrestige() {
   state.res.ore = startOre();
   state.gens = fresh.gens;
   state.clicks = fresh.clicks;
+  state.evo = fresh.evo;   // Generator-Ausbau beginnt jeden Durchlauf neu; das Zeitalter (aus stats.total) bleibt
   state.boosts = {};
   if (shopLevel('keep') < 1) state.research = {};
   state.buffs = [];

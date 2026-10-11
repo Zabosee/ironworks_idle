@@ -12,7 +12,7 @@ import * as A from '../js/systems/achievements.js';
 import { buy, tick } from '../js/systems/production.js';
 import { doPrestige } from '../js/systems/prestige.js';
 import { RES, RES_IDS } from '../js/data/resources.js';
-import { GENS, GEN_MAP, genTier, tierName, tierPips, TIER_AT } from '../js/data/generators.js';
+import { GENS, GEN_MAP, genTier, tierName, tierPips, TIER_AT, TIER_NAMES } from '../js/data/generators.js';
 import { RESEARCH, RESEARCH_MAP } from '../js/data/research.js';
 import { BOOSTS, CLICKS } from '../js/data/upgrades.js';
 import { RECIPES } from '../js/data/recipes.js';
@@ -24,7 +24,7 @@ import { fmtClock } from '../js/core/format.js';
 const b64 = obj => Buffer.from(JSON.stringify(obj), 'utf8').toString('base64');
 let ls;
 beforeEach(() => { ls = installStorage(); reset(); G.init(); AB.reset(); A.reset(); });
-const rich = () => give({ ore: 1e12, steel: 1e12, titan: 1e12, coal: 1e9, coke: 1e9, copper: 1e9, manganese: 1e9, chrome: 1e9, nickel: 1e9, alloy: 1e9, tungsten: 1e9, gold: 1e9 });
+const rich = () => { state.stats.total.ore = 1e30; state.stats.playTime = 1e7; give({ ore: 1e12, steel: 1e12, titan: 1e12, coal: 1e9, coke: 1e9, copper: 1e9, manganese: 1e9, chrome: 1e9, nickel: 1e9, alloy: 1e9, tungsten: 1e9, gold: 1e9 }); };   // total.ore: alle Zeitalter erreicht
 
 describe('Timer: Kauf, Reihenfolge, Abbruch', () => {
   test('Kosten sofort abgezogen, Effekt erst nach Ablauf, Event timer:done', () => {
@@ -274,7 +274,7 @@ describe('Timer: Offline und Hintergrund', () => {
 
 describe('Save v4: Timer, Sanitize, Migration', () => {
   test('SAVE_VERSION 4; Roundtrip behaelt Auftraege (Rest, Kosten, Reihenfolge)', () => {
-    assert.equal(S.SAVE_VERSION, 4);
+    assert.equal(S.SAVE_VERSION, 5);
     rich();
     state.research.geology = 1;
     buy('research', 'converter'); buy('research', 'deepmines'); buy('boost', 'diamond');
@@ -362,7 +362,7 @@ describe('Save v4: Timer, Sanitize, Migration', () => {
     assert.equal(state.settings.buyAmount, '10');
     assert.deepEqual(state.timers, { lab: [], workshop: [] });
     S.save();
-    assert.equal(JSON.parse(ls.getItem(S.SAVE_KEY)).v, 4);
+    assert.equal(JSON.parse(ls.getItem(S.SAVE_KEY)).v, 5);
   });
 
   test('migrateV3toV4 veraendert die Eingabe nicht; v2 -> v4 laeuft ueber beide Schritte', () => {
@@ -374,7 +374,7 @@ describe('Save v4: Timer, Sanitize, Migration', () => {
     assert.equal(out.stats.total.ore, 1e6);
     const v2 = { v: 2, t: 5, state: { res: { ore: 9 }, click: 3, gens: { mine: 1 }, stats: { totalOre: 100, totalSteel: 1, totalTitan: 2, runOre: 50 } } };
     const m = S.migrate(v2);
-    assert.equal(m.v, 4);
+    assert.equal(m.v, 5);
     assert.equal(m.state.clicks.click, 3);
     assert.deepEqual(m.state.timers, { lab: [], workshop: [] });
     ls.setItem(S.SAVE_KEY, JSON.stringify(v2));
@@ -382,8 +382,8 @@ describe('Save v4: Timer, Sanitize, Migration', () => {
     assert.equal(state.stats.total.ore, 100); assert.equal(state.stats.run.ore, 50); assert.equal(state.clicks.click, 3);
   });
 
-  test('v5 wird abgelehnt (zu neu)', () => {
-    assert.throws(() => S.migrate({ v: 5, state: {} }), /neueren/);
+  test('v6 wird abgelehnt (zu neu)', () => {
+    assert.throws(() => S.migrate({ v: 6, state: {} }), /neueren/);
   });
 });
 
@@ -437,14 +437,17 @@ describe('Auto-Buyer und Timer', () => {
 });
 
 describe('Generator-Evolution', () => {
-  test('genTier: Schwellen 1/10/25/50/100', () => {
-    assert.deepEqual(TIER_AT, [1, 10, 25, 50, 100]);
+  test('genTier: 20 Raenge, Schwellen 1/10/25/50/100/...', () => {
+    assert.equal(TIER_AT.length, 20); assert.equal(TIER_NAMES.length, 20);
+    assert.deepEqual(TIER_AT.slice(0, 5), [1, 10, 25, 50, 100]);
+    assert.ok(TIER_AT.every((v, i) => i === 0 || v > TIER_AT[i - 1]) && TIER_AT[19] <= 5000);
     const at = n => genTier(n);
-    assert.deepEqual([0, 1, 9, 10, 24, 25, 49, 50, 99, 100, 5000].map(at), [0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4]);
+    assert.deepEqual([0, 1, 9, 10, 24, 25, 49, 50, 99, 100, 149, 150, 5000].map(at), [0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 19]);
   });
   test('tierName', () => {
     assert.deepEqual([0, 1, 2, 3, 4].map(tierName), ['Holz', 'Eisen', 'Stahl', 'Titan', 'Gold']);
-    assert.equal(tierName(-3), 'Holz'); assert.equal(tierName(99), 'Gold'); assert.equal(tierName(NaN), 'Holz');
+    assert.equal(tierName(19), 'Kosmos');
+    assert.equal(tierName(-3), 'Holz'); assert.equal(tierName(99), 'Kosmos'); assert.equal(tierName(NaN), 'Holz');
   });
   test('tierPips: Fortschritt bis zum naechsten Rang', () => {
     assert.deepEqual(tierPips(0), { tier: 0, next: 10, progress: 0, pips: 0, total: 5 });
@@ -452,8 +455,8 @@ describe('Generator-Evolution', () => {
     assert.equal(tierPips(9).pips, 4);
     assert.equal(tierPips(10).tier, 1); assert.equal(tierPips(10).next, 25); assert.equal(tierPips(10).pips, 0);
     assert.equal(tierPips(24).pips, 4);
-    assert.deepEqual(tierPips(100), { tier: 4, next: null, progress: 1, pips: 5, total: 5 });
-    assert.deepEqual(tierPips(777), { tier: 4, next: null, progress: 1, pips: 5, total: 5 });
+    assert.equal(tierPips(100).tier, 4); assert.equal(tierPips(100).next, 150);
+    assert.deepEqual(tierPips(5000), { tier: 19, next: null, progress: 1, pips: 5, total: 5 });
     for (let n = 0; n < 150; n++) { const p = tierPips(n); assert.ok(p.pips >= 0 && p.pips <= 5 && p.progress >= 0 && p.progress <= 1); }
   });
   test('gen:evolve beim Erreichen eines neuen Rangs, nicht dazwischen; Sammelkauf meldet den hoechsten Rang einmal', () => {

@@ -1,15 +1,18 @@
 import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { state, reset, give, collect, fakeRandom, finishAll } from './helpers.mjs';
+import { state, reset, give, collect, fakeRandom, finishAll , setEra } from './helpers.mjs';
 import * as A from '../js/systems/achievements.js';
 import * as G from '../js/systems/golden.js';
 import * as AB from '../js/systems/autobuyers.js';
 import { tick } from '../js/systems/production.js';
+import * as F from '../js/core/formulas.js';
 import { rates, buffMult } from '../js/core/formulas.js';
+import { buyEvo } from '../js/systems/evolution.js';
 import { ACHIEVEMENTS, ACHIEVEMENT_MAP } from '../js/data/achievements.js';
 import { RESEARCH } from '../js/data/research.js';
 import { BOOSTS } from '../js/data/upgrades.js';
 import { GOLDEN, BUFFS } from '../js/data/golden.js';
+import { ERAS, EVO_AT } from '../js/data/eras.js';
 
 beforeEach(() => { reset(); G.init(); });
 
@@ -250,5 +253,61 @@ describe('Auto-Buyer', () => {
     AB.tick(1e6);
     finishAll();
     assert.equal(state.clicks.click, 1);
+  });
+  describe('Generator-Auto-Buyer und Ausbauten', () => {
+    const IV = () => F.autobuyerInterval();
+    const prep = () => {   // Zeitalter 1 und Mine auf Stufe 10: Ausbau I möglich
+      setEra(1); state.gens.mine = EVO_AT[0];
+    };
+    const fund = k => { const c = F.evoCost('mine'); give(Object.fromEntries(Object.entries(c).map(([r, v]) => [r, v * k]))); };
+    test('freigeschaltet + aktiviert: kauft den Ausbau im Takt', () => {
+      prep(); fund(1000);
+      state.prestige.shop.ab_gens = 1; AB.setEnabled('gens', true);
+      assert.equal(state.autobuyers.gens, true);
+      AB.tick(IV() - 0.1);
+      assert.equal(state.evo.mine || 0, 0, 'vor dem Takt nichts');
+      AB.tick(0.2);
+      assert.equal(state.evo.mine, 1);
+      for (const v of Object.values(state.res)) assert.ok(v >= 0);
+    });
+    test('ohne Freischaltung oder ohne Aktivierung bleibt der Ausbau unverändert', () => {
+      prep(); fund(1000);
+      AB.setEnabled('gens', true);                   // nicht freigeschaltet: bleibt aus
+      assert.notEqual(state.autobuyers.gens, true);
+      AB.tick(IV() * 3);
+      assert.equal(state.evo.mine || 0, 0);
+      state.prestige.shop.ab_gens = 1;               // freigeschaltet, aber nicht aktiviert
+      AB.tick(IV() * 3);
+      assert.equal(state.evo.mine || 0, 0);
+    });
+    test('nicht erfüllte Zeitalter-Voraussetzung (nur Erz, keine Spielzeit): kein Ausbau', () => {
+      state.prestige.shop.ab_gens = 1; AB.setEnabled('gens', true);
+      prep(); fund(1000);
+      state.stats.playTime = 0;                      // Erz allein reicht nicht
+      AB.tick(IV() * 3);
+      assert.equal(state.evo.mine || 0, 0);
+    });
+    test('Reserve-Regel: Ausbau, der eine in Reichweite liegende Forschung unbezahlbar machte, wird nicht gekauft', () => {
+      const setup = () => { prep(); state.research.geology = 1; };   // Resonanzhammer (1500 Erz, 15 Stahl) ist nun freigeschaltet
+      setup();
+      const evo = F.evoCost('mine');
+      give({ ore: 2000, steel: 10, titan: evo.titan });   // Stahl 10 >= 25 % von 15 (in Reichweite), aber nicht bezahlbar
+      assert.ok(evo.ore <= 2000 && evo.ore > 500);
+      state.prestige.shop.ab_gens = 1; state.prestige.shop.ab_research = 1;
+      AB.setEnabled('gens', true); AB.setEnabled('research', true);
+      AB.tick(IV()); finishAll();
+      assert.equal(state.evo.mine || 0, 0, 'Ausbau hätte die Reserve verletzt');
+      assert.ok(state.res.ore >= 1500, 'Reserve Erz unterschritten: ' + state.res.ore);
+      for (const v of Object.values(state.res)) assert.ok(v >= 0);
+    });
+    test('Kontrolle ohne Forschungs-Auto-Buyer: bei großem Bestand wird der Ausbau gekauft', () => {
+      prep(); state.research.geology = 1;
+      const evo = F.evoCost('mine');
+      give({ ore: 1e6, steel: 10, titan: 1e6 });   // Generatoren werden vor den Ausbauten gekauft, daher großer Bestand
+      state.prestige.shop.ab_gens = 1; AB.setEnabled('gens', true);
+      AB.tick(IV());
+      assert.equal(state.evo.mine, 1);
+      for (const v of Object.values(state.res)) assert.ok(v >= 0);
+    });
   });
 });

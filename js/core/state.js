@@ -21,6 +21,7 @@ export function defaultState() {
     autobuyers: Object.fromEntries(AUTOBUYERS.map(a => [a.id, false])),
     achievements: {},
     buffs: [],   // { id, left }  (Definition in data/golden.js)
+    evo: Object.fromEntries(GENS.map(g => [g.id, 0])),         // Generator-Ausbauten (Stufe 0..EVO_MAX), werden bei Neuguss resettet
     stats: {
       clicks: 0, runClicks: 0,
       total: Object.fromEntries(RES_IDS.map(k => [k, 0])),   // je Ressource insgesamt produziert

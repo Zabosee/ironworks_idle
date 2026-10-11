@@ -58,6 +58,44 @@ Reine Funktionen in `js/data/generators.js` (auch über `core/formulas.js` errei
 - `genTier(level)` → 0..4, `tierName(tier)` → Name, `tierPips(level)` → `{ tier, next, progress, pips, total }` (5 Pips je Etappe; im höchsten Rang `next: null`, `progress: 1`, `pips: 5`).
 - Event `gen:evolve` `{ id, tier }` genau einmal pro Kauf, wenn dabei ein höherer Rang erreicht wird (auch bei Sammelkäufen).
 
+## 3a. Zeitalter und Generator-Ausbau (Industrie-Tab)
+
+### Zeitalter (Industrialisierung)
+Ein Zeitalter ist erreicht, wenn BEIDE Bedingungen erfüllt sind: kumuliertes Erz `state.stats.total.ore >= at` UND kumulierte Spielzeit `state.stats.playTime >= minTime` (nicht gespeichert, abgeleitet). `playTime` zählt über alle Neugüsse hinweg, wird im Tick und bei Offline-Zeit (`applyOffline`, gedeckelt auf das Offline-Maximum) erhöht und beim Neuguss nicht zurückgesetzt. Ziel: Alles ist frühestens nach 7 Tagen Spielzeit freigeschaltet, unabhängig davon, wie schnell Erz wächst (Erz-Schwellen stauchen sich exponentiell). Jedes Zeitalter unlocks neue Forschungen (mit optionalem Feld `era: n`) und Ausbaustufen für Generatoren. Der globale Multiplikator ist kumulativ: Mit Zeitalter 3 erhalten alle Ausgaben `×(1.0 × 1.2 × 1.3)`.
+
+| Zeitalter | Schwelle (Erz) | Mindest-Spielzeit | Bonus | Inhalte |
+|---|---|---|---|---|
+| 0: Handwerk | 0 | 0 | ×1.0 | Status quo |
+| 1: Mechanisierung | 3e6 | 15 min | ×1.2 | Ausbau I, Forschung Wasserenergie |
+| 2: Dampfzeitalter | 1e11 | 4 h | ×1.3 | Ausbau II, Dampfmaschine, Bessemer |
+| 3: Elektrifizierung | 1e15 | 36 h | ×1.5 | Ausbau III, Dynamo, Elektrostahl |
+| 4: Automatisierung | 1e19 | 4 Tage | ×1.5 | Ausbau IV, Fließband, Robotik, Auto-Ausbau im Generator-Auto-Buyer |
+| 5: Digitalisierung | 1e23 | 7 Tage | ×2.0 | Ausbau V, Mikrochips, Nanotech |
+
+- Erz-Schwellen und Mindest-Spielzeiten sind je streng steigend (Zeitalter 0: 0/0). Test `eras.test.mjs` prüft dies und dass `eraMult()` kumulativ wirkt.
+- Fortschritt: `eraProgress()` = Minimum aus Erz-Fortschritt (logarithmisch) und Zeit-Fortschritt (linear zur nächsten `minTime`); `eraNeeds()` liefert `{ ore, time, missingTime }` für die Hinweise in Seitenleiste und Industrie-Tab ("Nächstes: X – ab Y Erz und Z Spielzeit").
+- Event `era` bei Aufstieg (nicht beim Laden), Toast in Gold, je Zeitalter einzeln (auch bei Sprüngen über mehrere).
+- Kalibrierung (Sim `node tools/balance-sim.mjs 175 4 1 30 rate`, 4 Klicks/s, Aktiv-Spiel ohne Offline): Zeitalter 1 bei 30 min (Erz-Schwelle bindet, minTime 15 min), Zeitalter 2 bei 4,0 h, 3 bei 36 h, 4 bei 96 h, 5 bei 168 h – ab Zeitalter 2 bindet die Mindest-Spielzeit, bei Zeitalter 5 liegt die Erz-Schwelle (1e23) knapp darunter (Sim: 1e23 bei ca. 142 h, 1,7e23 bei 168 h). Eine Erz-Schwelle von 1e24 wäre erst nach >200 h erreicht worden; sie wurde daher auf 1e23 gesenkt. Gesamt-Spielzeit bis alles frei: 7 Tage (Offline-Zeit zählt mit).
+
+### Generator-Ausbau (5 Stufen)
+Jeder Generator hat optional Stufen 1–5. Stufe k braucht (a) Zeitalter >= k, (b) Generatorstufe >= `EVO_AT[k-1]`:
+
+| Stufe | freigeschaltet ab | Stufe des Generators | Multiplikator | Kosten-Faktor |
+|---|---|---|---|---|
+| 1 | Zeitalter 1 | Stufe 10 | ×1.5 | ×25 |
+| 2 | Zeitalter 2 | Stufe 25 | ×1.5 | ×60 |
+| 3 | Zeitalter 3 | Stufe 50 | ×2.0 | ×150 |
+| 4 | Zeitalter 4 | Stufe 100 | ×2.0 | ×400 |
+| 5 | Zeitalter 5 | Stufe 200 | ×3.0 | ×1000 |
+
+- Kumulativer Multiplikator: alle Stufen kaufen → ×27 (1.5 × 1.5 × 2 × 2 × 3).
+- Kauf: sofort (kein Timer), Kosten = `unitCost('gen', id, EVO_AT[k-1]) × EVO_COST[k-1]`, abgerundet.
+- Wirkung: wirkt auf `genOutputAt()` (also auch auf Rezepte, die diesen Generator nutzen).
+- Speicherung: `state.evo[id]` (0..5), wird beim Neuguss zurückgesetzt.
+- Auto-Buyer: Der Generator-Auto-Buyer (Prestige-Shop „Automatisierung", `ab_gens`) kauft Ausbauten nach den Generatoren, wenn Kosten bezahlbar und Reserve-Regel einhält. Gleiches Prestige-Level unlock wie Generatoren selbst.
+- Rendering (Industrie-Tab): Tabelle je Generator (Name, 5 Ausbau-Pips, nächster Multiplikator, Kosten, Grund bei Sperre/Fehler). Knopf „Alles ausbauen" kauft alle möglichen Stufen in einem Durchgang.
+- Tests: `tests/evolution.test.mjs` (Ableitung aus Zeitalter/Generatorstufe, Kosten, Neuguss-Reset), `tests/systems.test.mjs` (Auto-Buyer mit Ausbauten), `tests/balance.test.mjs` neuer Abschnitt (Zeitalter-Progression im ersten 12h, Reihenfolge streng, Zeitalter 5 nicht erreicht).
+
 ## 4. Balance-Begründung
 
 - Prinzip: Jedes neue Material kostet im Generator das Material davor plus Erz/Stahl, und seine Freischaltforschung kostet das Vorprodukt. Dadurch ist die Reihenfolge erzwungen und die Kette kann nicht „übersprungen“ werden. Ein Test prüft per Fixpunkt-Rechnung, dass jede Ressource, Forschung, jeder Generator, Boost und jedes Klick-Upgrade erreichbar ist und dass kein Zyklus in den Voraussetzungen existiert.
@@ -152,6 +190,23 @@ Reine Funktionen in `js/data/generators.js` (auch über `core/formulas.js` errei
 | Wolfram-Gewinnung | 8 | 15 min | 2000 Titan-Legierung, 400 Legierung, 300 Chrom, 300 Nickel | Chrom & Nickel, Titan-Raffination | Schaltet den Wolframreaktor frei. Legierung, Chrom und Nickel werden zu Wolfram veredelt (8:2:2). | chem | #f472b6 |
 | Supraleiter | 9 | 20 min | 1.0e4 Titan-Legierung, 100 Wolfram, 800 Legierung | Wolfram-Gewinnung | +100 % Produktion aller Materialien. | tech | #f472b6 |
 | Goldschmiedekunst | 10 | 30 min | 3.0e4 Titan-Legierung, 300 Wolfram, 3000 Legierung | Supraleiter | Schaltet den Edelmetall-Tiegel frei. Wolfram wird teilweise zu Gold umgeschmolzen (20:1). | chem | #fbbf24 |
+| **Energiehauptast (Ostarm, Phase 3)** | | | | | | | |
+| Energiefundamente | 8 | 2 min | 6.0e4 Eisenerz, 1500 Stahlbarren, 500 Kohle | Resonanzhammer | +25 % Erz- und Stahlproduktion. | tech | #64748b |
+| Wasserkraft | 9 | 2 min 30 s | 1.0e5 Eisenerz, 3000 Stahlbarren, 1000 Kohle | Energiefundamente | +25 % Erzproduktion. | mining | #f97316 |
+| Dampfmaschine | 9 | 3 min | 1.5e5 Eisenerz, 5000 Stahlbarren, 500 Koks | Wasserkraft | +25 % Produktion aller Materialien. | tech | #a8a29e |
+| Dynamo | 9 | 4 min | 8000 Stahlbarren, 1500 Kupfer, 300 Koks | Dampfmaschine | +50 % Stahlproduktion. | tech | #ea8a52 |
+| Stromversorgung | 10 | 5 min | 2.0e5 Eisenerz, 1.0e4 Stahlbarren, 3000 Kupfer | Dynamo | +25 % Produktion aller Materialien. | tech | #fbbf24 |
+| Elektrifizierung | 10 | 6 min | 1.5e4 Stahlbarren, 5000 Kupfer, 500 Legierung | Stromversorgung | +50 % Produktion aller Materialien. | tech | #fbbf24 |
+| Fließbandproduktion | 10 | 7 min | 3.0e5 Eisenerz, 2.0e4 Stahlbarren, 1000 Legierung | Elektrifizierung | +50 % Erz- und Stahlproduktion. | tech | #f97316 |
+| Robotik | 10 | 8 min | 2.5e4 Stahlbarren, 2000 Titan-Legierung, 1500 Legierung | Fließbandproduktion | +50 % Produktion aller Materialien. | tech | #fbbf24 |
+| Massenproduktion | 10 | 9 min | 4.0e5 Eisenerz, 3.0e4 Stahlbarren, 3000 Legierung | Robotik | +50 % Produktion aller Materialien. | tech | #fbbf24 |
+| Halbleitertechnik | 11 | 10 min | 4.0e4 Stahlbarren, 1.0e4 Kupfer, 500 Wolfram | Massenproduktion | +25 % Produktion aller Materialien. | chem | #fbbf24 |
+| Nanotechnologie | 11 | 12 min | 5000 Titan-Legierung, 2000 Wolfram, 5000 Legierung | Halbleitertechnik | +100 % Produktion aller Materialien. | chem | #fbbf24 |
+| Synthetische Materialien | 11 | 15 min | 8000 Titan-Legierung, 3000 Wolfram, 500 Gold, 8000 Legierung | Nanotechnologie | +50 % Produktion aller Materialien. | chem | #fbbf24 |
+| **Verbesserungen in bestehenden Ästen** | | | | | | | |
+| Tiefenkohlebergbau | 3 | 1 min 30 s | 8.0e4 Eisenerz, 2000 Stahlbarren, 1000 Kohle | Kohleflöz-Erkundung | +50 % Kohleproduktion. | mining | #64748b |
+| Kupfererz-Konzentration | 4 | 3 min | 2.0e5 Eisenerz, 5000 Stahlbarren, 500 Kupfer | Kupfermetallurgie | +50 % Kupferproduktion. | metal | #ea8a52 |
+| Quantenoptik | 7 | 20 min | 1.5e6 Eisenerz, 2.0e4 Stahlbarren, 500 Titan-Legierung, 5000 Legierung | Quantenmetallurgie | +25 % Produktion aller Materialien. | tech | #fbbf24 |
 
 ### Boosts (Werkbank)
 

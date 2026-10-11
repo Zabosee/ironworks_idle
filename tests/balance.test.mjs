@@ -4,6 +4,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { simulate } from '../tools/balance-sim.mjs';
 import { MILESTONES, SHOP } from '../js/data/prestige.js';
+import { ERAS } from '../js/data/eras.js';
 
 const H = 3600;
 const at = (r, n) => r.milestones[n];
@@ -48,5 +49,45 @@ describe('Balance: Hochofen-Schleife', () => {
 
   test('jeder Shop-Eintrag ist bis zur Maximalstufe bezahlbar (aktiver Spieler, 6 h)', () => {
     for (const s of SHOP) assert.equal(active.shop[s.id], s.max, `${s.id}: ${active.shop[s.id]}/${s.max}`);
+  });
+});
+
+describe('Balance: Zeitalter-Progression', () => {
+  // Kurze Simulation (12 h mit dt=30) zum Prüfen der Zeitalter-Reihenfolge
+  const eras = simulate({ hours: 12, dt: 30, policy: 'rate', frac: 1 });
+
+  test('Zeitalter 1 wird früh erreicht (<2 h)', () => {
+    assert.ok(eras.eraTimes[1] !== undefined, 'Zeitalter 1 nicht erreicht');
+    assert.ok(eras.eraTimes[1] < 2 * H, `Zeitalter 1 zu spät: ${(eras.eraTimes[1] / H).toFixed(2)} h`);
+  });
+
+  test('Zeitalter-Zeiten steigen streng monoton', () => {
+    let last = 0;
+    for (let i = 1; i < ERAS.length; i++) {
+      if (eras.eraTimes[i] !== undefined) {
+        assert.ok(eras.eraTimes[i] > last, `Zeitalter ${i} nicht später als ${i - 1}`);
+        last = eras.eraTimes[i];
+      }
+    }
+  });
+
+  test('Kein Zeitalter vor seiner Mindest-Spielzeit (Spielzeit läuft mit, Neuguss setzt sie nicht zurück)', () => {
+    for (let i = 1; i < ERAS.length; i++) {
+      if (eras.eraTimes[i] !== undefined) assert.ok(eras.eraTimes[i] >= ERAS[i].minTime, `Zeitalter ${i} zu früh`);
+    }
+  });
+
+  test('Zeitalter 2 wird deutlich später erreicht als Zeitalter 1 (Zeit-Tor: >= 4 h)', () => {
+    assert.ok(eras.eraTimes[2] !== undefined, 'Zeitalter 2 nach 12 h nicht erreicht');
+    assert.ok(eras.eraTimes[2] >= 4 * H);
+    assert.ok(eras.eraTimes[2] > eras.eraTimes[1] * 1.5);
+  });
+
+  test('Zeitalter 3 (Mindestzeit 36 h) wird nicht innerhalb der 12-h-Simulation erreicht', () => {
+    assert.equal(eras.eraTimes[3], undefined);
+  });
+
+  test('Zeitalter 5 wird nicht innerhalb der 12-h-Simulation erreicht', () => {
+    assert.equal(eras.eraTimes[5], undefined, 'Zeitalter 5 sollte nicht in 12 h erreicht werden');
   });
 });

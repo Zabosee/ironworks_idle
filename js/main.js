@@ -11,6 +11,7 @@ import * as timers from './systems/timers.js';
 import * as F from './core/formulas.js';
 import * as golden from './systems/golden.js';
 import * as achievements from './systems/achievements.js';
+import * as eras from './systems/eras.js';
 import { initRender, frame, refresh } from './ui/render.js';
 import { initTabs } from './ui/tabs.js';
 import { initWorks } from './ui/works.js';
@@ -58,8 +59,9 @@ function boot() {
   initFlash();
   golden.init();
   achievements.check(0, true);
+  eras.reset();
   // Zeitgeber beim Laden/Import/Reset und beim Neuguss zurücksetzen
-  const resetTimers = () => { golden.init(); autobuyers.reset(); achievements.reset(); };
+  const resetTimers = () => { golden.init(); autobuyers.reset(); achievements.reset(); eras.reset(); };
   on('loaded', () => { resetTimers(); resetHistory(); });
   on('prestige', resetTimers);
   refresh();
@@ -74,6 +76,7 @@ function boot() {
     autobuyers.tick(dt);
     golden.tick(dt);
     achievements.check(dt);
+    eras.check(dt);
     frame(r, dt);
     if (state.settings.autosave && (sinceSave += dt) >= state.settings.autosaveSec) { sinceSave = 0; save(); }
     requestAnimationFrame(loop);

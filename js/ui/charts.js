@@ -1,18 +1,13 @@
-// Canvas-Diagramme: Sparklines (Sidebar) und Verlaufsdiagramm (Statistik).
+// Canvas-Diagramm: Verlaufsdiagramm (Statistik).
 import { RES, RES_IDS } from '../data/resources.js';
 import { fmt } from '../core/format.js';
 
-const SPARK_POINTS = 60;   // 1 Wert pro Sekunde
 const HIST_POINTS = 180;   // 1 Wert pro 5 Sekunden = 15 Minuten
-export const spark = Object.fromEntries(RES_IDS.map(k => [k, Array(SPARK_POINTS).fill(0)]));
 export const hist = Object.fromEntries(RES_IDS.map(k => [k, []]));
 let histAcc = 0;
 
 /** Wird 1x pro Sekunde mit den aktuellen Raten aufgerufen. */
 export function sample(r) {
-  for (const k of RES_IDS) {
-    spark[k].push(Math.max(0, r[k])); spark[k].shift();
-  }
   if (++histAcc >= 5) {
     histAcc = 0;
     for (const k of RES_IDS) { hist[k].push(Math.max(0, r[k])); if (hist[k].length > HIST_POINTS) hist[k].shift(); }
@@ -20,7 +15,7 @@ export function sample(r) {
 }
 
 export function resetHistory() {
-  for (const k of RES_IDS) { spark[k].fill(0); hist[k].length = 0; }
+  for (const k of RES_IDS) hist[k].length = 0;
 }
 
 function prepare(canvas) {
@@ -30,17 +25,6 @@ function prepare(canvas) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, w, hgt);
   return { ctx, w, h: hgt, dpr };
-}
-
-export function drawSparkline(canvas, values, color) {
-  const { ctx, w, h, dpr } = prepare(canvas);
-  const max = Math.max(...values, 1e-9), step = w / (values.length - 1);
-  const y = v => h - 2 * dpr - (v / max) * (h - 4 * dpr);
-  ctx.beginPath();
-  values.forEach((v, i) => (i ? ctx.lineTo(i * step, y(v)) : ctx.moveTo(0, y(v))));
-  ctx.strokeStyle = color; ctx.lineWidth = 2 * dpr; ctx.lineJoin = 'round'; ctx.stroke();
-  ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
-  ctx.fillStyle = color + '33'; ctx.fill();
 }
 
 /** Verlaufsdiagramm aller Ressourcen; logarithmische Skala, damit Größenordnungen vergleichbar bleiben. */

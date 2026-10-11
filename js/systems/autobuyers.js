@@ -2,8 +2,9 @@
 // Priorität: Klick-Upgrades > Forschung > Boosts > Generatoren. Generatoren dürfen keine Ressource aufbrauchen,
 // die für eine in Reichweite liegende Forschung/einen Boost/ein Klick-Upgrade (mit aktivem Auto-Buyer) reserviert ist.
 import { state } from '../core/state.js';
-import { autobuyerUnlocked, autobuyerInterval, lockReason, bulkPlan, levelOf } from '../core/formulas.js';
+import { autobuyerUnlocked, autobuyerInterval, lockReason, bulkPlan, levelOf, evoLock, evoCost, canAfford } from '../core/formulas.js';
 import { buy } from './production.js';
+import { buyEvo } from './evolution.js';
 import { GENS } from '../data/generators.js';
 import { CLICKS, BOOSTS } from '../data/upgrades.js';
 import { RESEARCH } from '../data/research.js';
@@ -60,6 +61,12 @@ const runners = {
         if (buy('gen', g.id, 1, opt)) bought = true;
       }
       if (!bought) break;
+    }
+    // Generator-Ausbauten: gleiche Reserve-Regel wie bei den Generatoren
+    for (const g of GENS) {
+      if (evoLock(g.id)) continue;
+      const cost = evoCost(g.id);
+      if (cost && canAfford(cost) && leavesReserve(cost, reserve, state.res)) buyEvo(g.id, opt);
     }
   },
   click() { for (const c of CLICKS) buy('click', c.id, 1, opt); },

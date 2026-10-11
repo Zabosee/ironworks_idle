@@ -29,6 +29,14 @@
     <h1 class="logo"><img class="logo-img" src="assets/icons/furnace.svg" alt="" width="40" height="40"><span>Eisenwerk Idle</span></h1>
     <div id="meters" class="meters"></div>
     <button id="cast-summary" class="cast-summary" type="button" title="Neuguss-Chronik im Hochofen öffnen"><span id="cast-ico" class="cast-ico" aria-hidden="true"></span><span class="cast-text"><span class="cast-line"><span class="cast-k">Neugüsse:</span> <strong id="cast-count">0</strong></span><span class="cast-line"><span class="cast-k">Gussformen:</span> <strong id="cast-points">0</strong> <span id="cast-bonus" class="cast-bonus"></span></span></span></button>
+    <div id="era-summary" class="era-summary" title="Zeitalter der Industrialisierung">
+      <span id="era-ico" class="era-ico" aria-hidden="true"></span>
+      <span class="era-text">
+        <span class="era-name-row"><strong id="era-name"></strong> <span id="era-bonus" class="era-bonus"></span></span>
+        <span class="era-bar" aria-hidden="true"><i id="era-fill"></i></span>
+        <span id="era-next" class="era-next"></span>
+      </span>
+    </div>
 
     <div id="click-zone" class="click-zone">
       <button id="collect" class="collect" type="button" aria-describedby="clickVal">
@@ -48,6 +56,7 @@
       <nav id="tabs" class="tabs" role="tablist" aria-label="Bereiche">
         <button class="tab" role="tab" id="tabbtn-works" data-tab="works" aria-controls="tab-works" title="Werk" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-works"/></svg><span class="tab-label">Werk</span></button>
         <button class="tab" role="tab" id="tabbtn-gens" data-tab="gens" aria-controls="tab-gens" title="Generatoren" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-gens"/></svg><span class="tab-label">Generatoren</span></button>
+        <button class="tab" role="tab" id="tabbtn-industry" data-tab="industry" aria-controls="tab-industry" title="Industrie" type="button"><span class="ico ico-emoji" aria-hidden="true">🏭</span><span class="tab-label">Industrie</span></button>
         <button class="tab" role="tab" id="tabbtn-upgrades" data-tab="upgrades" aria-controls="tab-upgrades" title="Upgrades" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-upgrades"/></svg><span class="tab-label">Upgrades</span><span class="tab-badge" id="badge-upgrades" hidden></span></button>
         <button class="tab" role="tab" id="tabbtn-research" data-tab="research" aria-controls="tab-research" title="Forschung" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-research"/></svg><span class="tab-label">Forschung</span><span class="tab-badge" id="badge-research" hidden></span></button>
         <button class="tab" role="tab" id="tabbtn-prestige" data-tab="prestige" aria-controls="tab-prestige" title="Hochofen" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-prestige"/></svg><span class="tab-label">Hochofen</span><span id="prestige-dot" class="dot" hidden><span class="sr-only"> (Neuguss möglich)</span></span></button>
@@ -75,6 +84,9 @@
       <div id="list-gens" class="grid"></div>
     </section>
 
+    <section id="tab-industry" class="panel" role="tabpanel" aria-labelledby="tabbtn-industry" hidden>
+      <div id="industry-root"></div>
+    </section>
     <section id="tab-upgrades" class="panel" role="tabpanel" aria-labelledby="tabbtn-upgrades" hidden>
       <div id="queue-workshop" class="queue queue-bar" hidden></div>
       <h2>Klick-Effizienz</h2>

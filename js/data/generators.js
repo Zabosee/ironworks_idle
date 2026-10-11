@@ -30,19 +30,20 @@ export const GENS = [
 export const GEN_MAP = Object.fromEntries(GENS.map(x => [x.id, x]));
 
 // ---------- Evolution der Werkshalle ----------
-// Rang 0 Holz (ab Stufe 1; Stufe 0 zählt ebenfalls als Rang 0), 1 Eisen (10), 2 Stahl (25), 3 Titan (50), 4 Gold (100).
-export const TIER_AT = [1, 10, 25, 50, 100];
-export const TIER_NAMES = ['Holz', 'Eisen', 'Stahl', 'Titan', 'Gold'];
+// 20 Ränge. Rang 0 Holz (ab Stufe 1; Stufe 0 zählt ebenfalls als Rang 0), 1 Eisen (10), 2 Stahl (25), 3 Titan (50), 4 Gold (100) ... 19 Kosmos (5000 = MAX_LEVEL).
+export const TIER_AT = [1, 10, 25, 50, 100, 150, 200, 250, 300, 400, 500, 650, 800, 1000, 1250, 1500, 2000, 2500, 3500, 5000];
+export const TIER_NAMES = ['Holz', 'Eisen', 'Stahl', 'Titan', 'Gold', 'Platin', 'Iridium', 'Obsidian', 'Kristall', 'Mithril',
+  'Adamant', 'Diamant', 'Äther', 'Plasma', 'Quanten', 'Nebel', 'Stern', 'Nova', 'Singularität', 'Kosmos'];
 export const TIER_PIPS = 5;   // Pips pro Rang-Etappe
 
-/** Rang 0..4 für eine Generator-Stufe. */
+/** Rang 0..19 für eine Generator-Stufe. */
 export function genTier(level) {
   let t = 0;
   for (let i = 1; i < TIER_AT.length; i++) if (level >= TIER_AT[i]) t = i;
   return t;
 }
 
-/** Anzeigename eines Rangs; ungültige Werte werden auf 0..4 geklemmt. */
+/** Anzeigename eines Rangs; ungültige Werte werden auf 0..19 geklemmt. */
 export const tierName = tier => TIER_NAMES[Math.max(0, Math.min(TIER_NAMES.length - 1, Math.floor(Number(tier) || 0)))];
 
 /**

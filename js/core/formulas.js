@@ -9,8 +9,79 @@ import { RECIPES } from '../data/recipes.js';
 import { PRESTIGE, SHOP_MAP, MILESTONES, AUTOBUYERS, AUTOBUYER_INTERVAL } from '../data/prestige.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { BUFFS } from '../data/golden.js';
+import { ERAS, EVO_MAX, EVO_AT, EVO_MULT, EVO_COST } from '../data/eras.js';
 
 export { genTier, tierName, tierPips };
+
+// ---------- Zeitalter (abgeleitet von state.stats.total.ore UND state.stats.playTime) ----------
+export const eraIndex = (ore = state.stats.total.ore, time = state.stats.playTime) => {
+  for (let i = ERAS.length - 1; i >= 0; i--) {
+    if (ore >= ERAS[i].at && time >= ERAS[i].minTime) return i;
+  }
+  return 0;
+};
+
+/** Kumulierter Produktionsbonus aller erreichten Zeitalter (Produkt ihrer Einzelboni). */
+export const eraMult = (index = eraIndex()) => ERAS.slice(0, Math.min(index, ERAS.length - 1) + 1).reduce((m, e) => m * e.mult, 1);
+
+export const eraDef = index => ERAS[Math.min(Math.max(0, index), ERAS.length - 1)];
+
+export const nextEra = () => {
+  const idx = eraIndex();
+  return idx + 1 < ERAS.length ? ERAS[idx + 1] : null;
+};
+
+/** Fortschritt zum nächsten Zeitalter (0..1): Minimum aus Erz-Fortschritt (logarithmisch) und Zeit-Fortschritt (linear). */
+export const eraProgress = () => {
+  const next = nextEra();
+  if (!next) return 1;
+  const cur = ERAS[eraIndex()];
+  const lg = v => Math.log10(Math.max(1, v));
+  const clamp = x => Math.max(0, Math.min(1, x));
+  const fo = clamp((lg(state.stats.total.ore) - lg(cur.at)) / (lg(next.at) - lg(cur.at)));
+  const ft = clamp((state.stats.playTime - cur.minTime) / (next.minTime - cur.minTime));
+  return Math.min(fo, ft);
+};
+
+/** Was fehlt fürs nächste Zeitalter? null im letzten Zeitalter, sonst { ore, time (jeweils erfüllt?), missingTime (s) }. */
+export const eraNeeds = () => {
+  const next = nextEra();
+  if (!next) return null;
+  return {
+    ore: state.stats.total.ore >= next.at,
+    time: state.stats.playTime >= next.minTime,
+    missingTime: Math.max(0, next.minTime - state.stats.playTime),
+  };
+};
+
+// ---------- Generator-Ausbauten ----------
+export const evoLevel = id => state.evo[id] || 0;
+
+export const evoMult = id => {
+  let m = 1;
+  for (let k = 0; k < evoLevel(id); k++) m *= EVO_MULT[k];
+  return m;
+};
+
+export const evoCost = id => {
+  const lvl = evoLevel(id);
+  if (lvl >= EVO_MAX) return null;
+  const genDef = GEN_MAP[id];
+  if (!genDef) return null;
+  const baseCost = unitCost('gen', id, EVO_AT[lvl]);
+  const c = {};
+  for (const k in baseCost) c[k] = Math.ceil(safe(baseCost[k] * EVO_COST[lvl]));
+  return c;
+};
+
+/** Begründung, warum die nächste Ausbaustufe nicht kaufbar ist (ohne Kostenprüfung), sonst null. */
+export const evoLock = id => {
+  const lvl = evoLevel(id);
+  if (lvl >= EVO_MAX) return 'Maximum erreicht';
+  if (eraIndex() < lvl + 1) return `Benötigt Zeitalter: ${ERAS[lvl + 1].name}`;
+  if (genLevel(id) < EVO_AT[lvl]) return `Benötigt Stufe ${EVO_AT[lvl]}`;
+  return null;
+};
 
 const CAP = 1e300;
 /** Schützt vor NaN/Infinity: NaN -> 0, Werte auf [-CAP, CAP] begrenzt. */
@@ -69,12 +140,12 @@ export function buffMult(kind) {
 }
 
 /** Alles, was auf jede Produktion wirkt (außer Forschung/Boosts). */
-export const globalMult = () => prestigeMult() * achievementMult() * buffMult('prod');
+export const globalMult = () => prestigeMult() * achievementMult() * buffMult('prod') * eraMult();
 export const mult = res => safe(researchMult(res) * globalMult());
 
 // ---------- Produktion ----------
 export const genLevel = id => state.gens[id] || 0;
-export const genOutputAt = (g, n, gm = globalMult()) => safe(g.base * n * milestone(n) * researchMult(g.res) * gm);
+export const genOutputAt = (g, n, gm = globalMult()) => safe(g.base * n * milestone(n) * researchMult(g.res) * gm * evoMult(g.id));
 
 export const clickLevel = id => state.clicks[id] || 0;
 
@@ -202,6 +273,8 @@ const missingReqs = d => reqList(d?.req).filter(q => !state.research[q]);
 export function lockReason(kind, id) {
   const miss = missingReqs(defOf(kind, id));
   if (miss.length) return (kind === 'research' ? 'Benötigt: ' : 'Benötigt Forschung: ') + miss.map(q => RESEARCH_MAP[q].name).join(', ');
+  const d = defOf(kind, id);
+  if (d?.era > eraIndex()) return `Benötigt Zeitalter: ${ERAS[d.era].name}`;
   const q = queueIdOf(kind);
   if (q) {
     const p = pendingOf(kind, id);
