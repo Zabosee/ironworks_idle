@@ -80,7 +80,15 @@ export function initRender() {
   on('save-failed', () => setText(els.saved, 'Speichern nicht möglich'));
 }
 
+const BASE_RES = ['ore', 'steel', 'titan'];
 function buildMeters() {
+  const moreList = h('div', { class: 'meters-more-list' });
+  els.moreCount = h('span', { class: 'more-count' });
+  const toggle = h('button', { class: 'more-toggle', type: 'button', 'aria-expanded': 'true', 'aria-controls': 'meters-more-list' }, h('span', { text: 'Weitere Materialien ' }), els.moreCount, h('span', { class: 'more-chev', 'aria-hidden': 'true' }));
+  moreList.id = 'meters-more-list';
+  els.more = h('div', { class: 'meters-more' }, toggle, moreList);
+  const setOpen = open => { toggle.setAttribute('aria-expanded', String(open)); moreList.hidden = !open; };
+  toggle.addEventListener('click', () => setOpen(moreList.hidden));
   for (const k of RES_IDS) {
     const r = RES[k];
     const m = {
@@ -95,16 +103,24 @@ function buildMeters() {
         h('div', { class: 'meter-row' }, h('span', { class: 'meter-name', text: r.name }), m.amt),
         h('div', { class: 'meter-row small' }, h('span', {}, m.rps, '/s'), m.delta),
         m.canvas));
-    els.meters.append(m.el);
+    (BASE_RES.includes(k) ? els.meters : moreList).append(m.el);
   }
+  els.meters.append(els.more);
+  // Mobil (<1024px) ist die Gruppe immer offen und Teil der kompakten Leiste
+  const mq = window.matchMedia('(max-width: 1023px)');
+  const sync = () => { if (mq.matches) setOpen(true); };
+  mq.addEventListener('change', sync);
+  sync();
 }
 
 function makeCard(kind, id, extra = {}) {
   const c = {
     kind, id,
     t: h('span', { class: 't' }), b: h('span', { class: 'b' }),
-    d: h('span', { class: 'd' }), n: h('span', { class: 'n' }), c: h('span', { class: 'c' }),
+    d: h('span', { class: 'd' }), n: h('span', { class: 'n', hidden: true }), c: h('span', { class: 'c' }),
   };
+  c.nIco = svgUse('lock', 'note-ico'); c.nTxt = h('span');
+  c.n.append(c.nIco, c.nTxt);
   const ico = extra.img ? h('img', { class: 'card-ico', src: extra.img, alt: '', draggable: 'false' }) : extra.emoji ? h('span', { class: 'card-ico card-emoji', 'aria-hidden': 'true', text: extra.emoji }) : null;
   delete extra.img; delete extra.emoji;
   if (kind === 'gen') { c.msFill = h('i'); c.ms = h('span', { class: 'ms-bar', 'aria-hidden': 'true' }, c.msFill); }
@@ -207,7 +223,7 @@ function buildQueues() {
 function refundText(q, index, running) {
   const e = state.timers[q][index];
   const f = running ? REFUND.running : REFUND.waiting;
-  const parts = e ? RES_IDS.filter(k => e.cost[k] > 0).map(k => `${fmt(e.cost[k] * f)} ${RES[k].icon}`) : [];
+  const parts = e ? RES_IDS.filter(k => e.cost[k] > 0).map(k => `${fmt(e.cost[k] * f)} ${RES[k].name}`) : [];
   return `${Math.round(f * 100)} % zurück${parts.length ? ': ' + parts.join(' · ') : ''}`;
 }
 
@@ -274,7 +290,7 @@ function buildAutobuyers() {
         setEnabled(a.id, !state.autobuyers[a.id]);
         refresh();
       },
-    }, h('span', { class: 't', text: '🤖 ' + a.name }), status);
+    }, h('span', { class: 't' }, svgUse('robot'), ' ' + a.name), status);
     abToggles[a.id] = { btn, status };
     root.append(btn);
   }
@@ -313,17 +329,27 @@ function costEntries(plan) {
   if (plan.count > 1) out.push({ text: '×' + plan.count, ok: true });
   for (const k of RES_IDS) {
     const v = plan.cost[k];
-    if (v > 0) out.push({ text: `${RES[k].icon} ${fmt(v)}`, ok: state.res[k] >= v });
+    if (v > 0) out.push({ text: fmt(v), img: imgFor(RES[k]), name: RES[k].name, ok: state.res[k] >= v });
   }
   return out;
 }
 
 function setCost(el, entries) {
-  const key = entries.map(e => e.text + (e.ok ? '+' : '-')).join('|');
+  const key = entries.map(e => e.img + e.text + (e.ok ? '+' : '-')).join('|');
   if (el._k === key) return;
   el._k = key;
   clear(el);
-  for (const e of entries) el.append(h('span', { class: e.ok ? 'ok' : 'bad', text: e.text }));
+  for (const e of entries) el.append(h('span', { class: e.ok ? 'ok' : 'bad', title: e.name }, e.img ? h('img', { class: 'cost-ico', src: e.img, alt: e.name ? e.name + ': ' : '', draggable: 'false' }) : null, e.text));
+}
+
+/** Notizzeile: Text und optionales ui.svg-Symbol (lock, star, hourglass, clock). */
+function setNote(c, text, icon = '') {
+  setText(c.nTxt, text);
+  const hide = !text;
+  if (c.n.hidden !== hide) c.n.hidden = hide;
+  const showIcon = !!icon && !hide;
+  if (c.nIco.style.display !== (showIcon ? '' : 'none')) c.nIco.style.display = showIcon ? '' : 'none';
+  if (showIcon && c.nIco._i !== icon) { c.nIco._i = icon; c.nIco.firstChild.setAttribute('href', UI_SPRITE + '#' + icon); }
 }
 
 function describe(c) {
@@ -336,18 +362,20 @@ function describe(c) {
 
   if (kind === 'gen') {
     const out = genOutputAt(def, lvl);
-    o.badge = `Stufe ${fmtInt(lvl)}${lvl >= ELITE_FROM ? ' ⭐' : ''}`;
-    o.desc = `${fmt(out)} ${RES[def.res].icon}/s · +${fmt(genOutputAt(def, lvl + k) - out)}/s`;
-    o.note = lock ? '🔒 ' + lock : `×2 bei Stufe ${nextMilestone(lvl)} (jetzt ×${fmt(milestone(lvl))})${lvl >= ELITE_FROM - 1 ? ' · ⭐ Elite: kostet Titan' : ''}`;
+    o.badge = `Stufe ${fmtInt(lvl)}${lvl >= ELITE_FROM ? ' · Elite' : ''}`;
+    o.desc = `${fmt(out)} ${RES[def.res].name}/s · +${fmt(genOutputAt(def, lvl + k) - out)}/s`;
+    o.note = lock || `×2 bei Stufe ${nextMilestone(lvl)} (jetzt ×${fmt(milestone(lvl))})${lvl >= ELITE_FROM - 1 ? ' · Elite: kostet Titan' : ''}`;
+    o.icon = lock ? 'lock' : lvl >= ELITE_FROM - 1 ? 'star' : '';
   } else if (kind === 'click') {
     o.badge = `Stufe ${fmtInt(lvl)}`;
     o.desc = `Basis-Klick: ${fmt(clickBaseAt(lvl, undefined, def))} → ${fmt(clickBaseAt(lvl + k, undefined, def))} Erz`;
-    o.note = def.costs ? '' : lvl >= def.eliteFrom - 1 ? '⭐ Elite: kostet Titan' : lvl >= def.steelFrom - 1 ? `Ab Stufe ${def.steelFrom} kostet es Stahl` : '';
+    o.note = def.costs ? '' : lvl >= def.eliteFrom - 1 ? 'Elite: kostet Titan' : lvl >= def.steelFrom - 1 ? `Ab Stufe ${def.steelFrom} kostet es Stahl` : '';
   } else {
     const done = lvl > 0;
-    o.badge = done ? (kind === 'research' ? '✓ Erforscht' : '✓ Aktiv') : '';
+    o.badge = done ? (kind === 'research' ? 'Erforscht' : 'Aktiv') : '';
     o.desc = def.desc;
-    o.note = !done && lock ? '🔒 ' + lock : '';
+    o.note = !done && lock ? lock : '';
+    o.icon = o.note ? 'lock' : '';
     if (done) o.status = 'done';
   }
   const p = kind === 'gen' ? null : pendingOf(kind, def.id);
@@ -362,9 +390,11 @@ function describe(c) {
     // Auftrag läuft oder wartet: Restzeit als Text auf der Karte, kein Doppelkauf
     const e = queueState(p.queue)[p.index];
     o.status = 'pending';
-    o.note = kind === 'research' ? '' : e.running ? `⏳ Läuft: noch ${fmtClock(e.left)} (${Math.round(e.progress * 100)} %)` : `⏳ Wartet (Platz ${p.index - queueSlots(p.queue) + 1}) · ${fmtClock(e.total)}`;
+    o.icon = 'hourglass';
+    o.note = kind === 'research' ? '' : e.running ? `Läuft: noch ${fmtClock(e.left)} (${Math.round(e.progress * 100)} %)` : `Wartet (Platz ${p.index - queueSlots(p.queue) + 1}) · ${fmtClock(e.total)}`;
   } else if (kind !== 'gen' && kind !== 'research' && o.status === 'ok' && !lock) {
-    o.note = (o.note ? o.note + ' · ' : '') + `⏱ Dauer ${fmtClock(duration(kind, def.id))}`;
+    o.icon = o.note ? o.icon : 'clock';
+    o.note = (o.note ? o.note + ' · ' : '') + `Dauer ${fmtClock(duration(kind, def.id))}`;
   }
   if (lock && o.status === 'ok') o.status = 'locked';
   o.hidden = !isRevealed(kind, def.id);
@@ -395,7 +425,7 @@ function renderCards(kinds) {
     const o = describe(c);
     const can = o.status === 'ok' && o.plan.count > 0 && o.plan.affordable;
     if (c.root.hidden !== o.hidden) c.root.hidden = o.hidden;
-    setText(c.t, o.title); setText(c.b, o.badge); setText(c.d, o.desc); setText(c.n, o.note);
+    setText(c.t, o.title); setText(c.b, o.badge); setText(c.d, o.desc); setNote(c, o.note, o.icon);
     setCost(c.c, o.status === 'done' || o.status === 'pending' ? [] : costEntries(o.plan));
     if (c.msFill) {
       const lv = levelOf(c.kind, c.def.id), a = prevMilestone(lv), b = nextMilestone(lv);
@@ -484,15 +514,15 @@ function renderPrestige() {
   for (const { li, state: st, m } of pv.ms) {
     const done = p.total >= m.at;
     setClass(li, 'done', done);
-    setText(st, done ? ' ✓' : ' (gesperrt)');
+    setText(st, done ? ' (erreicht)' : ' (gesperrt)');
   }
   for (const it of SHOP) {
     const c = shopCards[it.id], lvl = shopLevel(it.id), maxed = lvl >= it.max, cost = shopCost(it.id);
     const can = !maxed && p.points >= cost;
     setText(c.t, `${it.icon} ${it.name}`);
-    setText(c.b, it.max > 1 ? `Stufe ${lvl}/${it.max}` : (maxed ? '✓ Gekauft' : ''));
+    setText(c.b, it.max > 1 ? `Stufe ${lvl}/${it.max}` : (maxed ? 'Gekauft' : ''));
     setText(c.d, it.desc);
-    setText(c.n, '');
+    setNote(c, '');
     setCost(c.c, maxed ? [] : [{ text: `${PRESTIGE.icon} ${fmtInt(cost)}`, ok: p.points >= cost }]);
     setAttr(c.el, 'aria-disabled', !can);
     setClass(c.el, 'can', can);
@@ -611,15 +641,19 @@ function renderBuffs(force = false) {
 }
 
 function renderTop(r) {
+  let more = 0;
   for (const k of RES_IDS) {
     const vis = resVisible(k);
+    if (!BASE_RES.includes(k) && vis) more++;
     if (meters[k].el.hidden === vis) meters[k].el.hidden = !vis;
     setText(meters[k].amt, fmt(state.res[k]));
     setText(meters[k].rps, fmt(r[k]));
   }
+  if (els.more.hidden !== (more === 0)) els.more.hidden = more === 0;
+  setText(els.moreCount, `(${more})`);
   setText(els.clickVal, `+${fmt(r.click)} Erz pro Klick`);
   setText(els.conv, (r.flows || []).map(f => {
-    const rc = RECIPE_MAP[f.id], part = o => Object.entries(o).map(([k, v]) => `${fmt(v)} ${RES[k].icon}/s`).join(' + ');
+    const rc = RECIPE_MAP[f.id], part = o => Object.entries(o).map(([k, v]) => `${fmt(v)} ${RES[k].name}/s`).join(' + ');
     return `${rc.icon} ${rc.name}: ${part(f.inputs)} → ${part(f.outputs)}`;
   }).join('\n'));
   for (const b of els.buyAmount.querySelectorAll('button[data-amount]')) {

@@ -23,7 +23,7 @@ const OFFLINE_MIN_SECONDS = 10;   // Lücken größer als dies (z. B. Tab im Hin
 
 function announceOffline(info) {
   if (!info) return;
-  const parts = RES_IDS.filter(k => info.gains[k] > 0).map(k => `+${fmt(info.gains[k])} ${RES[k].icon}`);
+  const parts = RES_IDS.filter(k => info.gains[k] > 0).map(k => `+${fmt(info.gains[k])} ${RES[k].name}`);
   toast(`Willkommen zurück! Offline-Ertrag (${fmtTime(info.seconds)}${info.capped ? ', Maximum erreicht' : ''}): ${parts.join('  ')}`, 'good');
 }
 

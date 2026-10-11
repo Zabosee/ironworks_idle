@@ -36,3 +36,4 @@ Jeder abgeschlossene Schritt wird als Git-Commit in diesem Ordner gesichert (`gi
 - Phase 3B erledigt: js/ui/works.js (Werkshalle, Lanes, Rang-Paletten, Evolve-Glow/Toast, Pop, Idle-Anim), GEN_SPRITE-Mapping in js/ui/assets.js, tests/phase3.test.mjs.
 - Phase 3C erledigt: Labor-Look (js/ui/lab.js, .flask-card, Kolben nach cat, --p Füllstand, Wellen/Bläschen/Dampf, progressbar).
 - Phase 3D erledigt: .queue-bar/.slot-chip (Abbrechen mit Erstattung), .timer-ring auf Boost/Klick-Karten, Tab-Badges, Fertig-Aufblitzen (render.js).
+- Phase 3E erledigt: Sidebar-Gruppe 'Weitere Materialien', res-/gen-Icons (assets.js), Emojis durch ui.svg ersetzt, Kontrast/CSS-Duplikate, mobile Leiste + FAB.
