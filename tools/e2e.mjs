@@ -564,10 +564,10 @@ await scenario('i', 'Speichern/Reload und Offline-Simulation', async () => {
 // =====================================================================================
 await scenario('j', 'Prestige (Hochofen-Neuguss)', async () => {
   await seed({ ore: 1e6, steel: 1e5, titan: 1e4 });
-  await G('(state.stats.run.ore = 5e7, window.__eisenwerk.refresh(), true)');
+  await G('(state.stats.run.ore = 2e7, window.__eisenwerk.refresh(), true)');
   await tab('prestige');
   let before;
-  await step('Neuguss-Knopf zeigt erwarteten Ertrag (+2 Gussformen bei 5e7 Erz)', async () => {
+  await step('Neuguss-Knopf zeigt erwarteten Ertrag (+2 Gussformen bei 2e7 Erz)', async () => {
     before = await G('({ ach: Object.keys(state.achievements).length, gens: Object.values(state.gens).reduce((a, b) => a + b, 0) })');
     const t = await ev(`document.querySelector('#prestige-root .btn-big').textContent`);
     assert(/\+2/.test(t), 'Knopf: ' + t);

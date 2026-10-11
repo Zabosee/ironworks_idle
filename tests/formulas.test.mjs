@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { state, reset, give } from './helpers.mjs';
 import * as F from '../js/core/formulas.js';
 import { GEN_MAP, MAX_LEVEL, ELITE_FROM } from '../js/data/generators.js';
-import { SHOP } from '../js/data/prestige.js';
+import { SHOP, PRESTIGE } from '../js/data/prestige.js';
 
 beforeEach(reset);
 
@@ -181,23 +181,48 @@ describe('Kaufplan (bulkPlan)', () => {
 });
 
 describe('Prestige-Formeln', () => {
-  test('Gussformen = floor(sqrt(runOre/1e7)), erst ab 1e7', () => {
+  const { divisor: D, growth: G } = PRESTIGE;
+  test('Gussformen: Bedarf(n) = divisor * growth^(n-1), erst ab divisor', () => {
     assert.equal(F.prestigeGain(0), 0);
-    assert.equal(F.prestigeGain(9.99e6), 0);
-    assert.equal(F.prestigeGain(1e7), 1);
-    assert.equal(F.prestigeGain(3.99e7), 1);
-    assert.equal(F.prestigeGain(4e7), 2);
-    assert.equal(F.prestigeGain(9e9), 30);
+    assert.equal(F.prestigeGain(D * 0.999), 0);
+    assert.equal(F.prestigeGain(D), 1);
+    assert.equal(F.prestigeGain(D * G * 0.999), 1);
+    assert.equal(F.prestigeGain(D * G), 2);
+    assert.equal(F.prestigeGain(D * G ** 9), 10);
+    assert.equal(F.prestigeGain(1e9), 1 + Math.floor(Math.log(100) / Math.log(G)));
+  });
+  test('gain springt exakt bei divisor*growth^k (k = 0..400), Float-sicher', () => {
+    for (let k = 0; k <= 400; k++) {
+      const t = D * G ** k;
+      assert.equal(F.prestigeGain(t), k + 1, `k ${k} an Schwelle`);
+      assert.equal(F.prestigeGain(t * (1 - 1e-12)), k, `k ${k} knapp darunter`);
+      assert.equal(F.prestigeGain(t * (1 + 1e-12)), k + 1, `k ${k} knapp darüber`);
+    }
+  });
+  test('Monotonie: gain wächst nie bei weniger Erz', () => {
+    let last = 0;
+    for (let e = 6; e <= 80; e += 0.05) {
+      const g = F.prestigeGain(10 ** e);
+      assert.ok(g >= last, `e ${e}`);
+      last = g;
+    }
+  });
+  test('Exponentiell: aufeinanderfolgende Schwellen haben Verhältnis growth', () => {
+    for (let g = 0; g < 300; g++) {
+      assert.ok(Math.abs(F.oreForGain(g + 1) / F.oreForGain(g) - G) < 1e-9, `g ${g}`);
+    }
+    assert.ok(F.oreForGain(100) / F.oreForGain(10) > 1e10); // quadratisch wäre ~100
   });
   test('pp_gain Bonus', () => {
     state.prestige.shop.pp_gain = 5;
-    assert.equal(F.prestigeGain(4e7), 3);
+    assert.equal(F.prestigeGain(D * G ** 3), Math.floor(4 * 1.5));
   });
   test('NaN / negative / riesige Laufwerte bleiben endlich', () => {
     assert.equal(F.prestigeGain(NaN), 0);
     assert.equal(F.prestigeGain(-1e9), 0);
     assert.ok(Number.isFinite(F.prestigeGain(1e300)));
     assert.ok(Number.isFinite(F.prestigeGain(Infinity)));
+    assert.ok(F.prestigeGain(1e300) > 1000);
   });
   test('oreForGain ist konsistent mit prestigeGain (alle pp_gain-Stufen)', () => {
     for (let lvl = 0; lvl <= 10; lvl++) {

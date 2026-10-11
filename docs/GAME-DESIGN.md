@@ -17,7 +17,7 @@ Wolfram ──(20:1)──► Gold
 - Rezepte laufen automatisch und nehmen nur einen Anteil (`share`) der laufenden Produktion. Sie werden in Listenreihenfolge ausgewertet, spätere Rezepte sehen die Ausgänge früherer (Kohle → Koks → Stahl, Legierung → Wolfram → Gold). Dadurch kann ein Rezept nie mehr verbrauchen, als produziert wird (keine negativen Raten, durch Tests belegt).
 - Rezept-Ausgaben sind „boosted“ (Flag `boosted` je Rezept, Standard true): Sie erhalten die Forschungs-/Boost-Multiplikatoren ihrer Ausgaberessource (`researchMult`, z. B. Metallurgie ×1,5, Hochofen-Turbo ×2 auf Stahl). Prestige, Erfolge und Buffs wirken bereits über die Eingänge und werden nicht doppelt angewandt. Balance geprüft: Der Konverter liefert nur ca. 0,8 % des Erzes als Stahl, der Hochofen ca. 10 %; mit dem Stahl-Stapel bleibt das ein Zusatzstrom neben den Stahl-Generatoren, keine Anpassung der Rezeptzahlen nötig.
 - Zweck der Materialien: Sie sind Kosten für Generatoren, Boosts, Klick-Upgrades und Forschung der nächsten Stufe (jeder Schritt braucht das Material der vorherigen) und liefern über Boosts/Forschung Multiplikatoren auf Erz, Stahl, Titan oder alles. Rezepte bringen zusätzlichen Durchsatz, ohne dass der Spieler etwas tun muss.
-- Der Neuguss-Gewinn hängt weiter nur am Erz des Durchlaufs (Formel unverändert), die Kette beschleunigt ihn über die Multiplikatoren.
+- Der Neuguss-Gewinn hängt weiter nur am Erz des Durchlaufs (Formel siehe Abschnitt 4, Hochofen-Skalierung), die Kette beschleunigt ihn über die Multiplikatoren.
 
 ## 2. Timer und Warteschlangen
 
@@ -65,6 +65,21 @@ Reine Funktionen in `js/data/generators.js` (auch über `core/formulas.js` errei
 - Kostenkurve: Basiskosten steigen je Materialstufe etwa um den Faktor 3 bis 10, Wachstum je Stufe 1,17 (Zeche) bis 1,27 (Tiegel); die Elite-Titankosten wachsen mit den späten Generatoren (2 bis 10). Basisproduktion sinkt dafür (Zeche 2/s, Tiegel 0,004/s), weil der Wert pro Einheit steigt.
 - Erster neuer Inhalt: Kohleflöz-Erkundung kostet 15.000 Erz + 150 Stahl und dauert 20 s (Geologie 5 s, Tiefbau 15 s davor). In der Simulation (greedy Bot, 4 Klicks/s, Verhalten der echten Module) erscheint die Kohle nach etwa 4:30 (Forschung) und 5:20 (Zeche), Koks nach etwa 10 min.
 - Mitte: Simulation – Kupfer ca. 42 bis 50 min, Mangan ca. 56 bis 60 min, Legierung ca. 73 bis 79 min, Chrom/Nickel ca. 97 min, Wolfram ca. 109 min, Gold ca. 147 min bei einem eher passiven Bot. Ein menschlicher Spieler mit Vorplanung ist schneller, der Neuguss (bereits ab ca. 50 min möglich) verschiebt das Ende weiter nach hinten: Die Kette trägt über den ersten Neuguss hinaus, weil ohne „Wissensarchiv“ die Forschung verloren geht und die Kette erneut (schneller durch den Gussformen-Bonus) aufgebaut wird.
+- Hochofen-Skalierung (exponentiell): Der Erzbedarf für insgesamt n Gussformen in einem Durchlauf beträgt `divisor * growth^(n-1)` mit `divisor = 1e7`, `growth = 1,5` (js/data/prestige.js); jede weitere Gussform braucht also ×1,5 so viel Erz. Gewinn = `floor(log(erz/divisor) / log(growth)) + 1` ab `erz >= divisor`, sonst 0, anschließend × (1 + 0,1 × Stufe „Hochofen-Kapazität“), abgerundet. Rundungsfehler von `log` werden durch einen Korrekturschritt gegen die exakte Schwelle beseitigt. Der erste Neuguss bleibt bei 1e7 Erz (ca. 50 min). Die alte Wurzel-Formel (Bedarf quadratisch in n) ließ den Gewinn zu schnell mitwachsen; jetzt bringt eine Verdopplung der Produktion nur etwa +1,7 Gussformen, und der Bonus von +10 % je Gussform (`perPoint`) bleibt unverändert. Bereits erhaltene Gussformen sind Zähler im Spielstand und bleiben unberührt (keine Migration). Erzbedarf vor Shop-Multiplikator:
+
+| Gussformen | Erz im Durchlauf |
+|---|---|
+| 1 | 1,00e7 |
+| 2 | 1,50e7 |
+| 3 | 2,25e7 |
+| 4 | 3,38e7 |
+| 5 | 5,06e7 |
+| 10 | 3,84e8 |
+| 20 | 2,22e10 |
+| 30 | 1,28e12 |
+| 50 | 4,25e15 |
+| 100 | 2,71e24 |
+
 - Timer: Die frühen Einträge sind absichtlich kurz (Spieler wartet nicht), die späten lang, damit Offline-Zeit sinnvoll ist. Parallele Slots und Zeitverkürzung sind Prestige-Ziele und machen den Neuguss attraktiver.
 - Hammerwut wirkt nur auf manuelle Klicks (Phase 2a); die neuen Klick-Upgrades haben Basis 0 und addieren sich zum Klickwert erst ab Stufe 1.
 

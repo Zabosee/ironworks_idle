@@ -272,22 +272,33 @@ export function bulkPlan(kind, id, amount = '1') {
 }
 
 // ---------- Prestige ----------
-export function prestigeGain(runOre = state.stats.run.ore) {
-  if (runOre < PRESTIGE.minRun) return 0;
-  const base = Math.floor(Math.pow(runOre / PRESTIGE.divisor, PRESTIGE.exponent));
-  return Math.floor(safe(base * (1 + 0.1 * shopLevel('pp_gain'))));
+/** Basis-Erzbedarf (vor pp_gain) für insgesamt n Gussformen: divisor * growth^(n-1). */
+const oreForBase = n => PRESTIGE.divisor * PRESTIGE.growth ** (n - 1);
+
+/** Basis-Gussformen (vor pp_gain): größtes n mit oreForBase(n) <= runOre; 0 darunter / bei NaN. */
+function baseGain(runOre) {
+  if (!(runOre >= PRESTIGE.divisor)) return 0;
+  if (runOre > CAP) runOre = CAP;
+  let n = Math.floor(Math.log(runOre / PRESTIGE.divisor) / Math.log(PRESTIGE.growth)) + 1;
+  // Korrekturschritt gegen Rundung von log() an exakten Potenzen
+  while (n > 1 && oreForBase(n) > runOre) n--;
+  while (oreForBase(n + 1) <= runOre) n++;
+  return n;
 }
 
-/** Erz (in diesem Durchlauf), ab dem es einen Punkt mehr gibt. */
+export function prestigeGain(runOre = state.stats.run.ore) {
+  return Math.floor(safe(baseGain(runOre) * (1 + 0.1 * shopLevel('pp_gain'))));
+}
+
+/** Erz (in diesem Durchlauf), ab dem es mindestens gain+1 Gussformen gibt. */
 export function oreForGain(gain) {
   const mult = 1 + 0.1 * shopLevel('pp_gain');
-  const oreOf = b => Math.max(PRESTIGE.minRun, PRESTIGE.divisor * b ** (1 / PRESTIGE.exponent));
-  // Exakt konsistent mit prestigeGain: kleinste Basis, deren Gewinn >= gain+1 ist.
-  const ok = b => Math.floor(safe(b * mult)) >= gain + 1 && prestigeGain(oreOf(b)) >= gain + 1;
+  // Kleinste Basis b mit floor(b * mult) >= gain + 1; Erzbedarf exakt wie in baseGain.
+  const ok = b => Math.floor(safe(b * mult)) >= gain + 1;
   let need = Math.max(1, Math.ceil((gain + 1) / mult - 1e-9));
   for (let i = 0; i < 4 && !ok(need); i++) need++;
   while (need > 1 && ok(need - 1)) need--;
-  return oreOf(need);
+  return oreForBase(need);
 }
 
 export const startOre = () => {

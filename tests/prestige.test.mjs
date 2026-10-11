@@ -17,7 +17,7 @@ describe('Hochofen-Neuguss', () => {
   });
   test('Gussformen werden gutgeschrieben, Durchlauf wird zurueckgesetzt', () => {
     Object.assign(state.stats, { runClicks: 9, runTime: 99 });
-    state.stats.run.ore = 4e7; state.stats.total.ore = 5e7;
+    state.stats.run.ore = 2e7; state.stats.total.ore = 5e7;
     state.res = { ore: 1e5, steel: 50, titan: 3 };
     state.gens.mine = 12; state.clicks.click = 4;
     state.boosts.diamond = 1; state.research.geology = 1;
@@ -59,15 +59,15 @@ describe('Hochofen-Neuguss', () => {
     assert.equal(state.res.ore, 1500);
   });
   test('Gussformen summieren sich ueber mehrere Neugussvorgaenge', () => {
-    state.stats.run.ore = 4e7; doPrestige();
-    state.stats.run.ore = 9e7; doPrestige();
+    state.stats.run.ore = 2e7; doPrestige();
+    state.stats.run.ore = 3e7; doPrestige();
     assert.equal(state.prestige.total, 2 + 3);
     assert.equal(state.prestige.count, 2);
     assert.equal(state.stats.bestPrestige, 3);
   });
   test('Meilenstein-Toast bei Ueberschreiten von 5 Gussformen', () => {
     const t = collect('toast');
-    state.stats.run.ore = 25e7; // 5 Punkte
+    state.stats.run.ore = 6e7; // 5 Punkte
     assert.equal(prestigeGain(), 5);
     doPrestige();
     assert.ok(t.got.some(x => /Meilenstein 5/.test(x.msg)));

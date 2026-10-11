@@ -4,9 +4,8 @@ export const PRESTIGE = {
   currency: 'Gussformen',
   sym: 'flame',
   icon: '🔥',
-  minRun: 1e7,      // Mindest-Erzmenge (in diesem Durchlauf produziert) für den ersten Punkt
-  divisor: 1e7,
-  exponent: 0.5,    // Punkte = floor(sqrt(runOre / divisor))
+  divisor: 1e7,     // Erz (in diesem Durchlauf) für die erste Gussform
+  growth: 1.5,      // jede weitere Gussform braucht ×growth so viel Erz: Bedarf(n) = divisor * growth^(n-1)
   perPoint: 0.1,    // +10 % Produktion je Punkt (gesamt verdient)
 };
 

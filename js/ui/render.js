@@ -494,7 +494,7 @@ function buildPrestige() {
   root.append(
     h('div', { class: 'panel-box' },
       h('h2', {}, PRESTIGE.sym ? symUse(PRESTIGE.sym, 'prestige', 'h-ico') : PRESTIGE.icon, ' ' + PRESTIGE.name),
-      h('p', { text: `Schmelze alles ein und gieße neu: Du erhältst ${PRESTIGE.currency}, die deine Produktion dauerhaft um +${PRESTIGE.perPoint * 100} % je Stück erhöhen. Je mehr Erz du in einem Durchlauf produzierst, desto mehr bekommst du (Wurzel-Skalierung).` }),
+      h('p', { text: `Schmelze alles ein und gieße neu: Du erhältst ${PRESTIGE.currency}, die deine Produktion dauerhaft um +${PRESTIGE.perPoint * 100} % je Stück erhöhen. Je mehr Erz du in einem Durchlauf produzierst, desto mehr bekommst du. Jede weitere Gussform benötigt ×${String(PRESTIGE.growth).replace('.', ',')} so viel Erz (exponentielle Skalierung).` }),
       h('dl', { class: 'kv' },
         h('dt', { text: `${PRESTIGE.currency} (verfügbar)` }), h('dd', {}, pv.points),
         h('dt', { text: 'Insgesamt verdient' }), h('dd', {}, pv.total),
