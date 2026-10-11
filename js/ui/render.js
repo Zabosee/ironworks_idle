@@ -105,11 +105,11 @@ function makeCard(kind, id, extra = {}) {
     t: h('span', { class: 't' }), b: h('span', { class: 'b' }),
     d: h('span', { class: 'd' }), n: h('span', { class: 'n' }), c: h('span', { class: 'c' }),
   };
-  const ico = extra.img ? h('img', { class: 'card-ico', src: extra.img, alt: '', draggable: 'false' }) : null;
-  delete extra.img;
+  const ico = extra.img ? h('img', { class: 'card-ico', src: extra.img, alt: '', draggable: 'false' }) : extra.emoji ? h('span', { class: 'card-ico card-emoji', 'aria-hidden': 'true', text: extra.emoji }) : null;
+  delete extra.img; delete extra.emoji;
   if (kind === 'gen') { c.msFill = h('i'); c.ms = h('span', { class: 'ms-bar', 'aria-hidden': 'true' }, c.msFill); }
   // Boosts/Klick-Upgrades: Ring um das Icon zeigt den Fortschritt des Auftrags (Variable --p)
-  if (kind === 'boost' || kind === 'click') c.ring = h('span', { class: 'timer-ring', 'aria-hidden': 'true' }, ico || h('span', { class: 'ring-dot' }));
+  if (kind === 'boost' || kind === 'click') c.ring = h('span', { class: 'timer-ring', 'aria-hidden': 'true' }, ico);
   c.el = h('button', { class: 'card', type: 'button', dataset: { kind, id }, ...extra },
     h('span', { class: 'card-head' }, c.ring || ico, c.t, c.b), c.d, c.n, c.ms, c.c);
   c.root = c.el;
@@ -133,7 +133,7 @@ function wrapResearch(c) {
 
 function buildCards() {
   const add = (container, kind, def) => {
-    const c = makeCard(kind, def.id, imgFor(def) ? { img: imgFor(def) } : {});
+    const c = makeCard(kind, def.id, imgFor(def) ? { img: imgFor(def) } : (kind === 'boost' || kind === 'click') ? { emoji: def.icon } : {});
     c.def = def;
     cards.push(c);
     if (kind === 'research') wrapResearch(c);
@@ -191,6 +191,7 @@ function buildQueues() {
   for (const q of QUEUE_IDS) {
     const root = document.getElementById('queue-' + q);
     if (!root) continue;
+    root.hidden = false;
     qv[q] = { root, title: h('h3', { class: 'queue-title' }), list: h('ul', { class: 'queue-list' }), key: '', chips: [] };
     root.append(qv[q].title, qv[q].list);
     qv[q].list.addEventListener('click', e => {
@@ -331,7 +332,7 @@ function describe(c) {
   const lock = lockReason(kind, def.id);
   const plan = bulkPlan(kind, def.id, kind === 'gen' ? state.settings.buyAmount : 1);
   const k = Math.max(plan.count, 1);
-  const o = { title: imgFor(def) || kind === 'research' ? def.name : `${def.icon} ${def.name}`, badge: '', desc: '', note: '', plan, status: 'ok' };
+  const o = { title: imgFor(def) || kind !== 'gen' ? def.name : `${def.icon} ${def.name}`, badge: '', desc: '', note: '', plan, status: 'ok' };
 
   if (kind === 'gen') {
     const out = genOutputAt(def, lvl);
