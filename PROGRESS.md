@@ -21,7 +21,9 @@ Jeder abgeschlossene Schritt wird als Git-Commit in diesem Ordner gesichert (`gi
 
 ## Status
 - [x] Checkpoint 0: Ausgangsstand (176/176 Tests grün, Redesign mit SVGs)
-- [ ] Phase 1: Review (code-reviewer, security-auditor, qa-engineer, ui-designer) + Plan
+- [x] Phase 1: Review → docs/REVIEW-logic.md (Logik+Security), docs/SPEC-design.md (UX+Konzept)
+- [ ] Phase 2a: backend-developer – Review-Fixes + Ressourcen datengetrieben + Security-Härtung
+- [ ] Phase 2b: backend-developer – Timer-System, neue Materialien/Generatoren/Upgrades, Save v3, docs/GAME-DESIGN.md
 - [ ] Phase 2: Logik (neue Materialien/Generatoren/Upgrades, Timer-System, Save-Migration, Tests)
 - [ ] Phase 3: UI (Kaufmenge nur Generatoren, Generator-Showcase mit Evolutionsstufen, Labor-Look, Timer-Anzeige)
 - [ ] Phase 4: Live-Tests im Browser
