@@ -133,11 +133,20 @@ function bindActions() {
   };
   for (const id of ['#list-gens', '#list-upgrades', '#list-boosts', '#list-research']) $(id).addEventListener('click', onCard);
 
+  // Radiogroup: Klick und Pfeiltasten wählen die Kaufmenge (roving tabindex)
+  const radios = [...els.buyAmount.querySelectorAll('button[data-amount]')];
+  const pick = (b, focus) => { state.settings.buyAmount = b.dataset.amount; if (focus) b.focus(); refresh(); };
   els.buyAmount.addEventListener('click', e => {
     const b = e.target.closest('button[data-amount]');
-    if (!b) return;
-    state.settings.buyAmount = b.dataset.amount;
-    refresh();
+    if (b) pick(b);
+  });
+  els.buyAmount.addEventListener('keydown', e => {
+    const i = radios.findIndex(b => b === document.activeElement);
+    if (i < 0) return;
+    let n = -1;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') n = (i + 1) % radios.length;
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') n = (i - 1 + radios.length) % radios.length;
+    if (n >= 0) { e.preventDefault(); pick(radios[n], true); }
   });
 }
 
@@ -520,7 +529,11 @@ function renderTop(r) {
     const rc = RECIPE_MAP[f.id], part = o => Object.entries(o).map(([k, v]) => `${fmt(v)} ${RES[k].icon}/s`).join(' + ');
     return `${rc.icon} ${rc.name}: ${part(f.inputs)} → ${part(f.outputs)}`;
   }).join('\n'));
-  for (const b of els.buyAmount.querySelectorAll('button[data-amount]')) setAttr(b, 'aria-pressed', b.dataset.amount === state.settings.buyAmount);
+  for (const b of els.buyAmount.querySelectorAll('button[data-amount]')) {
+    const on = b.dataset.amount === state.settings.buyAmount;
+    setAttr(b, 'aria-checked', on);
+    setAttr(b, 'tabindex', on ? 0 : -1);
+  }
   els.prestigeDot.hidden = !canPrestige();
   renderBuffs();
 }

@@ -121,9 +121,10 @@ button { cursor: pointer; }
 .dot { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; background: var(--gold); margin-left: .4rem; animation: blink 1.4s infinite; }
 
 .buyamount { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; }
+.gens-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin: -.25rem -.25rem .75rem; padding: .5rem .25rem; background: rgba(11, 17, 32, .92); backdrop-filter: blur(4px); border-bottom: 1px solid var(--border); }
 .buyamount-label { color: var(--muted); font-size: .85rem; margin-right: .25rem; }
-.buyamount button { min-width: 3rem; padding: .35rem .7rem; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
-.buyamount button[aria-pressed="true"] { background: #7c2d12; border-color: var(--accent); color: #fff; }
+.buyamount button { min-width: 3rem; min-height: 44px; padding: .35rem .8rem; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+.buyamount button[aria-checked="true"] { background: #7c2d12; border-color: var(--accent); color: #fff; }
 
 /* ---------- Karten ---------- */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: .75rem; }
@@ -386,3 +387,9 @@ body { background: linear-gradient(180deg, var(--steel-900), var(--steel-800) 60
 .card.pending { border-style: dotted; border-color: var(--gold); }
 .card.pending .n { color: #fde68a; }
 @media (max-width: 640px) { .queue-item { grid-template-columns: 1fr auto; } .queue-item .bar { grid-column: 1 / -1; order: 3; } }
+
+/* ---------- Phase 3: Tabs mit SVG-Symbolen ---------- */
+.tab { display: inline-flex; align-items: center; gap: .45rem; min-height: 44px; }
+.ico { width: 1.25rem; height: 1.25rem; flex: none; color: currentColor; }
+.tab-badge { min-width: 1.4rem; padding: 0 .4rem; border-radius: 99px; background: #7c2d12; color: #fff; font: 700 .72rem ui-monospace, monospace; line-height: 1.4rem; text-align: center; border: 1px solid var(--accent); }
+.tab[aria-selected="true"] .tab-badge { background: #111827; border-color: #111827; }

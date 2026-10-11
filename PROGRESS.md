@@ -32,3 +32,4 @@ Jeder abgeschlossene Schritt wird als Git-Commit in diesem Ordner gesichert (`gi
 ## Notizen / Entscheidungen
 - Live-Browser starten: `"C:/Program Files/Google/Chrome/Application/chrome.exe" --remote-debugging-port=9222 --user-data-dir=<tmp> http://localhost:8080/`
 - Security-Review (fertig): keine ausnutzbare Lücke. To-do: CSP-Meta (Inline-Script nach js/boot-check.js, Ember-Inline-Styles in CSS), legacy/ nicht deployen, Stats auf 1e300 klemmen, Import-Limit ~200k.
+- Phase 3A erledigt: Kaufmenge als sticky radiogroup (.gens-toolbar) nur im Generatoren-Tab; Tabs mit ui.svg-Icons, Tab-Werk als Standard (HTML-Gerüst).

@@ -45,30 +45,37 @@
   <main id="app-main" class="main" tabindex="-1">
     <div class="topbar">
       <nav id="tabs" class="tabs" role="tablist" aria-label="Bereiche">
-        <button class="tab" role="tab" id="tabbtn-gens" data-tab="gens" aria-controls="tab-gens" type="button">🏭 Generatoren</button>
-        <button class="tab" role="tab" id="tabbtn-upgrades" data-tab="upgrades" aria-controls="tab-upgrades" type="button">⬆️ Upgrades</button>
-        <button class="tab" role="tab" id="tabbtn-research" data-tab="research" aria-controls="tab-research" type="button">🔬 Forschung</button>
-        <button class="tab" role="tab" id="tabbtn-prestige" data-tab="prestige" aria-controls="tab-prestige" type="button">🔥 Hochofen<span id="prestige-dot" class="dot" hidden><span class="sr-only"> (Neuguss möglich)</span></span></button>
-        <button class="tab" role="tab" id="tabbtn-achievements" data-tab="achievements" aria-controls="tab-achievements" type="button">🏆 Erfolge</button>
-        <button class="tab" role="tab" id="tabbtn-stats" data-tab="stats" aria-controls="tab-stats" type="button">📊 Statistik</button>
-        <button class="tab" role="tab" id="tabbtn-settings" data-tab="settings" aria-controls="tab-settings" type="button">⚙️ Einstellungen</button>
+        <button class="tab" role="tab" id="tabbtn-works" data-tab="works" aria-controls="tab-works" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-works"/></svg><span class="tab-label">Werk</span></button>
+        <button class="tab" role="tab" id="tabbtn-gens" data-tab="gens" aria-controls="tab-gens" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-gens"/></svg><span class="tab-label">Generatoren</span></button>
+        <button class="tab" role="tab" id="tabbtn-upgrades" data-tab="upgrades" aria-controls="tab-upgrades" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-upgrades"/></svg><span class="tab-label">Upgrades</span><span class="tab-badge" id="badge-upgrades" hidden></span></button>
+        <button class="tab" role="tab" id="tabbtn-research" data-tab="research" aria-controls="tab-research" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-research"/></svg><span class="tab-label">Forschung</span><span class="tab-badge" id="badge-research" hidden></span></button>
+        <button class="tab" role="tab" id="tabbtn-prestige" data-tab="prestige" aria-controls="tab-prestige" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-prestige"/></svg><span class="tab-label">Hochofen</span><span id="prestige-dot" class="dot" hidden><span class="sr-only"> (Neuguss möglich)</span></span></button>
+        <button class="tab" role="tab" id="tabbtn-achievements" data-tab="achievements" aria-controls="tab-achievements" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-achievements"/></svg><span class="tab-label">Erfolge</span></button>
+        <button class="tab" role="tab" id="tabbtn-stats" data-tab="stats" aria-controls="tab-stats" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-stats"/></svg><span class="tab-label">Statistik</span></button>
+        <button class="tab" role="tab" id="tabbtn-settings" data-tab="settings" aria-controls="tab-settings" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-settings"/></svg><span class="tab-label">Einstellungen</span></button>
       </nav>
-      <div id="buyamount" class="buyamount" role="group" aria-label="Kaufmenge">
-        <span class="buyamount-label">Kaufmenge</span>
-        <button type="button" data-amount="1" aria-pressed="true">×1</button>
-        <button type="button" data-amount="10" aria-pressed="false">×10</button>
-        <button type="button" data-amount="100" aria-pressed="false">×100</button>
-        <button type="button" data-amount="max" aria-pressed="false">Max</button>
-      </div>
     </div>
 
-    <section id="tab-gens" class="panel" role="tabpanel" aria-labelledby="tabbtn-gens">
+    <section id="tab-works" class="panel" role="tabpanel" aria-labelledby="tabbtn-works">
+      <div id="works" class="works"><p id="works-empty" class="works-empty">Kaufe deinen ersten Generator, um die Werkshalle zu füllen.</p></div>
+    </section>
+
+    <section id="tab-gens" class="panel" role="tabpanel" aria-labelledby="tabbtn-gens" hidden>
+      <div class="gens-toolbar">
+        <span id="buyamount-label" class="buyamount-label">Kaufmenge</span>
+        <div id="buyamount" class="buyamount" role="radiogroup" aria-labelledby="buyamount-label">
+          <button type="button" role="radio" data-amount="1" aria-checked="true">×1</button>
+          <button type="button" role="radio" data-amount="10" aria-checked="false" tabindex="-1">×10</button>
+          <button type="button" role="radio" data-amount="100" aria-checked="false" tabindex="-1">×100</button>
+          <button type="button" role="radio" data-amount="max" aria-checked="false" tabindex="-1">Max</button>
+        </div>
+      </div>
       <p class="hint">Alle 10 Stufen verdoppelt sich die Produktion eines Generators. Ab Stufe 10 (Elite) kostet jede Stufe zusätzlich Titan.</p>
       <div id="list-gens" class="grid"></div>
     </section>
 
     <section id="tab-upgrades" class="panel" role="tabpanel" aria-labelledby="tabbtn-upgrades" hidden>
-      <div id="queue-workshop" class="queue" hidden></div>
+      <div id="queue-workshop" class="queue queue-bar" hidden></div>
       <h2>Klick-Effizienz</h2>
       <div id="list-upgrades" class="grid"></div>
       <h2>Elite-Boosts <span class="sub">(benötigen Titan, einmalig)</span></h2>
@@ -78,9 +85,11 @@
     </section>
 
     <section id="tab-research" class="panel" role="tabpanel" aria-labelledby="tabbtn-research" hidden>
-      <p class="hint">Der Forschungsbaum: Technologien benötigen Vorgänger aus niedrigeren Ebenen.</p>
-      <div id="queue-lab" class="queue" hidden></div>
-      <div id="list-research"></div>
+      <div id="lab" class="lab">
+        <p class="lab-hint">Der Forschungsbaum: Technologien benötigen Vorgänger aus niedrigeren Ebenen.</p>
+        <div id="queue-lab" class="queue queue-bar" hidden></div>
+        <div id="list-research"></div>
+      </div>
     </section>
 
     <section id="tab-prestige" class="panel" role="tabpanel" aria-labelledby="tabbtn-prestige" hidden>

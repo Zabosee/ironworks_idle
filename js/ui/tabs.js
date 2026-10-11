@@ -2,7 +2,7 @@
 import { $$ } from './dom.js';
 import { emit } from '../core/events.js';
 
-let active = 'gens';
+let active = 'works';
 export const activeTab = () => active;
 
 export function initTabs(nav) {
