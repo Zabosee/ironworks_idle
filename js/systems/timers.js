@@ -4,6 +4,7 @@
 // Reine Logik ohne DOM. Events: 'timer:queued', 'timer:done', 'timer:cancel' (Payload { queue, kind, id }).
 import { state } from '../core/state.js';
 import { emit, toast } from '../core/events.js';
+import { t, tDefName } from '../core/i18n.js';
 import {
   bulkPlan, lockReason, defOf, duration, queueSlots, pendingOf, safe,
 } from '../core/formulas.js';
@@ -66,8 +67,8 @@ function finish(queue, entry) {
   state.stats.timersDone++;
   emit('timer:done', { queue, kind: entry.kind, id: entry.id });
   if (!entry.silent && entry.kind !== 'click') {
-    const label = entry.kind === 'research' ? 'Forschung abgeschlossen' : 'Boost aktiv';
-    toast(`${label}: ${defOf(entry.kind, entry.id).name}`, 'good');
+    const name = tDefName(entry.kind, defOf(entry.kind, entry.id));
+    toast(entry.kind === 'research' ? t('Forschung abgeschlossen: {name}', { name }) : t('Boost aktiv: {name}', { name }), 'good');
   }
 }
 
@@ -115,7 +116,7 @@ export function queueState(queue) {
   return list.map((e, index) => {
     const running = index < slots;
     return {
-      kind: e.kind, id: e.id, name: defOf(e.kind, e.id)?.name ?? e.id, total: e.total,
+      kind: e.kind, id: e.id, name: tDefName(e.kind, defOf(e.kind, e.id)) ?? e.id, total: e.total,
       left: running ? Math.max(e.left, 0) : e.total, progress: e.total > 0 ? Math.min(1, Math.max(0, 1 - e.left / e.total)) : 1,
       running, index,
     };

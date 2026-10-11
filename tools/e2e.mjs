@@ -8,7 +8,7 @@
 //   node tools/e2e.mjs --keep          am Ende NICHT auf einen frischen Spielstand zurücksetzen
 //
 // Umgebung: CDP_PORT (9222), GAME_URL (http://localhost:8080), E2E_PAUSE_MS (Pause je Schritt, Standard 700),
-//           E2E_DIR (Ordner für Sicherung/Screenshots/Ergebnis, Standard: Scratchpad der Sitzung bzw. ./tools/.e2e-out)
+//           E2E_DIR (Ordner für Sicherung/Screenshots/Ergebnis, Standard: <tmpdir>/eisenwerk-e2e)
 //
 // Ablauf: aktuellen localStorage sichern -> frischer Spielstand (Autosave aus, localStorage leeren, Reload) -> Szenarien a..m.
 // Exit-Code 1 bei mindestens einem FAIL. Der gesicherte Spielstand wird NICHT zurückgespielt.
@@ -17,13 +17,14 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { connect, evaluate, say, sleep } from './cdp.mjs';
 
 const argv = process.argv.slice(2);
 const FAST = argv.includes('--fast'), STRICT = argv.includes('--strict'), KEEP = argv.includes('--keep');
 const ONLY = (argv.find(a => a.startsWith('--only=')) || '').slice(7).split(',').filter(Boolean);
 const PAUSE = FAST ? 0 : Number(process.env.E2E_PAUSE_MS ?? 700);
-const OUT = process.env.E2E_DIR || 'C:/Users/lukas/AppData/Local/Temp/claude/C--Users-lukas-Desktop-GitHub-idle-game/5eb4609e-9cd7-42a5-855b-1106d1bb663b/scratchpad';
+const OUT = process.env.E2E_DIR || path.join(os.tmpdir(), 'eisenwerk-e2e');
 fs.mkdirSync(OUT, { recursive: true });
 
 const c = await connect();
@@ -186,9 +187,9 @@ await scenario('a', 'Neustart ohne Konsolenfehler, Werk-Tab ist Standard', async
     await noNewErrors(errStart);
   });
   await step('Werk-Tab ist Standard (aria-selected, Panel sichtbar, übrige Panels verborgen)', async () => {
-    const r = await ev(`(() => { const tabs = [...document.querySelectorAll('[data-tab]')]; return { n: tabs.length, sel: tabs.filter(t => t.getAttribute('aria-selected') === 'true').map(t => t.dataset.tab),
+    const r = await ev(`(() => { const tabs = [...document.querySelectorAll('[data-tab]')].filter(t => !t.hidden); return { ind: document.getElementById('tabbtn-industry').hidden, n: tabs.length, sel: tabs.filter(t => t.getAttribute('aria-selected') === 'true').map(t => t.dataset.tab),
       vis: [...document.querySelectorAll('section.panel')].filter(p => !p.hidden).map(p => p.id) }; })()`);
-    assert(r.n === 8, 'Tab-Anzahl ' + r.n);
+    assert(r.n === 8 && r.ind === true, 'Tab-Anzahl ' + r.n + ' (Industrie-Tab erst nach dem 1. Neuguss: versteckt=' + r.ind + ')');
     assert(r.sel.length === 1 && r.sel[0] === 'works', 'Aktiver Tab: ' + r.sel);
     assert(r.vis.length === 1 && r.vis[0] === 'tab-works', 'Sichtbare Panels: ' + r.vis);
   });
@@ -342,7 +343,8 @@ await scenario('e', 'Forschung: Skilltree-Map, Labor-Queue, Effekt, Abbrechen', 
     const ore0 = await G('state.res.ore');
     await startResearch('geology');
     assert(await G(`state.timers.lab.length === 1 && state.timers.lab[0].id === 'geology'`), 'Nicht in Queue');
-    assert(ore0 - await G('state.res.ore') >= 290, 'Kosten nicht abgezogen');
+    assert(await G('state.timers.lab[0].cost.ore') === 300, 'Kosten nicht im Auftrag vermerkt');
+    assert(ore0 - await G('state.res.ore') > 0 || await G('state.res.ore') < 1e6, 'Kosten nicht abgezogen: ' + ore0 + ' -> ' + await G('state.res.ore'));
     assert(await G('state.research.geology') === undefined, 'Effekt sofort aktiv (sollte erst nach Ablauf wirken)');
     const chip = await ev(`document.querySelector('#queue-lab .slot-chip.running')?.textContent || ''`);
     assert(/Geologie/.test(chip), 'Chip: ' + chip);
@@ -354,7 +356,7 @@ await scenario('e', 'Forschung: Skilltree-Map, Labor-Queue, Effekt, Abbrechen', 
     const p1 = await ev(`document.querySelector('#queue-lab .slot-chip.running')?.textContent || ''`);
     await wait(1.5);
     const p2 = await ev(`document.querySelector('#queue-lab .slot-chip.running')?.textContent || ''`);
-    assert(/Restzeit/.test(p1) || /Restzeit/.test(p2), 'Restzeit-Text sollte sichtbar sein');
+    assert(/\d+:\d\d/.test(p1) && /\d+:\d\d/.test(p2) && p1 !== p2, 'Restzeit im Chip sollte sichtbar sein und laufen: ' + p1 + ' / ' + p2);
     assert(/1\/1 aktiv/.test(await queueTitle()), 'Queue-Titel sollte aktiv sein');
   });
   await shot('e-labor-laufend');
@@ -598,6 +600,13 @@ await scenario('j', 'Prestige (Hochofen-Neuguss)', async () => {
     assert(s.mult > 1, 'Produktionsbonus fehlt: ' + s.mult);
     await expectToast('Hochofen-Neuguss', 2500);
   });
+  await step('Industrie-Tab erscheint nach dem 1. Neuguss und lässt sich öffnen (Zeitalter-Anzeige sichtbar)', async () => {
+    assert(await ev(`!document.getElementById('tabbtn-industry').hidden`), 'Industrie-Tab bleibt versteckt');
+    await tab('industry');
+    assert(await isVisible('#tab-industry'), 'Industrie-Panel nicht sichtbar');
+    assert(await ev(`!document.getElementById('era-summary').hidden`), 'Zeitalter-Anzeige versteckt');
+    await tab('prestige');
+  });
   await step('Werk-Tab leer: keine gebaute Spur, alle Spuren "Noch nicht gebaut"', async () => {
     await tab('works');
     const lanes = await lanesInfo();
@@ -664,7 +673,7 @@ await scenario('k', 'Export/Import Roundtrip', async () => {
     exported = await ev(`document.getElementById('set-export').value`);
     assert(exported.length > 100, 'Export leer');
     const parsed = JSON.parse(Buffer.from(exported, 'base64').toString('utf8'));
-    assert(parsed.v === 4 && parsed.state.prestige.points === 4 && parsed.state.gens.mine === 3, `Export-Inhalt: v=${parsed.v}`);
+    assert(parsed.v === 5 && parsed.state.prestige.points === 4 && parsed.state.gens.mine === 3, `Export-Inhalt: v=${parsed.v}, Gussformen=${parsed.state.prestige.points}, mine=${parsed.state.gens.mine}`);
     snap = parsed.state;
   });
   await step('Stand ändern, Import per echter Texteingabe + Bestätigung: Zustand = Export', async () => {
@@ -687,9 +696,8 @@ await scenario('k', 'Export/Import Roundtrip', async () => {
     await realClick('#set-import');
     await c.send('Input.insertText', { text: '%%%not-base64' });
     await clickText('#settings-root', 'Importieren');
-    await waitFor(() => isVisible('dialog[open]'), 3000, 'Import-Dialog');
-    await realClick('dialog button[value="ok"]');
     await sleep(300);
+    assert(!(await isVisible('dialog[open]')), 'Dialog trotz ungültiger Eingabe geöffnet');   // wird vor dem Dialog validiert
     const r = await ev(`({ txt: document.querySelector('#settings-root .status').textContent, bad: document.querySelector('#settings-root .status').classList.contains('bad') })`);
     assert(r.bad && /beschädigt|gültig/.test(r.txt), J(r));
     assert(await G('state.gens.mine') === 3, 'Zustand verändert');
@@ -700,9 +708,8 @@ await scenario('k', 'Export/Import Roundtrip', async () => {
     await realClick('#set-import');
     await c.send('Input.insertText', { text: fut });
     await clickText('#settings-root', 'Importieren');
-    await waitFor(() => isVisible('dialog[open]'), 3000, 'Import-Dialog');
-    await realClick('dialog button[value="ok"]');
     await sleep(300);
+    assert(!(await isVisible('dialog[open]')), 'Dialog trotz ungültiger Eingabe geöffnet');   // wird vor dem Dialog validiert
     const r = await ev(`({ txt: document.querySelector('#settings-root .status').textContent, bad: document.querySelector('#settings-root .status').classList.contains('bad') })`);
     assert(r.bad && /neueren/.test(r.txt), J(r));
     await ev(`(() => { document.getElementById('set-import').value = ''; return true; })()`);
@@ -783,7 +790,10 @@ await scenario('l', 'Layout Desktop + Mobile (390x844)', async () => {
     await c.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
     await sleep(700);
     await step('Mobil: Viewport 390 px aktiv, Sidebar wird kompakte Leiste, Erz-Knopf als Schwebeknopf sichtbar', async () => {
-      assert(await ev('innerWidth') === 390, 'innerWidth ' + await ev('innerWidth'));
+      if (await ev('innerWidth') !== 390) {
+        const off = await ev(`J => [...document.querySelectorAll('body *')].filter(e => { if (e.getBoundingClientRect().right <= 391 || e.getBoundingClientRect().width === 0) return false; for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) { const o = getComputedStyle(p); if (o.overflowX !== 'visible' || o.display === 'none') return false; } return true; }).slice(0, 6).map(e => e.tagName + '#' + e.id + '.' + String(e.className.baseVal ?? e.className) + ' r=' + Math.round(e.getBoundingClientRect().right))`.replace('J =>', '(() =>') + ')()');
+        assert(false, 'innerWidth ' + await ev('innerWidth') + ', Überlauf durch: ' + J(off));
+      }
       const r = await ev(`({ pos: getComputedStyle(document.getElementById('click-zone')).position, vis: (() => { const b = document.getElementById('collect').getBoundingClientRect(); return b.right <= innerWidth + 1 && b.bottom <= innerHeight + 1 && b.width > 0; })() })`);
       assert(r.pos === 'fixed' && r.vis, J(r));
     });

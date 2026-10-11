@@ -1,6 +1,6 @@
 // Speichern, Laden, Versionierung/Migration, Export/Import (Base64), Offline-Fortschritt.
 // Nutzt localStorage/btoa, aber kein DOM.
-import { state, defaultState, replaceState, addResource, FORMAT_IDS, BUY_AMOUNTS, AUTOSAVE_OPTIONS } from './state.js';
+import { state, defaultState, replaceState, addResource, FORMAT_IDS, LANG_IDS, BUY_AMOUNTS, AUTOSAVE_OPTIONS } from './state.js';
 import { rates, offlineCapSeconds, safe, defOf } from './formulas.js';
 import { timeToNext, tick as timersTick } from '../systems/timers.js';
 import { emit } from './events.js';
@@ -109,6 +109,7 @@ export function sanitize(d) {
   s.settings.autosave = bool(se.autosave, true);
   s.settings.autosaveSec = AUTOSAVE_OPTIONS.includes(se.autosaveSec) ? se.autosaveSec : 10;
   s.settings.particles = bool(se.particles, true);
+  s.settings.lang = LANG_IDS.includes(se.lang) ? se.lang : 'de';
   s.settings.buyAmount = BUY_AMOUNTS.includes(se.buyAmount) ? se.buyAmount : '1';
 
   s.savedAt = num(d.savedAt, 0, 0, 8.64e15);
@@ -253,18 +254,22 @@ export function exportSave() {
   return toBase64(serialize());
 }
 
-/** Validiert und übernimmt einen Export-String. Wirft Error mit deutscher Meldung. */
-export function importSave(text) {
+/** Reine Prüfung eines Export-Strings (ohne Zustandsänderung). Gibt den geparsten Zustand zurück, wirft Error mit deutscher Meldung. */
+export function validateImport(text) {
   const clean = String(text ?? '').replace(/\s+/g, '');
   if (!clean) throw new Error('Kein Spielstand eingegeben.');
   if (clean.length > MAX_IMPORT_CHARS) throw new Error('Spielstand ist zu groß.');
-  let next;
   try {
-    next = parseSave(fromBase64(clean));
+    return parseSave(fromBase64(clean));
   } catch (err) {
     if (err instanceof Error && /Version|Format|Daten|Spielversion/.test(err.message)) throw err;
     throw new Error('Spielstand ist beschädigt oder kein gültiger Export.');
   }
+}
+
+/** Validiert und übernimmt einen Export-String. Wirft Error mit deutscher Meldung. */
+export function importSave(text) {
+  const next = validateImport(text);
   saveLocked = false;
   replaceState(next);
   save();

@@ -1,18 +1,21 @@
 # Eisenwerk Idle
 
-Deutschsprachiges Idle-Game im Browser: Aus Erz wird Stahl, Titan und Gold. Vanilla ES-Module, kein Build-Schritt, keine Abhängigkeiten, keine externen Ressourcen.
+Idle-Game (Deutsch/Englisch) im Browser: Aus Erz wird Stahl, Titan und Gold. Vanilla ES-Module, kein Build-Schritt, keine Abhängigkeiten, keine externen Ressourcen.
 
 ## Starten
 
-ES-Module laufen nicht über `file://`. Starte einen statischen Webserver im Ordner `eisenwerk-idle`.
+ES-Module laufen nicht über `file://`. Starte einen statischen Webserver im Ordner mit `index.html`. Das Spiel braucht keine Abhängigkeiten und keinen Build.
 
 ```sh
-cd eisenwerk-idle
-py -m http.server 8080      # Windows (dort ist `python` oft nur der Store-Stub)
+python3 -m http.server 8080      # Windows: py -m http.server 8080
 # oder: npx serve .
 ```
 
 Öffne danach http://localhost:8080 (bzw. die Adresse, die `serve` ausgibt).
+
+Hinweis: `package.json`, `server.mjs` und `public/` im Wurzelverzeichnis gehören zu einem anderen Projekt (agent-welt) und nicht zum Spiel. Du brauchst sie nicht.
+
+Sprache: Die Oberfläche gibt es auf Deutsch und Englisch. Wechsle sie in den Einstellungen.
 
 ## Spielprinzip
 
@@ -58,6 +61,8 @@ Unit-Tests (Node, keine Installation nötig):
 ```sh
 node --test
 ```
+
+Aktueller Stand: 419 Unit-Tests, E2E 87/87.
 
 ### Live-E2E im sichtbaren Chrome
 

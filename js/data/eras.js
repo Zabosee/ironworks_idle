@@ -1,15 +1,15 @@
-// Zeitalter (Industrialisierung): abgeleitet von kumuliertem Erz UND kumulierter Spielzeit, nicht gespeichert.
-// Ein Zeitalter gilt als erreicht, wenn BEIDE Bedingungen erfüllt sind: stats.total.ore >= at und stats.playTime >= minTime (s).
-// minTime: 15 min, 4 h, 36 h, 4 Tage, 7 Tage -> alles frühestens nach einer Woche Spielzeit (Offline-Zeit zählt mit).
+// Zeitalter (Industrialisierung): abgeleitet von kumuliertem Erz (stats.total.ore >= at), nicht gespeichert.
+// Wirksam erst ab dem 1. Neuguss (prestige.count >= 1, siehe formulas.industryUnlocked); davor gilt Zeitalter 0.
+// Keine Mindest-Spielzeit; die hohen Erz-Schwellen bremsen, Forschung/Boosts beschleunigen.
 // Jedes Zeitalter aktiviert neue Forschungen und Generator-Ausbauten.
 
 export const ERAS = [
-  { id: 'handcraft', name: 'Handwerk', sym: '🛠️', at: 0, minTime: 0, mult: 1.0, desc: 'Status quo' },
-  { id: 'mechanization', name: 'Mechanisierung', sym: '⚙️', at: 3e6, minTime: 900, mult: 1.2, desc: 'Ausbau I, Wasserenergie' },
-  { id: 'steam', name: 'Dampfzeitalter', sym: '🚂', at: 1e11, minTime: 14400, mult: 1.3, desc: 'Ausbau II, Dampfmaschine, Bessemer' },
-  { id: 'electric', name: 'Elektrifizierung', sym: '⚡', at: 1e15, minTime: 129600, mult: 1.5, desc: 'Ausbau III, Dynamo, Elektrostahl' },
-  { id: 'automation', name: 'Automatisierung', sym: '🤖', at: 1e19, minTime: 345600, mult: 1.5, desc: 'Ausbau IV, Fließband, Robotik' },
-  { id: 'digital', name: 'Digitalisierung', sym: '💾', at: 1e23, minTime: 604800, mult: 2.0, desc: 'Ausbau V, Mikrochips, Nanotech' },
+  { id: 'handcraft', name: 'Handwerk', sym: '🛠️', at: 0, mult: 1.0, desc: 'Status quo' },
+  { id: 'mechanization', name: 'Mechanisierung', sym: '⚙️', at: 1e17, mult: 1.2, desc: 'Ausbau I, Wasserenergie' },
+  { id: 'steam', name: 'Dampfzeitalter', sym: '🚂', at: 1e20, mult: 1.3, desc: 'Ausbau II, Dampfmaschine, Bessemer' },
+  { id: 'electric', name: 'Elektrifizierung', sym: '⚡', at: 1e22, mult: 1.5, desc: 'Ausbau III, Dynamo, Elektrostahl' },
+  { id: 'automation', name: 'Automatisierung', sym: '🤖', at: 1e23, mult: 1.5, desc: 'Ausbau IV, Fließband, Robotik' },
+  { id: 'digital', name: 'Digitalisierung', sym: '💾', at: 3e23, mult: 2.0, desc: 'Ausbau V, Mikrochips, Nanotech' },
 ];
 
 export const EVO_MAX = 5;

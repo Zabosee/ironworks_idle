@@ -6,6 +6,7 @@ import { AUTOBUYERS } from '../data/prestige.js';
 import { QUEUE_IDS } from '../data/timers.js';
 
 export const FORMAT_IDS = ['standard', 'scientific', 'engineering'];
+export const LANG_IDS = ['de', 'en'];
 export const BUY_AMOUNTS = ['1', '10', '100', 'max'];
 export const AUTOSAVE_OPTIONS = [5, 10, 30, 60];
 
@@ -30,7 +31,7 @@ export function defaultState() {
       golden: 0, buys: 0, bestOreRate: 0, timersDone: 0,
       bestPrestige: 0, fastestPrestige: 0, startedAt: Date.now(),
     },
-    settings: { format: 'standard', autosave: true, autosaveSec: 10, particles: true, buyAmount: '1' },
+    settings: { format: 'standard', autosave: true, autosaveSec: 10, particles: true, buyAmount: '1', lang: 'de' },
     savedAt: 0,
   };
 }

@@ -24,6 +24,8 @@ describe('Forschung mit Zeitalter-Tor', () => {
     const r = RESEARCH_MAP.energyfound;
     assert.match(F.lockReason('research', 'energyfound'), /Benötigt: /);          // resonance fehlt
     state.research.resonance = 1;
+    assert.match(F.lockReason('research', 'energyfound'), /ersten Neuguss/);   // Industrie noch nicht freigeschaltet
+    state.prestige.count = 1;
     assert.match(F.lockReason('research', 'energyfound'), /Zeitalter: Mechanisierung/);
     setEra(r.era);
     assert.equal(F.lockReason('research', 'energyfound'), null);
@@ -35,18 +37,18 @@ describe('Forschung mit Zeitalter-Tor', () => {
   });
   test('buy: ohne Zeitalter kein Auftrag, mit Zeitalter schon', () => {
     state.research.resonance = 1;
-    give(zeroRes({ ore: 1e9, steel: 1e9, coal: 1e9 }));
+    give(zeroRes({ ore: 1e18, steel: 1e18, coal: 1e18 }));
     assert.equal(buy('research', 'energyfound', 1), false);
     assert.equal(F.pendingOf('research', 'energyfound'), null);
     setEra(1);
     assert.equal(buy('research', 'energyfound', 1), true);
     assert.ok(F.pendingOf('research', 'energyfound'));
   });
-  test('Zeitalter-Tor braucht Erz UND Spielzeit', () => {
+  test('Zeitalter-Tor braucht Erz UND den 1. Neuguss', () => {
     state.research.resonance = 1;
-    state.stats.total.ore = ERAS[1].at;                       // nur Erz
-    assert.match(F.lockReason('research', 'energyfound'), /Zeitalter: Mechanisierung/);
-    state.stats.total.ore = 0; state.stats.playTime = ERAS[1].minTime;   // nur Zeit
+    state.stats.total.ore = ERAS[1].at;                       // nur Erz, kein Neuguss
+    assert.match(F.lockReason('research', 'energyfound'), /ersten Neuguss/);
+    state.stats.total.ore = 0; state.prestige.count = 1;      // nur Neuguss
     assert.match(F.lockReason('research', 'energyfound'), /Zeitalter: Mechanisierung/);
     state.stats.total.ore = ERAS[1].at;                       // beides
     assert.equal(F.lockReason('research', 'energyfound'), null);

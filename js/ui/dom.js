@@ -1,3 +1,4 @@
+import { t } from '../core/i18n.js';
 // Kleine DOM-Helfer. Es wird nie innerHTML verwendet; alle Texte laufen über textContent / Text-Knoten.
 const PROPS = new Set(['value', 'checked', 'disabled', 'hidden', 'selected', 'type', 'id', 'title', 'htmlFor', 'readOnly', 'rows', 'spellcheck']);
 
@@ -30,8 +31,11 @@ export function setClass(el, name, on) { if (el.classList.contains(name) !== !!o
 export function setAttr(el, name, value) { if (el.getAttribute(name) !== String(value)) el.setAttribute(name, String(value)); }
 
 /** Modaler Bestätigungsdialog (natives <dialog>). Gibt Promise<boolean> zurück. */
-export function confirmDialog({ title, message, confirmLabel = 'Bestätigen', cancelLabel = 'Abbrechen', danger = false }) {
-  return new Promise(resolve => {
+let openDialog = null;   // höchstens ein Bestätigungsdialog gleichzeitig: weitere Aufrufe teilen sich dessen Ergebnis
+export function confirmDialog({ title, message, confirmLabel = t('Bestätigen'), cancelLabel = t('Abbrechen'), danger = false }) {
+  if (openDialog) return openDialog.promise.then(() => false);   // zusätzlicher Aufruf löst nie eine zweite Aktion aus
+  let shown = false;
+  const promise = new Promise(resolve => {
     if (typeof HTMLDialogElement === 'undefined') { resolve(window.confirm(`${title}\n\n${message}`)); return; }
     const dlg = h('dialog', { class: 'dialog', 'aria-labelledby': 'dlg-title' },
       h('form', { method: 'dialog' },
@@ -40,9 +44,12 @@ export function confirmDialog({ title, message, confirmLabel = 'Bestätigen', ca
         h('div', { class: 'dialog-actions' },
           h('button', { class: 'btn', type: 'submit', value: 'cancel', text: cancelLabel }),
           h('button', { class: 'btn ' + (danger ? 'btn-danger' : 'btn-primary'), type: 'submit', value: 'ok', text: confirmLabel }))));
-    dlg.addEventListener('close', () => { const ok = dlg.returnValue === 'ok'; dlg.remove(); resolve(ok); });
+    dlg.addEventListener('close', () => { const ok = dlg.returnValue === 'ok'; dlg.remove(); openDialog = null; resolve(ok); });
     document.body.append(dlg);
     dlg.showModal();
+    shown = true;
     dlg.querySelector('button[value="cancel"]').focus();
   });
+  if (shown) openDialog = { promise };
+  return promise;
 }

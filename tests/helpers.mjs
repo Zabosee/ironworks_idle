@@ -18,8 +18,8 @@ export function installStorage() {
 }
 
 import { ERAS } from '../js/data/eras.js';
-/** Setzt Erz und Spielzeit genau auf die Schwellen des Zeitalters i (beide Bedingungen erfüllt). */
-export function setEra(i) { state.stats.total.ore = ERAS[i].at; state.stats.playTime = ERAS[i].minTime; }
+/** Setzt Erz genau auf die Schwelle des Zeitalters i und schaltet die Industrie frei (prestige.count >= 1). */
+export function setEra(i) { state.stats.total.ore = ERAS[i].at; state.prestige.count = Math.max(1, state.prestige.count); }
 
 export const reset = () => replaceState(defaultState());
 

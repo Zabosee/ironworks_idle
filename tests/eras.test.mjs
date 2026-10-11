@@ -1,4 +1,4 @@
-// Zeitalter (Industrialisierung): Ableitung aus stats.total.ore UND stats.playTime, Bonus, Event, Neuguss, Speicherstand v5.
+// Zeitalter (Industrialisierung): Ableitung aus stats.total.ore (ab 1. Neuguss), Bonus, Event, Neuguss, Speicherstand v5.
 import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { state, reset, collect, installStorage, give, setEra } from './helpers.mjs';
@@ -12,36 +12,38 @@ installStorage();
 beforeEach(() => { reset(); E.reset(); });
 
 describe('Zeitalter: Ableitung', () => {
-  test('Schwellen: knapp darunter / genau darauf (Erz und Zeit erfüllt)', () => {
+  test('Schwellen: knapp darunter / genau darauf', () => {
     for (let i = 1; i < ERAS.length; i++) {
-      setEra(i - 1); state.stats.total.ore = ERAS[i].at * 0.999; state.stats.playTime = ERAS[i].minTime;
+      setEra(i - 1); state.stats.total.ore = ERAS[i].at * 0.999;
       assert.equal(F.eraIndex(), i - 1, `Erz zu wenig bei ${ERAS[i].name}`);
-      state.stats.total.ore = ERAS[i].at; state.stats.playTime = ERAS[i].minTime - 1;
-      assert.equal(F.eraIndex(), i - 1, `Zeit zu wenig bei ${ERAS[i].name}`);
       setEra(i); assert.equal(F.eraIndex(), i, `auf ${ERAS[i].name}`);
     }
-    state.stats.total.ore = 0; state.stats.playTime = 0; assert.equal(F.eraIndex(), 0);
+    state.stats.total.ore = 0; assert.equal(F.eraIndex(), 0);
   });
-  test('Erz allein reicht nicht, Zeit allein reicht nicht, beides reicht', () => {
-    state.stats.total.ore = 1e300; state.stats.playTime = 0; assert.equal(F.eraIndex(), 0);
-    state.stats.total.ore = 0; state.stats.playTime = 1e9; assert.equal(F.eraIndex(), 0);
-    state.stats.total.ore = 1e300; state.stats.playTime = 1e9; assert.equal(F.eraIndex(), ERAS.length - 1);
+  test('Vor dem 1. Neuguss gilt Zeitalter 0, egal wie viel Erz; danach greift das Erz', () => {
+    state.stats.total.ore = 1e300; state.prestige.count = 0;
+    assert.equal(F.industryUnlocked(), false);
+    assert.equal(F.eraIndex(), 0); assert.equal(F.eraMult(), 1); assert.equal(F.nextEra(), ERAS[1]);
+    assert.equal(F.eraProgress() > 0, true);
+    state.prestige.count = 1;
+    assert.equal(F.industryUnlocked(), true);
+    assert.equal(F.eraIndex(), ERAS.length - 1);
     // explizite Parameter überschreiben den State
-    assert.equal(F.eraIndex(ERAS[2].at, ERAS[2].minTime), 2);
-    assert.equal(F.eraIndex(ERAS[2].at, ERAS[1].minTime), 1);
-    assert.equal(F.eraIndex(ERAS[1].at, ERAS[2].minTime), 1);
+    assert.equal(F.eraIndex(ERAS[2].at, true), 2);
+    assert.equal(F.eraIndex(ERAS[2].at, false), 0);
+    assert.equal(F.eraIndex(ERAS[1].at), 1);
   });
-  test('Letztes Zeitalter frühestens nach 7 Tagen Spielzeit', () => {
-    assert.equal(ERAS[ERAS.length - 1].minTime, 7 * 86400);
-    state.stats.total.ore = 1e300; state.stats.playTime = 7 * 86400 - 1; assert.ok(F.eraIndex() < ERAS.length - 1);
-    state.stats.playTime = 7 * 86400; assert.equal(F.eraIndex(), ERAS.length - 1);
+  test('Keine Mindest-Spielzeit mehr: playTime hat keinen Einfluss', () => {
+    for (const e of ERAS) assert.equal('minTime' in e, false);
+    setEra(ERAS.length - 1); state.stats.playTime = 0;
+    assert.equal(F.eraIndex(), ERAS.length - 1);
   });
-  test('Daten: Schwellen und Mindestzeiten streng steigend, Bonus >= 1', () => {
+  test('Daten: Schwellen streng steigend, Bonus >= 1', () => {
     ERAS.forEach((e, i) => {
       assert.ok(e.mult >= 1);
-      if (i) { assert.ok(e.at > ERAS[i - 1].at); assert.ok(e.minTime > ERAS[i - 1].minTime); }
+      if (i) assert.ok(e.at > ERAS[i - 1].at);
     });
-    assert.equal(ERAS[0].at, 0); assert.equal(ERAS[0].minTime, 0);
+    assert.equal(ERAS[0].at, 0);
   });
   test('eraMult ist kumulativ und wirkt auf globalMult', () => {
     assert.equal(F.eraMult(0), 1);
@@ -50,21 +52,12 @@ describe('Zeitalter: Ableitung', () => {
     setEra(2);
     assert.ok(Math.abs(F.globalMult() / g0 - F.eraMult(2)) < 1e-9);
   });
-  test('eraProgress: 0..1, Minimum aus Erz (log) und Zeit (linear), am Ende 1', () => {
+  test('eraProgress: 0..1 (log. im Erz), am Ende 1', () => {
+    state.prestige.count = 1;
     assert.equal(F.eraProgress(), 0);
-    state.stats.total.ore = 1e3; state.stats.playTime = 1e9; assert.ok(F.eraProgress() > 0 && F.eraProgress() < 1);   // Erz bremst
-    state.stats.total.ore = 1e300; state.stats.playTime = ERAS[1].minTime / 2;
-    assert.ok(Math.abs(F.eraProgress() - 0.5) < 1e-9);                                                              // Zeit bremst
+    state.stats.total.ore = Math.sqrt(ERAS[1].at); assert.ok(Math.abs(F.eraProgress() - 0.5) < 1e-9);
     setEra(ERAS.length - 1); assert.equal(F.eraProgress(), 1);
-    assert.equal(F.nextEra(), null); assert.equal(F.eraNeeds(), null);
-  });
-  test('eraNeeds: meldet erfüllte Bedingungen und fehlende Zeit', () => {
-    state.stats.total.ore = ERAS[1].at; state.stats.playTime = 100;
-    assert.deepEqual(F.eraNeeds(), { ore: true, time: false, missingTime: ERAS[1].minTime - 100 });
-    state.stats.total.ore = 5; state.stats.playTime = ERAS[1].minTime + 5;
-    assert.deepEqual(F.eraNeeds(), { ore: false, time: true, missingTime: 0 });
-    state.stats.total.ore = 0; state.stats.playTime = 0;
-    assert.deepEqual(F.eraNeeds(), { ore: false, time: false, missingTime: ERAS[1].minTime });
+    assert.equal(F.nextEra(), null);
   });
 });
 
@@ -84,10 +77,26 @@ describe('Zeitalter: Aufstieg (Event + Toast)', () => {
   });
   test('Sprung über mehrere Zeitalter meldet jedes einzeln', () => {
     const ev = collect('era');
+    state.prestige.count = 1; E.reset();   // Industrie bereits freigeschaltet (z. B. Offline-Sprung)
     setEra(4);
     E.check(1, true);
     assert.deepEqual(ev.got.map(e => e.index), [1, 2, 3, 4]);
     ev.stop();
+  });
+  test('Der 1. Neuguss übernimmt bereits erzielte Zeitalter still (keine Toast-Flut)', () => {
+    const ev = collect('era'), toasts = collect('toast');
+    state.stats.total.ore = ERAS[3].at;       // Erz reicht fuer Zeitalter 3, aber noch kein Neuguss
+    E.check(1, true);
+    assert.equal(ev.got.length, 0);
+    state.prestige.count = 1;                  // Neuguss: Industrie schaltet frei, eraIndex springt auf 3
+    E.check(1, true);
+    assert.equal(F.eraIndex(), 3);
+    assert.equal(ev.got.length, 0, 'keine Events fuer uebersprungene Zeitalter');
+    assert.equal(toasts.got.length, 0, 'keine Toasts');
+    state.stats.total.ore = ERAS[4].at;        // das naechste echte Zeitalter wird gemeldet
+    E.check(1, true);
+    assert.deepEqual(ev.got.map(e => e.index), [4]);
+    ev.stop(); toasts.stop();
   });
 });
 
@@ -98,21 +107,29 @@ describe('Zeitalter: Neuguss und Speicherstand', () => {
     assert.equal(state.evo.mine, 0);
     assert.equal(F.eraIndex(), 3);
   });
-  test('Neuguss setzt playTime nicht zurück (Zeitalter hängt an Gesamtspielzeit)', () => {
-    setEra(2); state.stats.run.ore = 1e9; state.stats.runTime = 50;
-    const before = state.stats.playTime;
+  test('Neuguss setzt playTime nicht zurück (reine Statistik)', () => {
+    setEra(2); state.stats.run.ore = 1e9; state.stats.runTime = 50; state.stats.playTime = 1234;
     assert.ok(doPrestige());
-    assert.equal(state.stats.playTime, before);
+    assert.equal(state.stats.playTime, 1234);
     assert.equal(F.eraIndex(), 2);
   });
-  test('Offline-Zeit zählt zur Spielzeit und damit zum Zeitalter', () => {
-    state.stats.total.ore = ERAS[1].at;
-    state.stats.playTime = ERAS[1].minTime - 1000;
-    assert.equal(F.eraIndex(), 0);
+  test('Der 1. Neuguss schaltet die Industrie frei und aktiviert die Zeitalter', () => {
+    state.stats.total.ore = ERAS[2].at; state.stats.run.ore = 1e9; state.stats.runTime = 50;
+    assert.equal(F.industryUnlocked(), false); assert.equal(F.eraIndex(), 0);
+    assert.ok(doPrestige());
+    assert.equal(state.prestige.count, 1);
+    assert.equal(F.industryUnlocked(), true); assert.equal(F.eraIndex(), 2);
+  });
+  test('Alter Spielstand mit viel Erz, aber ohne Neuguss: kein Crash, Zeitalter 0', () => {
+    const s = S.sanitize({ stats: { total: { ore: 1e30 } }, evo: { mine: 2 } });
+    assert.equal(s.prestige.count, 0);
+    assert.equal(F.eraIndex(s.stats.total.ore, s.prestige.count >= 1), 0);
+  });
+  test('Offline-Zeit erhöht playTime weiter (Statistik)', () => {
+    state.stats.playTime = 100;
     const r = S.applyOffline(2000);
     assert.ok(r && r.seconds > 0 && r.seconds <= 2000);
-    assert.equal(state.stats.playTime, ERAS[1].minTime - 1000 + r.seconds);
-    assert.equal(F.eraIndex(), r.seconds >= 1000 ? 1 : 0);
+    assert.equal(state.stats.playTime, 100 + r.seconds);
   });
   test('Roundtrip erhält evo; sanitize klemmt und ignoriert Unbekanntes', () => {
     state.evo.mine = 2;
@@ -122,12 +139,12 @@ describe('Zeitalter: Neuguss und Speicherstand', () => {
     assert.equal(s.evo.mine, EVO_MAX); assert.equal(s.evo.drill, 0); assert.equal('foo' in s.evo, false);
   });
   test('Migration v4 -> v5: evo leer, alles andere bleibt; Zeitalter folgt den Statistiken', () => {
-    const old = { res: { ore: 5 }, stats: { total: { ore: 1e11 }, playTime: ERAS[2].minTime } };
+    const old = { res: { ore: 5 }, stats: { total: { ore: ERAS[2].at }, playTime: 5000 }, prestige: { count: 1 } };
     const m = S.migrate({ v: 4, t: 1, state: old });
     assert.equal(m.v, 5); assert.deepEqual(m.state.evo, {}); assert.deepEqual(old.evo, undefined);
     const s = S.sanitize(m.state);
-    assert.equal(F.eraIndex(s.stats.total.ore, s.stats.playTime), 2);
-    assert.equal(F.eraIndex(s.stats.total.ore, 0), 0);   // ohne Spielzeit kein Zeitalter
+    assert.equal(s.stats.playTime, 5000);
+    assert.equal(F.eraIndex(ERAS[2].at, s.prestige.count >= 1), 2);
     assert.equal(s.evo.mine, 0);
   });
 });

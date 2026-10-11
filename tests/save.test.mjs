@@ -129,8 +129,8 @@ describe('Validierung (sanitize) – negative / NaN / Muell-Werte', () => {
     assert.deepEqual(state.res, zeroRes());
   });
   test('Einstellungen: ungueltige Werte -> Defaults', () => {
-    S.importSave(wrap({ settings: { format: 'hex', autosave: 'ja', autosaveSec: 7, particles: 0, buyAmount: '5' } }));
-    assert.deepEqual(state.settings, { format: 'standard', autosave: true, autosaveSec: 10, particles: true, buyAmount: '1' });
+    S.importSave(wrap({ settings: { format: 'hex', autosave: 'ja', autosaveSec: 7, particles: 0, buyAmount: '5', lang: 'fr' } }));
+    assert.deepEqual(state.settings, { format: 'standard', autosave: true, autosaveSec: 10, particles: true, buyAmount: '1', lang: 'de' });
   });
   test('Buffs: unbekannte, abgelaufene, negative gedroppt; Restzeit geklemmt', () => {
     S.importSave(wrap({ buffs: [
@@ -285,5 +285,22 @@ describe('Neuguss-Chronik im Spielstand', () => {
     state.prestige.history = [{ gain: 4, ore: 5e7, time: 90, at: 1700000000000 }];
     const back = S.sanitize(JSON.parse(S.serialize()).state);
     assert.deepEqual(back.prestige.history, state.prestige.history);
+  });
+});
+
+describe('validateImport (reine Prüfung)', () => {
+  test('leer / Müll / ungültiges Base64 / kein JSON werfen, ohne Zustand zu ändern', () => {
+    state.res.ore = 123;
+    for (const bad of ['', '   ', null, 'Müll!!', '%%%%', b64('kein json'), b64({ v: 2, state: 5 })]) {
+      assert.throws(() => S.validateImport(bad), Error, String(bad));
+    }
+    assert.equal(state.res.ore, 123);
+  });
+  test('gültiger Export wird geparst, Zustand bleibt unberührt', () => {
+    const txt = S.exportSave();
+    state.res.ore = 77;
+    const next = S.validateImport(txt);
+    assert.ok(next && typeof next === 'object');
+    assert.equal(state.res.ore, 77);
   });
 });

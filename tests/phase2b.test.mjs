@@ -24,7 +24,7 @@ import { fmtClock } from '../js/core/format.js';
 const b64 = obj => Buffer.from(JSON.stringify(obj), 'utf8').toString('base64');
 let ls;
 beforeEach(() => { ls = installStorage(); reset(); G.init(); AB.reset(); A.reset(); });
-const rich = () => { state.stats.total.ore = 1e30; state.stats.playTime = 1e7; give({ ore: 1e12, steel: 1e12, titan: 1e12, coal: 1e9, coke: 1e9, copper: 1e9, manganese: 1e9, chrome: 1e9, nickel: 1e9, alloy: 1e9, tungsten: 1e9, gold: 1e9 }); };   // total.ore: alle Zeitalter erreicht
+const rich = () => { state.prestige.count = Math.max(state.prestige.count || 0, 1); state.stats.total.ore = 1e45; state.stats.playTime = 1e7; give({ ore: 1e45, steel: 1e45, titan: 1e45, coal: 1e45, coke: 1e45, copper: 1e45, manganese: 1e45, chrome: 1e45, nickel: 1e45, alloy: 1e45, tungsten: 1e45, gold: 1e45 }); };   // total.ore: alle Zeitalter erreicht
 
 describe('Timer: Kauf, Reihenfolge, Abbruch', () => {
   test('Kosten sofort abgezogen, Effekt erst nach Ablauf, Event timer:done', () => {
@@ -421,13 +421,14 @@ describe('Auto-Buyer und Timer', () => {
     const q = T.queueState('lab');
     assert.ok(q.length >= 1 && q.length <= F.queueCapacity('lab'));
     assert.equal(new Set(q.map(e => e.id)).size, q.length);
-    for (let i = 0; i < 600; i++) { AB.tick(2); tick(30); }
+    for (let i = 0; i < 2400; i++) { AB.tick(2); tick(30); }
     for (const r of RESEARCH) assert.equal(state.research[r.id], 1, r.id + ' wurde nicht erforscht');
   });
   test('Boost- und Klick-Auto-Buyer: pro Takt hoechstens ein laufender Auftrag je Eintrag', () => {
     rich();
     state.prestige.shop.ab_boosts = 1; state.prestige.shop.ab_click = 1;
     AB.setEnabled('boosts', true); AB.setEnabled('click', true);
+    state.res.steel = 1e12;   // klein genug, dass der Abzug im Double sichtbar bleibt
     const cost0 = state.res.steel;
     AB.tick(2); AB.tick(2);
     const clickJobs = T.queueState('workshop').filter(e => e.kind === 'click' && e.id === 'click');
@@ -665,8 +666,8 @@ describe('Daten- und Balance-Sanity', () => {
     assert.ok(RES_IDS.length >= 3 + 6, 'mind. 6 neue Materialien');
     assert.ok(GENS.length >= 5 + 6, 'mind. 6 neue Generatoren');
     assert.ok(BOOSTS.length >= 6 + 8, 'mind. 8 neue Boosts');
-    assert.ok(RESEARCH.length >= 11 + 8, 'mind. 8 neue Forschungen');
-    assert.ok(CLICKS.length >= 1 + 2 && CLICKS.length <= 1 + 3, '2-3 neue Klick-Upgrades');
+    assert.ok(RESEARCH.length >= 70, 'mind. 70 Forschungen');
+    assert.ok(CLICKS.length >= 1 + 2 && CLICKS.length <= 1 + 5, '2-5 neue Klick-Upgrades');
     assert.ok(RECIPES.length >= 1 + 3, 'neue Rezeptketten');
     for (const id of ['q_lab', 'q_work', 'q_speed']) assert.ok(SHOP_MAP[id], id);
     assert.ok(RESEARCH_MAP.automation && RESEARCH_MAP.automation.time > 0);
@@ -693,7 +694,7 @@ describe('Daten- und Balance-Sanity', () => {
   test('Spielbarkeit: Bot-lose Pruefung - mit ausreichend Material wird die gesamte Forschung durchlaufen und alles erforscht', () => {
     rich();
     state.prestige.shop.ab_research = 1;
-    for (let guard = 0; guard < 400 && Object.keys(state.research).length < RESEARCH.length; guard++) {
+    for (let guard = 0; guard < 1200 && Object.keys(state.research).length < RESEARCH.length; guard++) {
       for (const r of RESEARCH) if (!state.research[r.id] && !F.lockReason('research', r.id)) buy('research', r.id);
       T.tick(60);
     }

@@ -3,6 +3,7 @@
 import { state } from '../core/state.js';
 import { on, toast } from '../core/events.js';
 import { fmtInt } from '../core/format.js';
+import { t, tName } from '../core/i18n.js';
 import { levelOf, lockReason, isRevealed, genOutputAt } from '../core/formulas.js';
 import { GENS, genTier, tierName, tierPips, TIER_NAMES } from '../data/generators.js';
 import { h, $, setText, setAttr } from './dom.js';
@@ -29,7 +30,7 @@ function useSvg(href, cls, viewBox) {
 function buildLane(def) {
   const L = { def, tier: -1, shown: -1, lv: -1, evolveTimer: 0 };
   const ico = imgFor(def) ? h('img', { class: 'lane-ico', src: imgFor(def), alt: '', draggable: 'false' }) : h('span', { class: 'lane-ico lane-ico-emoji', 'aria-hidden': 'true', text: def.icon });
-  L.name = h('h3', { class: 'lane-name', text: def.name });
+  L.name = h('h3', { class: 'lane-name', text: tName('generators', def) });
   L.lvlEl = h('span', { class: 'lane-level' });
   L.rank = h('span', { class: 'lane-rank' });
   L.next = h('span', { class: 'lane-next' });
@@ -42,7 +43,7 @@ function buildLane(def) {
     slotBox.append(s);
   }
   L.count = h('span', { class: 'lane-count', hidden: true });
-  L.none = h('p', { class: 'lane-none', text: 'Noch nicht gebaut. Kaufe die erste Stufe im Tab Generatoren.' });
+  L.none = h('p', { class: 'lane-none', text: t('Noch nicht gebaut. Kaufe die erste Stufe im Tab Generatoren.') });
   slotBox.append(L.count);
   L.smoke = h('span', { class: 'smoke', 'aria-hidden': 'true' }, h('i'), h('i'), h('i'));
   L.el = h('section', { class: 'lane', role: 'group', dataset: { gen: def.id } },
@@ -88,12 +89,12 @@ function updateLane(L, animate) {
     L.tier = tier;
   }
   const tp = tierPips(lvl);
-  setText(L.lvlEl, lvl > 0 ? `Stufe ${fmtInt(lvl)}` : 'Stufe 0');
-  setText(L.rank, `Rang ${tierName(tier)}`);
-  setText(L.next, tp.next ? `Rang ${tierName(tier + 1)} ab Stufe ${tp.next}` : 'Höchster Rang');
+  setText(L.lvlEl, t('Stufe {n}', { n: lvl > 0 ? fmtInt(lvl) : 0 }));
+  setText(L.rank, t('Rang {name}', { name: t(tierName(tier)) }));
+  setText(L.next, tp.next ? t('Rang {name} ab Stufe {n}', { name: t(tierName(tier + 1)), n: tp.next }) : t('Höchster Rang'));
   [...L.pips.children].forEach((p, i) => p.classList.toggle('on', i < tp.pips));
-  setAttr(L.pips, 'aria-label', `Fortschritt zum nächsten Rang: ${tp.pips} von ${tp.total}`);
-  setAttr(L.el, 'aria-label', `${L.def.name}, Stufe ${fmtInt(lvl)}, Rang ${tierName(tier)}`);
+  setAttr(L.pips, 'aria-label', t('Fortschritt zum nächsten Rang: {pips} von {total}', { pips: tp.pips, total: tp.total }));
+  setAttr(L.el, 'aria-label', t('{name}, Stufe {n}, Rang {rank}', { name: tName('generators', L.def), n: fmtInt(lvl), rank: t(tierName(tier)) }));
   // Idle-Animation: nur wenn gebaut; Tempo wächst mit der Ausgabe (einmalig gesetzt, nicht pro Tick)
   L.el.classList.toggle('running', lvl > 0);
   const speed = Math.max(0.5, 1.6 - Math.log10(1 + genOutputAt(L.def, lvl)) * 0.15);
@@ -110,7 +111,7 @@ function evolve(id, tier) {
   const L = lanes.find(l => l.def.id === id);
   if (!L) return;
   updateLane(L, false);
-  toast(`${L.def.name}: Rang ${tierName(tier)}`, 'gold');
+  toast(t('{name}: Rang {rank}', { name: tName('generators', L.def), rank: t(tierName(tier)) }), 'gold');
   if (reduced.matches) return;
   L.el.classList.remove('evolve');
   void L.el.offsetWidth;

@@ -1,20 +1,20 @@
 # Plan: Zeitalter "Industrialisierung" + Generator-Ausbau (Eisenwerk Idle) – Schritte 1-4 umgesetzt
 
 Projekt: C:\Users\lukas\Desktop\GitHub\idle_game\eisenwerk-idle. PC-optimiert (mobil nicht nötig).
-Vorläufige Annahmen (vom Assistenten als Standard gesetzt, noch NICHT vom Nutzer bestätigt): (1) Generator-Ausbau (`state.evo`) wird beim Neuguss ZURÜCKGESETZT, Zeitalter bleiben dauerhaft. (2) Zeitalter dürfen das Spiel beschleunigen; Balance/Tests werden neu kalibriert (Endspurt-Fenster möglichst 12-48 h halten, Boni notfalls senken). (3) Freischaltung über kumuliertes Erz `state.stats.total.ore` UND Mindest-Spielzeit `state.stats.playTime` (Nutzeranforderung: mind. 1 Woche bis alles frei; Offline-Zeit zählt, Neuguss setzt playTime nicht zurück).
+Vorläufige Annahmen (vom Assistenten als Standard gesetzt, noch NICHT vom Nutzer bestätigt): (1) Generator-Ausbau (`state.evo`) wird beim Neuguss ZURÜCKGESETZT, Zeitalter bleiben dauerhaft. (2) Zeitalter dürfen das Spiel beschleunigen; Balance/Tests werden neu kalibriert (Endspurt-Fenster möglichst 12-48 h halten, Boni notfalls senken). (3) Freischaltung nur über kumuliertes Erz `state.stats.total.ore` (die frühere Mindest-Spielzeit `minTime` wurde entfernt; `playTime` ist nur noch Statistik) und erst ab dem 1. Neuguss (`prestige.count >= 1`, sonst Zeitalter 0; Industrie-Tab bis dahin versteckt).
 
 ## Kern
-Zeitalter wird ABGELEITET, nicht gespeichert: eraIndex(ore, time) = höchstes i mit state.stats.total.ore >= ERAS[i].at UND state.stats.playTime >= ERAS[i].minTime. Monoton, überlebt Neuguss. Kein neues Material.
+Zeitalter wird ABGELEITET, nicht gespeichert: eraIndex(ore, unlocked) = 0, solange prestige.count < 1; sonst höchstes i mit state.stats.total.ore >= ERAS[i].at. Monoton, überlebt Neuguss. Kein neues Material.
 
-| # | Zeitalter | at (kum. Erz) | minTime (kum. Spielzeit) | globaler Bonus | Inhalte |
-|---|---|---|---|---|---|
-| 0 | Handwerk | 0 | 0 | x1 | Status quo |
-| 1 | Mechanisierung | 3e6 | 15 min | x1.2 | Ausbau I, Forschung waterpower |
-| 2 | Dampfzeitalter | 1e11 | 4 h | x1.3 | Ausbau II, steamengine, bessemer |
-| 3 | Elektrifizierung | 1e15 | 36 h | x1.5 | Ausbau III, dynamo, electrosteel |
-| 4 | Automatisierung | 1e19 | 4 Tage | x1.5 | Ausbau IV, assembly, robotics, Auto-Ausbau im Generatoren-Auto-Buyer |
-| 5 | Digitalisierung | 1e23 | 7 Tage | x2 | Ausbau V, microchips, nanotech |
-Alle Zahlen stehen in js/data/eras.js. eraProgress() = min(Erz-Fortschritt log, Zeit-Fortschritt linear); eraNeeds() -> { ore, time, missingTime } für die UI-Hinweise.
+| # | Zeitalter | at (kum. Erz) | globaler Bonus | Inhalte |
+|---|---|---|---|---|
+| 0 | Handwerk | 0 | x1 | Status quo |
+| 1 | Mechanisierung | 1e16 | x1.2 | Ausbau I, Forschung waterpower |
+| 2 | Dampfzeitalter | 1e19 | x1.3 | Ausbau II, steamengine, bessemer |
+| 3 | Elektrifizierung | 1e21 | x1.5 | Ausbau III, dynamo, electrosteel |
+| 4 | Automatisierung | 2e22 | x1.5 | Ausbau IV, assembly, robotics, Auto-Ausbau im Generatoren-Auto-Buyer |
+| 5 | Digitalisierung | 1e23 | x2 | Ausbau V, microchips, nanotech |
+Alle Zahlen stehen in js/data/eras.js. eraProgress() = Erz-Fortschritt (log). Details und Kalibrierung: docs/GAME-DESIGN.md Abschnitt 3a.
 
 ## Generator-Ausbau
 - state.evo[genId] = 0..5 (EVO_MAX = 5). Stufe k kaufbar wenn eraIndex() >= k UND genLevel >= EVO_AT[k-1]; EVO_AT=[10,25,50,100,200].
@@ -28,7 +28,7 @@ Layout (neuer Ostarm, Raster 255): waterpower (510,-255), steamengine (765,-255)
 lockReason: bei research mit def.era > eraIndex() -> "Benötigt Zeitalter: <Name>". isRevealed: era-gesperrte Knoten sichtbar, wenn Eltern erforscht sind.
 
 ## Dateien
-NEU: js/data/eras.js (ERAS=[{id,name,sym,at,minTime,mult,desc}], EVO_MAX, EVO_AT, EVO_MULT, EVO_COST; keine Imports), js/systems/eras.js (check(dt, force) alle 0.5 s, lastEra-Merker; emit('era',{index,era}) + toast 'Neues Zeitalter: ...' (gold), je Zeitalter bei Sprung; kein Toast beim Laden/Neuguss), js/systems/evolution.js (buyEvo(id):boolean, buyAllEvo():number; emit('evo',{id,level}); stats.buys++), js/ui/industry.js (Tab "Industrie"), tests/eras.test.mjs.
+NEU: js/data/eras.js (ERAS=[{id,name,sym,at,mult,desc}], EVO_MAX, EVO_AT, EVO_MULT, EVO_COST; keine Imports), js/systems/eras.js (check(dt, force) alle 0.5 s, lastEra-Merker; emit('era',{index,era}) + toast 'Neues Zeitalter: ...' (gold), je Zeitalter bei Sprung; kein Toast beim Laden/Neuguss), js/systems/evolution.js (buyEvo(id):boolean, buyAllEvo():number; emit('evo',{id,level}); stats.buys++), js/ui/industry.js (Tab "Industrie"), tests/eras.test.mjs.
 GEÄNDERT: core/state.js (defaultState().evo), core/formulas.js (eraIndex, eraMult, eraDef, nextEra, eraProgress 0..1, evoLevel, evoMult, evoCost (null bei Max), evoLock (Begründung|null); globalMult *= eraMult(); genOutputAt *= evoMult(g.id); lockReason/isRevealed für era), data/research.js, data/research-layout.js, systems/prestige.js (evo reset), core/save.js (SAVE_VERSION 5, migrate v4->v5 evo:{}, sanitize evo geklemmt auf 0..EVO_MAX, unbekannte IDs ignorieren), systems/autobuyers.js (runners.gens ruft nach Gen-Käufen buyAllEvo() mit gleicher Reserve-Logik), main.js (eras.check im Loop, check(0,true)/reset beim Laden/Neuguss), tools/balance-sim.mjs (Bot kauft Ausbauten, loggt Zeitalter-Zeitpunkte), index.html (Tab Industrie nach Generatoren, #era-summary in der Seitenleiste), ui/render.js (renderActive 'industry', renderTop #era-summary, Statistik-Zeile Zeitalter-Bonus), ui/research-map.js (Zeitalter-Badge/Grund bei era-gesperrten Knoten), ui/effects.js (Flash bei 'era'), css/styles.css, docs/GAME-DESIGN.md, README.md.
 UI-Industrie-Tab: oben Zeitleiste der 6 Zeitalter (aktuell hervorgehoben, erreichte abgehakt, nächstes mit Fortschrittsleiste, Bonus + Inhalte); darunter Tabelle je Generator: Name, 5 Pips, nächster Multiplikator, Kosten (costEntries-Muster), Kaufen-Knopf, Grund bei Sperre (evoLock); Knopf "Alles ausbauen". DOM einmal bauen, im Frame nur Werte aktualisieren. Seitenleiste #era-summary: Zeitaltername, Bonus, dünne Fortschrittsleiste, "Nächstes: X – ab Y Erz und Z Spielzeit" (mit Hinweis auf die fehlende Bedingung).
 

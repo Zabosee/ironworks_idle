@@ -17,6 +17,8 @@ describe('Generator-Ausbau', () => {
     assert.ok(ERAS.length > EVO_MAX);   // Stufe k braucht Zeitalter k
   });
   test('Sperren: Zeitalter vor Generatorstufe, Maximum', () => {
+    assert.match(F.evoLock('mine'), /ersten Neuguss/);
+    state.prestige.count = 1;
     assert.match(F.evoLock('mine'), /Zeitalter/);
     setEra(1);
     assert.match(F.evoLock('mine'), /Stufe 10/);

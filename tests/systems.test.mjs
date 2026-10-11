@@ -280,10 +280,10 @@ describe('Auto-Buyer', () => {
       AB.tick(IV() * 3);
       assert.equal(state.evo.mine || 0, 0);
     });
-    test('nicht erfüllte Zeitalter-Voraussetzung (nur Erz, keine Spielzeit): kein Ausbau', () => {
+    test('nicht erfüllte Zeitalter-Voraussetzung (nur Erz, kein Neuguss): kein Ausbau', () => {
       state.prestige.shop.ab_gens = 1; AB.setEnabled('gens', true);
       prep(); fund(1000);
-      state.stats.playTime = 0;                      // Erz allein reicht nicht
+      state.prestige.count = 0;                      // Erz allein reicht nicht
       AB.tick(IV() * 3);
       assert.equal(state.evo.mine || 0, 0);
     });

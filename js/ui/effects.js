@@ -2,6 +2,7 @@
 import { state } from '../core/state.js';
 import { on, emit } from '../core/events.js';
 import { fmt } from '../core/format.js';
+import { t } from '../core/i18n.js';
 import { click } from '../systems/production.js';
 import { claim } from '../systems/golden.js';
 import { RES, RES_IDS } from '../data/resources.js';
@@ -115,10 +116,10 @@ export function initGoldenUI(layer) {
   on('golden:spawn', g => {
     remove();
     el = h('button', {
-      class: 'golden', type: 'button', 'aria-label': 'Goldener Barren, einsammeln (Taste G)',
+      class: 'golden', type: 'button', 'aria-label': t('Goldener Barren, einsammeln (Taste G)'),
       onclick: () => {
         const rect = el.getBoundingClientRect();
-        floatText(layer, 'Gefangen!', '#fde047', `${rect.left}px`, `${rect.top}px`);
+        floatText(layer, t('Gefangen!'), '#fde047', `${rect.left}px`, `${rect.top}px`);
         claim();
       },
     }, h('span', { class: 'golden-icon', 'aria-hidden': 'true' }, h('img', { src: 'assets/icons/gold-bar.svg', alt: '', draggable: 'false' })));
@@ -126,7 +127,7 @@ export function initGoldenUI(layer) {
     el.style.top = g.y + '%';
     el.style.setProperty('--life', GOLDEN.lifetime + 's');
     layer.append(el);
-    emit('toast', { msg: 'Ein goldener Barren erscheint! Schnell einsammeln (Taste G).', kind: 'gold' });
+    emit('toast', { msg: t('Ein goldener Barren erscheint! Schnell einsammeln (Taste G).'), kind: 'gold' });
   });
   on('golden:expire', remove);
   on('golden:claim', remove);

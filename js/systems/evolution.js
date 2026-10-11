@@ -4,6 +4,7 @@ import { GENS } from '../data/generators.js';
 import { RES_IDS } from '../data/resources.js';
 import { evoCost, evoLock, evoLevel, canAfford } from '../core/formulas.js';
 import { emit, toast } from '../core/events.js';
+import { t, tName } from '../core/i18n.js';
 import { GEN_MAP } from '../data/generators.js';
 
 /** Kauft die nächste Ausbaustufe des Generators. Gibt true bei Erfolg zurück. */
@@ -16,7 +17,7 @@ export function buyEvo(id, { silent = false } = {}) {
   state.evo[id] = evoLevel(id) + 1;
   state.stats.buys += 1;
   emit('evo', { id, level: state.evo[id], silent });
-  if (!silent) toast(`${GEN_MAP[id].name}: Ausbau ${state.evo[id]} abgeschlossen`, 'gold');
+  if (!silent) toast(t('{name}: Ausbau {n} abgeschlossen', { name: tName('generators', GEN_MAP[id]), n: state.evo[id] }), 'gold');
   return true;
 }
 
@@ -27,6 +28,6 @@ export function buyAllEvo() {
     again = false;
     for (const g of GENS) if (buyEvo(g.id, { silent: true })) { n++; again = true; }
   }
-  if (n) toast(`${n} Ausbau${n > 1 ? 'ten' : ''} gekauft`, 'gold');
+  if (n) toast(n > 1 ? t('{n} Ausbauten gekauft', { n }) : t('1 Ausbau gekauft'), 'gold');
   return n;
 }

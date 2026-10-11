@@ -61,21 +61,21 @@ Reine Funktionen in `js/data/generators.js` (auch über `core/formulas.js` errei
 ## 3a. Zeitalter und Generator-Ausbau (Industrie-Tab)
 
 ### Zeitalter (Industrialisierung)
-Ein Zeitalter ist erreicht, wenn BEIDE Bedingungen erfüllt sind: kumuliertes Erz `state.stats.total.ore >= at` UND kumulierte Spielzeit `state.stats.playTime >= minTime` (nicht gespeichert, abgeleitet). `playTime` zählt über alle Neugüsse hinweg, wird im Tick und bei Offline-Zeit (`applyOffline`, gedeckelt auf das Offline-Maximum) erhöht und beim Neuguss nicht zurückgesetzt. Ziel: Alles ist frühestens nach 7 Tagen Spielzeit freigeschaltet, unabhängig davon, wie schnell Erz wächst (Erz-Schwellen stauchen sich exponentiell). Jedes Zeitalter unlocks neue Forschungen (mit optionalem Feld `era: n`) und Ausbaustufen für Generatoren. Der globale Multiplikator ist kumulativ: Mit Zeitalter 3 erhalten alle Ausgaben `×(1.0 × 1.2 × 1.3)`.
+Ein Zeitalter ist erreicht, wenn das kumulierte Erz `state.stats.total.ore >= at` ist (nicht gespeichert, abgeleitet; keine Mindest-Spielzeit mehr). Zeitalter und Industrie-Tab sind erst ab dem 1. Neuguss wirksam: `eraIndex()` liefert 0, solange `state.prestige.count < 1` (`industryUnlocked()`), egal wie viel Erz vorhanden ist (alte Spielstände ohne Neuguss crashen nicht, sie sind einfach in Zeitalter 0). Industrie-Tab-Button und Zeitalter-Anzeige in der Seitenleiste sind bis dahin versteckt; liegt der aktive Tab dort (Reset/Import), wird auf Generatoren zurückgefallen (Start-Tab ist Werk). Gesperrte Forschung/Ausbauten nennen vor dem 1. Neuguss den Grund „Benötigt den ersten Neuguss“. `stats.playTime` bleibt als reine Statistik erhalten. Jedes Zeitalter unlocks neue Forschungen (mit optionalem Feld `era: n`) und Ausbaustufen für Generatoren. Der globale Multiplikator ist kumulativ: Mit Zeitalter 3 erhalten alle Ausgaben `×(1.0 × 1.2 × 1.3)`.
 
-| Zeitalter | Schwelle (Erz) | Mindest-Spielzeit | Bonus | Inhalte |
-|---|---|---|---|---|
-| 0: Handwerk | 0 | 0 | ×1.0 | Status quo |
-| 1: Mechanisierung | 3e6 | 15 min | ×1.2 | Ausbau I, Forschung Wasserenergie |
-| 2: Dampfzeitalter | 1e11 | 4 h | ×1.3 | Ausbau II, Dampfmaschine, Bessemer |
-| 3: Elektrifizierung | 1e15 | 36 h | ×1.5 | Ausbau III, Dynamo, Elektrostahl |
-| 4: Automatisierung | 1e19 | 4 Tage | ×1.5 | Ausbau IV, Fließband, Robotik, Auto-Ausbau im Generator-Auto-Buyer |
-| 5: Digitalisierung | 1e23 | 7 Tage | ×2.0 | Ausbau V, Mikrochips, Nanotech |
+| Zeitalter | Schwelle (Erz) | Bonus | Inhalte |
+|---|---|---|---|
+| 0: Handwerk | 0 | ×1.0 | Status quo |
+| 1: Mechanisierung | 1e17 | ×1.2 | Ausbau I, Forschung Wasserenergie |
+| 2: Dampfzeitalter | 1e20 | ×1.3 | Ausbau II, Dampfmaschine, Bessemer |
+| 3: Elektrifizierung | 1e22 | ×1.5 | Ausbau III, Dynamo, Elektrostahl |
+| 4: Automatisierung | 1e23 | ×1.5 | Ausbau IV, Fließband, Robotik, Auto-Ausbau im Generator-Auto-Buyer |
+| 5: Digitalisierung | 3e23 | ×2.0 | Ausbau V, Mikrochips, Nanotech |
 
-- Erz-Schwellen und Mindest-Spielzeiten sind je streng steigend (Zeitalter 0: 0/0). Test `eras.test.mjs` prüft dies und dass `eraMult()` kumulativ wirkt.
-- Fortschritt: `eraProgress()` = Minimum aus Erz-Fortschritt (logarithmisch) und Zeit-Fortschritt (linear zur nächsten `minTime`); `eraNeeds()` liefert `{ ore, time, missingTime }` für die Hinweise in Seitenleiste und Industrie-Tab ("Nächstes: X – ab Y Erz und Z Spielzeit").
+- Erz-Schwellen sind streng steigend (Zeitalter 0: 0). Test `eras.test.mjs` prüft dies, die Neuguss-Bedingung und dass `eraMult()` kumulativ wirkt; `industry-tab.test.mjs` die Tab-Sichtbarkeit.
+- Fortschritt: `eraProgress()` = logarithmischer Erz-Fortschritt zur nächsten Schwelle (Seitenleiste: "Nächstes: X – ab Y Erz").
 - Event `era` bei Aufstieg (nicht beim Laden), Toast in Gold, je Zeitalter einzeln (auch bei Sprüngen über mehrere).
-- Kalibrierung (Sim `node tools/balance-sim.mjs 175 4 1 30 rate`, 4 Klicks/s, Aktiv-Spiel ohne Offline): Zeitalter 1 bei 30 min (Erz-Schwelle bindet, minTime 15 min), Zeitalter 2 bei 4,0 h, 3 bei 36 h, 4 bei 96 h, 5 bei 168 h – ab Zeitalter 2 bindet die Mindest-Spielzeit, bei Zeitalter 5 liegt die Erz-Schwelle (1e23) knapp darunter (Sim: 1e23 bei ca. 142 h, 1,7e23 bei 168 h). Eine Erz-Schwelle von 1e24 wäre erst nach >200 h erreicht worden; sie wurde daher auf 1e23 gesenkt. Gesamt-Spielzeit bis alles frei: 7 Tage (Offline-Zeit zählt mit).
+- Kalibrierung (ALT, vor den neuen Forschungen und Schwellen; aktueller Stand siehe 3b) (Sim `balance-sim.mjs 175 4 1 30 rate`, 4 Klicks/s, Aktiv-Spiel ohne Offline, Stand vor den neuen Forschungen): 1. Neuguss bei 1,7 h; Zeitalter 1 bei 5,2 h (3,5 h nach dem 1. Neuguss), 2 bei 31 h, 3 bei 58 h, 4 bei 112 h, 5 bei 190 h (ca. 8 Tage). Das Wachstum flacht spät stark ab (ca. t^3), daher liegen die Schwellen eng beieinander; Feinkalibrierung nach Erweiterung der Forschung nötig (Forschung/Boosts beschleunigen die Zeitalter).
 
 ### Generator-Ausbau (5 Stufen)
 Jeder Generator hat optional Stufen 1–5. Stufe k braucht (a) Zeitalter >= k, (b) Generatorstufe >= `EVO_AT[k-1]`:
@@ -95,6 +95,23 @@ Jeder Generator hat optional Stufen 1–5. Stufe k braucht (a) Zeitalter >= k, (
 - Auto-Buyer: Der Generator-Auto-Buyer (Prestige-Shop „Automatisierung", `ab_gens`) kauft Ausbauten nach den Generatoren, wenn Kosten bezahlbar und Reserve-Regel einhält. Gleiches Prestige-Level unlock wie Generatoren selbst.
 - Rendering (Industrie-Tab): Tabelle je Generator (Name, 5 Ausbau-Pips, nächster Multiplikator, Kosten, Grund bei Sperre/Fehler). Knopf „Alles ausbauen" kauft alle möglichen Stufen in einem Durchgang.
 - Tests: `tests/evolution.test.mjs` (Ableitung aus Zeitalter/Generatorstufe, Kosten, Neuguss-Reset), `tests/systems.test.mjs` (Auto-Buyer mit Ausbauten), `tests/balance.test.mjs` neuer Abschnitt (Zeitalter-Progression im ersten 12h, Reihenfolge streng, Zeitalter 5 nicht erreicht).
+
+## 3b. Progression (Stand)
+
+- Der Industrie-Tab und die Zeitalter-Anzeige gibt es erst ab dem 1. Neuguss.
+- Zeitalter hängen nur an kumulierten Erz-Schwellen: 1e17, 1e20, 1e22, 1e23, 3e23 (Zeitalter 1 bis 5). Es gibt kein `minTime` mehr.
+- Sim-Aufruf und Parameter: `node tools/balance-sim.mjs [Stunden] [Klicks/s] [Neuguss-Anteil] [dt] [Policy]`. Defaults: 48 h, 4 Klicks/s, Anteil 0,5, dt 2 s, Policy `rate`. Stunden = simulierte aktive Spielzeit (kein Offline-Ertrag); Klicks/s = Klickrate des Bots; Anteil = Der Bot gießt neu, sobald der Gewinn >= Anteil x bisher verdiente Gussformen ist (1 = so früh wie sinnvoll möglich, 0,5 = früher); dt = Simulationsschritt in Sekunden (größer = gröber und schneller gerechnet, ändert die Ergebnisse spürbar); Policy `rate` = Neuguss nach Gewinnrate, `frac` = nach Bestandsanteil.
+- Kalibrierter Aufruf (Referenz für die Tabelle und für `tests/balance.test.mjs`): `tools/balance-sim.mjs 175 4 1 30 rate` (175 h, 4 Klicks/s, Anteil 1, dt 30). Bot kauft alle Forschung/Boosts/Klick-Upgrades und baut auch Chrom/Nickel/Wolfram/Gold-Generatoren aus. Gemessene Werte (Lauf vom 2026-10-11): 1. Neuguss bei 1,8 h; Zeitalter 1 bei 7,5 h (5,7 h nach dem 1. Neuguss), Zeitalter 2 bei 37,9 h, 3 bei 96,5 h, 4 bei 127,6 h. Zeitalter 5 liegt bei etwa 192 h (8 Tage, Lauf mit `stopAtEra: 5` und 336 h); der 175-h-Lauf erreicht es nicht ("NICHT erreicht"). Meilensteine: 5 und 25 bei 1,8 h, 150 bei 2,0 h, 1.000 bei 2,4 h, 10.000 bei 4,3 h, 250.000 bei 34,5 h.
+- Schneller/optimistischer Bot (Aufruf ohne Parameter, also 48 h, Anteil 0,5, dt 2): 1. Neuguss bei 2,6 h; Zeitalter 1 bei 4,7 h, 2 bei 6,6 h, 3 bei 13,3 h, 4 bei 14,9 h, 5 bei 15,1 h; Meilensteine 5/25/150 bei 2,6 h, 1.000 bei 3,1 h, 10.000 bei 4,6 h, 250.000 bei 23,3 h. Der Standardlauf ist eine Untergrenze der Dauer: Er gießt häufiger neu und rechnet feiner (dt 2), kauft also effizienter als der kalibrierte Lauf. Er widerspricht dem kalibrierten Lauf nicht, er misst nur einen anderen Spielstil.
+- Einordnung: Beide Läufe sind Bots, es wurde kein echter Spieler gemessen. Die Zeiten hängen stark vom Spielstil und von den Bot-Parametern ab (kalibriert mit dt 60 statt 30: Zeitalter 1 erst bei 31 h). Realistische Spielerzeiten liegen irgendwo zwischen beiden Läufen; offline verkürzt sich die Dauer zusätzlich. Die Tabelle oben in diesem Absatz gilt nur für den kalibrierten Aufruf.
+- Tests: `tests/balance.test.mjs` nutzt die kalibrierte Konfiguration (336 h, dt 30, Anteil 1, `rate`, Abbruch bei Zeitalter 5) und prüft die Zeitalter-Reihenfolge, die Obergrenzen (Zeitalter 2 <= 100 h, 3 <= 180 h, 4 <= 240 h, 5 <= 336 h) und mindestens 3 h Abstand je Schritt. Dieser Abstand gilt nur für den kalibrierten Lauf; der Standardlauf unterschreitet ihn (Zeitalter 3 bis 5 liegen 0,2 bis 1,6 h auseinander).
+- Kostenkalibrierung der Zeitalter-Forschung, Zeitalter-Boosts und Era-Klick-Upgrades: Die größte Kostenposition einer Zeitalter-Forschung liegt bei 0,2 bis 1,0 x Erz-Schwelle ihres Zeitalters (geometrisch gestaffelt entlang der Ketten). Jede Ressource kostet proportional zu ihrer Produktionsrate im Sim (Median der Spitzenraten kurz vor jedem Neuguss im jeweiligen Zeitalter, `simulate().runRates`), Erz mit Faktor 1, Stahl 0,7, alle anderen 0,4. Dadurch begrenzt immer die langsamste Ressource und nie eine Nebenressource mit unrealistischem Mengenverhältnis. Zeit bis bezahlbar bei Spitzenrate (ab Durchlaufstart, ohne Bestand): Zeitalter 1 bis 2: unter 1 Minute bis wenige Minuten, Zeitalter 3: 3 bis 20 Minuten, Zeitalter 4 und 5: 0,4 bis 3 Stunden. Die Zeitalter-Schwellen sind kumulativ über viele Durchläufe, die Kosten dagegen müssen innerhalb eines Durchlaufs bezahlbar sein (Forschung geht beim Neuguss verloren, außer mit Wissensarchiv); deshalb sind die Kosten in frühen Zeitalter kurz gemessen an der Schwelle.
+- Bewusster Bruch: Alte Spielstände (vor Industrie/Zeitalter-Umbau) werden nicht migriert; Zeitalter und Industrie gelten erst ab dem 1. Neuguss, es gibt keinen Toast für übersprungene Zeitalter.
+- Recalibration: `tools/balance-sim.mjs` liefert `runRates`; bei Änderung von Forschung, Schwellen oder Boni Sim laufen lassen und Kosten neu aus den Raten ableiten.
+- 76 Forschungen, verteilt nach Zeitalter (Feld `era`; ohne Feld = 0): Zeitalter 0: 30, 1: 8, 2: 9, 3: 10, 4: 10, 5: 9.
+- 15 neue Zeitalter-Boosts (`prospect` bis `fusioncat`) und 2 neue Klick-Upgrades (`hydraulic`, `plasmalance`).
+- Neue `mult`-Schlüssel in Boosts: `click` (Klickwert) und `autoclick` (Autoklick-Anteil), neben Ressourcen-ID und `all`.
+- Synergie (ab Zeitalter 1): +0,3 % je erledigter Forschung und +0,5 % je gekauftem Boost, flach addiert (`SYNERGY` in `core/formulas.js`).
 
 ## 4. Balance-Begründung
 
@@ -267,3 +284,9 @@ Timer-API (`js/systems/timers.js`): `enqueue(kind, id)`, `cancel(queue, index)`,
 Events: `timer:queued`, `timer:done`, `timer:cancel` (`{ queue, kind, id }`, bei Abbruch zusätzlich `refund`, `running`), `gen:evolve` (`{ id, tier }`), `buy` mit `queued: true` bei Aufträgen.
 
 Datenfelder: `img` je Material und Generator (`assets/icons/res-<id>.svg`, `gen-<id>.svg`; vorhandene Dateien stehen in `js/ui/assets.js`, für alle anderen zeigt die UI das Emoji `icon`), `liquid` (Farbe) und `cat` (`mining` Erlenmeyer, `metal` Reagenzglas, `chem` Rundkolben, `tech` Retorte) je Forschung, `time` je Forschung/Boost/Klick-Upgrade.
+
+## 8. Offene Punkte
+
+- Designrisiko: Der erste Neuguss kommt nach etwa 2 h (kalibrierter Bot 1,8 h, schneller Bot 2,6 h). Bis dahin gibt es weder Industrie-Tab noch Zeitalter-Anzeige. Der Spieler sieht lange keine neue Systemebene. Ideen (nicht umgesetzt, kein Code geändert): Industrie-Tab als gesperrten Reiter mit Hinweis "Ab dem ersten Neuguss" anzeigen; früheren Meilenstein-Hinweis oder Fortschrittsanzeige zum ersten Neuguss einblenden; Schwelle des ersten Neugusses (`divisor` 1e7) prüfen.
+- Kein echter Spieler gemessen: Alle Zeiten stammen von Bots. Playtest nötig, bevor die Zeitalter-Schwellen als final gelten.
+- Zeitalter 3 bis 5 liegen im schnellen Bot dicht beieinander (13,3 / 14,9 / 15,1 h); im kalibrierten Lauf sind es 96 / 128 / 192 h. Die Spreizung hängt stark vom Spielstil ab.

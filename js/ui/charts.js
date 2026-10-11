@@ -1,6 +1,7 @@
 // Canvas-Diagramm: Verlaufsdiagramm (Statistik).
 import { RES, RES_IDS } from '../data/resources.js';
 import { fmt } from '../core/format.js';
+import { t } from '../core/i18n.js';
 
 const HIST_POINTS = 180;   // 1 Wert pro 5 Sekunden = 15 Minuten
 export const hist = Object.fromEntries(RES_IDS.map(k => [k, []]));
@@ -50,8 +51,8 @@ export function drawHistory(canvas) {
   }
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = text;
-  ctx.fillText('vor 15 min', padL + 20 * dpr, h - 3 * dpr);
-  ctx.fillText('jetzt', w - padR - 12 * dpr, h - 3 * dpr);
+  ctx.fillText(t('vor 15 min'), padL + 20 * dpr, h - 3 * dpr);
+  ctx.fillText(t('jetzt'), w - padR - 12 * dpr, h - 3 * dpr);
   for (const k of RES_IDS) {
     const vals = hist[k];
     if (vals.length < 2) continue;

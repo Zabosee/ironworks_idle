@@ -2,6 +2,8 @@
 import { state } from './core/state.js';
 import { on, emit, toast } from './core/events.js';
 import { fmt, fmtTime } from './core/format.js';
+import { t, tName, initLang } from './core/i18n.js';
+import { applyStaticTexts } from './ui/static-i18n.js';
 import { load, save, autoSave, applyOffline, pauseSaving } from './core/save.js';
 import { createGuard, HEARTBEAT_MS } from './core/multitab.js';
 import { RES, RES_IDS } from './data/resources.js';
@@ -25,14 +27,14 @@ const OFFLINE_MIN_SECONDS = 10;   // Lücken größer als dies (z. B. Tab im Hin
 
 function announceOffline(info) {
   if (!info) return;
-  const parts = RES_IDS.filter(k => info.gains[k] > 0).map(k => `+${fmt(info.gains[k])} ${RES[k].name}`);
-  toast(`Willkommen zurück! Offline-Ertrag (${fmtTime(info.seconds)}${info.capped ? ', Maximum erreicht' : ''}): ${parts.join('  ')}`, 'good');
+  const parts = RES_IDS.filter(k => info.gains[k] > 0).map(k => `+${fmt(info.gains[k])} ${tName('resources', RES[k])}`);
+  toast(t('Willkommen zurück! Offline-Ertrag ({time}{capped}): {parts}', { time: fmtTime(info.seconds), capped: info.capped ? t(', Maximum erreicht') : '', parts: parts.join('  ') }), 'good');
 }
 
 function boot() {
   initToasts($('#toasts'));   // zuerst, damit Toasts aus load()/applyOffline() nicht verloren gehen
   // Mehr-Tab-Schutz vor dem Laden: ein zweiter Tab pausiert das Speichern und meldet 'multitab'.
-  on('multitab', () => toast('Das Spiel läuft bereits in einem anderen Tab. Speichern ist hier pausiert, damit kein Fortschritt überschrieben wird. Schließe diesen Tab oder lade ihn neu, sobald der andere zu ist.', 'warn'));
+  on('multitab', () => toast(t('Das Spiel läuft bereits in einem anderen Tab. Speichern ist hier pausiert, damit kein Fortschritt überschrieben wird. Schließe diesen Tab oder lade ihn neu, sobald der andere zu ist.'), 'warn'));
   // Tab-ID in sessionStorage: ein Neuladen desselben Tabs erbt den Lock (auch wenn pagehide ihn nicht freigegeben hat).
   let tabId; try { tabId = sessionStorage.getItem('eisenwerk-tab-id') || undefined; if (!tabId) { tabId = Math.random().toString(36).slice(2); sessionStorage.setItem('eisenwerk-tab-id', tabId); } } catch { /* ohne sessionStorage: Zufalls-ID */ }
   const guard = createGuard({ storage: globalThis.localStorage, id: tabId, onConflict: () => { pauseSaving(true); emit('multitab'); } });
@@ -40,14 +42,16 @@ function boot() {
   setInterval(() => guard.beat(), HEARTBEAT_MS);
   addEventListener('pagehide', () => guard.release());
   const loaded = load();
+  initLang();   // Sprache aus localStorage-Fallback bzw. Spielstand; schreibt state.settings.lang
+  applyStaticTexts();
   applySettings();
   if (loaded.loaded) {
     if (state.savedAt > 0) announceOffline(applyOffline((Date.now() - state.savedAt) / 1000));
-    if (loaded.migrated) { toast('Spielstand der alten Version wurde übernommen.', 'good'); save(); }
+    if (loaded.migrated) { toast(t('Spielstand der alten Version wurde übernommen.'), 'good'); save(); }
   } else if (loaded.error) {
     toast(loaded.backedUp
-      ? 'Der Spielstand ist unlesbar oder stammt aus einer neueren Version. Eine Kopie liegt im Browser-Speicher (…-backup). Speichern ist gesperrt, bis du einen Spielstand importierst oder zurücksetzt.'
-      : 'Der Spielstand ist unlesbar oder stammt aus einer neueren Version. Speichern ist gesperrt, bis du einen Spielstand importierst oder zurücksetzt.', 'warn');
+      ? t('Der Spielstand ist unlesbar oder stammt aus einer neueren Version. Eine Kopie liegt im Browser-Speicher (…-backup). Speichern ist gesperrt, bis du einen Spielstand importierst oder zurücksetzt.')
+      : t('Der Spielstand ist unlesbar oder stammt aus einer neueren Version. Speichern ist gesperrt, bis du einen Spielstand importierst oder zurücksetzt.'), 'warn');
   }
 
   initRender();
@@ -95,5 +99,5 @@ try {
 } catch (err) {
   console.error(err);
   const box = document.getElementById('boot-error');
-  if (box) { box.hidden = false; box.textContent = 'Beim Starten ist ein Fehler aufgetreten: ' + (err instanceof Error ? err.message : String(err)); }
+  if (box) { box.hidden = false; box.textContent = t('Beim Starten ist ein Fehler aufgetreten:') + ' ' + (err instanceof Error ? err.message : String(err)); }
 }

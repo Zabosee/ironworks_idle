@@ -2,6 +2,7 @@
 import { state, defaultState } from '../core/state.js';
 import { prestigeGain, shopCost, shopLevel, startOre } from '../core/formulas.js';
 import { emit, toast } from '../core/events.js';
+import { t } from '../core/i18n.js';
 import { autoSave } from '../core/save.js';
 import { resetForPrestige } from './timers.js';
 import { SHOP_MAP, MILESTONES, PRESTIGE, HISTORY_MAX } from '../data/prestige.js';
@@ -44,8 +45,8 @@ export function doPrestige() {
   if (p.history.length > HISTORY_MAX) p.history.splice(0, p.history.length - HISTORY_MAX);
 
   emit('prestige', { gain });
-  toast(`${PRESTIGE.name}! +${gain} ${PRESTIGE.currency}`, 'gold');
-  for (const m of MILESTONES) if (oldTotal < m.at && p.total >= m.at) toast(`Meilenstein ${m.at} ${PRESTIGE.currency}: ${m.desc}`, 'gold');
+  toast(t('{name}! +{gain} {currency}', { name: t(PRESTIGE.name), gain, currency: t(PRESTIGE.currency) }), 'gold');
+  for (const m of MILESTONES) if (oldTotal < m.at && p.total >= m.at) toast(t('Meilenstein {at} {currency}: {desc}', { at: m.at, currency: t(PRESTIGE.currency), desc: t(m.desc) }), 'gold');
   autoSave();
   return true;
 }

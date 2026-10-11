@@ -1,8 +1,9 @@
 // Interaktive Research Skilltree Map mit Pan, Zoom und Keyboard Navigation
 import { RESEARCH, RESEARCH_MAP } from '../data/research.js';
 import { RESEARCH_COORDS, MIN_NODE_DISTANCE } from '../data/research-layout.js';
-import { levelOf, lockReason, pendingOf, isRevealed, bulkPlan, duration, eraIndex } from '../core/formulas.js';
+import { levelOf, lockReason, pendingOf, isRevealed, bulkPlan, duration, eraIndex, industryUnlocked } from '../core/formulas.js';
 import { fmtClock, fmt } from '../core/format.js';
+import { t, tName, tDesc } from '../core/i18n.js';
 import { state } from '../core/state.js';
 import { RES } from '../data/resources.js';
 import { ERAS } from '../data/eras.js';
@@ -22,7 +23,8 @@ let mapState = {
   selectedId: null,  // Aktuell ausgewählter Knoten
 };
 
-const MIN_SCALE = 0.3;
+const MIN_SCALE = 0.12;   // Fit darf weit hinauszoomen, damit die ganze Karte sichtbar ist
+const LABEL_MIN_SCALE = 0.6;   // darunter wären Beschriftungen < 8 px: ausblenden (Icon + Tooltip/Detailpanel)
 const MAX_SCALE = 3;
 const ZOOM_STEP = 1.15;
 const NODE_R = 48;        // Knotenradius (96 px / 2 + Rand)
@@ -85,12 +87,13 @@ export function initResearchMap(container) {
         type: 'button',
         dataset: { id: r.id, x: coord.x, y: coord.y, cat: r.cat },
         style: `--x: ${coord.x}; --y: ${coord.y}; --liquid: ${r.liquid};`,
-        'aria-label': r.name,
+        'aria-label': tName('research', r),
+        title: tName('research', r),
       },
       h('span', { class: 'node-ico', 'aria-hidden': 'true', text: r.icon }),
-      h('span', { class: 'node-label', text: r.name }),
+      h('span', { class: 'node-label', text: tName('research', r) }),
       h('span', { class: 'node-badge', 'aria-hidden': 'true' }),
-      r.era ? h('span', { class: 'node-era', 'aria-hidden': 'true', title: 'Zeitalter: ' + ERAS[r.era].name, text: ERAS[r.era].sym }) : null
+      r.era ? h('span', { class: 'node-era', 'aria-hidden': 'true', title: t('Zeitalter: {name}', { name: tName('eras', ERAS[r.era]) }), text: ERAS[r.era].sym }) : null
     );
 
     node.addEventListener('click', (e) => {
@@ -122,7 +125,7 @@ export function initResearchMap(container) {
   // Detailpanel
   const panel = h('div', { class: 'research-panel', hidden: true },
     h('div', { class: 'research-panel-header' },
-      h('button', { class: 'research-panel-close', type: 'button', 'aria-label': 'Schließen', text: '✕' })
+      h('button', { class: 'research-panel-close', type: 'button', 'aria-label': t('Schließen'), text: '✕' })
     ),
     h('div', { class: 'research-panel-content' })
   );
@@ -134,9 +137,9 @@ export function initResearchMap(container) {
 
   // Controls
   const controls = h('div', { class: 'research-map-controls' },
-    h('button', { class: 'zoom-btn zoom-in', type: 'button', 'aria-label': 'Vergrößern', text: '+' }),
-    h('button', { class: 'zoom-btn zoom-out', type: 'button', 'aria-label': 'Verkleinern', text: '−' }),
-    h('button', { class: 'zoom-btn zoom-fit', type: 'button', 'aria-label': 'An Größe anpassen', text: 'Fit' })
+    h('button', { class: 'zoom-btn zoom-in', type: 'button', 'aria-label': t('Vergrößern'), text: '+' }),
+    h('button', { class: 'zoom-btn zoom-out', type: 'button', 'aria-label': t('Verkleinern'), text: '−' }),
+    h('button', { class: 'zoom-btn zoom-fit', type: 'button', 'aria-label': t('An Größe anpassen'), text: t('Fit') })
   );
 
   // Event Listener für Pan und Zoom
@@ -329,23 +332,23 @@ function buildResearchPanel() {
   // Icon + Name
   const name = h('div', { class: 'panel-name-row' },
     h('span', { class: 'panel-icon', text: def.icon }),
-    h('h2', { class: 'panel-title', text: def.name })
+    h('h2', { class: 'panel-title', text: tName('research', def) })
   );
   content.append(name);
 
   // Status
-  const statusText = done ? 'Erledigt' : pending ? (pending.running ? 'Läuft' : 'In Warteschlange') : lock ? 'Gesperrt' : 'Verfügbar';
-  const statusEl = h('p', { class: 'panel-status' + (done ? ' done' : pending ? ' pending' : lock ? ' locked' : ' available'), text: 'Status: ' + statusText });
+  const statusText = done ? t('Erledigt') : pending ? (pending.running ? t('Läuft') : t('In Warteschlange')) : lock ? t('Gesperrt') : t('Verfügbar');
+  const statusEl = h('p', { class: 'panel-status' + (done ? ' done' : pending ? ' pending' : lock ? ' locked' : ' available'), text: t('Status: {status}', { status: statusText }) });
   content.append(statusEl);
 
   if (def.era) {
     const ok = eraIndex() >= def.era;
-    content.append(h('p', { class: 'panel-era' + (ok ? ' ok' : ' bad'), text: `${ERAS[def.era].sym} Zeitalter: ${ERAS[def.era].name}${ok ? ' (erreicht)' : ` (ab ${fmt(ERAS[def.era].at)} Erz gesamt)`}` }));
+    content.append(h('p', { class: 'panel-era' + (ok ? ' ok' : ' bad'), text: `${ERAS[def.era].sym} ${t('Zeitalter: {name}', { name: tName('eras', ERAS[def.era]) })} ${ok ? t('(erreicht)') : !industryUnlocked() ? t('(nach dem ersten Neuguss)') : t('(ab {ore} Erz gesamt)', { ore: fmt(ERAS[def.era].at) })}` }));
   }
 
   // Beschreibung
   if (def.desc) {
-    content.append(h('p', { class: 'panel-desc', text: def.desc }));
+    content.append(h('p', { class: 'panel-desc', text: tDesc('research', def) }));
   }
 
   // Kosten (wenn nicht erledigt)
@@ -353,10 +356,10 @@ function buildResearchPanel() {
     const costDiv = h('div', { class: 'panel-costs' });
     const cost = plan.cost || {};
     refs.costs = [];
-    costDiv.append(h('span', { class: 'cost-title', text: 'Kosten:' }));
+    costDiv.append(h('span', { class: 'cost-title', text: t('Kosten:') }));
     for (const [res, amt] of Object.entries(cost)) {
       const row = h('span', { class: 'panel-cost-row' },
-        h('span', { class: 'cost-label', text: (RES[res]?.icon || '') + ' ' + (RES[res]?.name || res) }),
+        h('span', { class: 'cost-label', text: (RES[res]?.icon || '') + ' ' + (RES[res] ? tName('resources', RES[res]) : res) }),
         h('span', { class: 'cost-amount', text: fmt(amt) }));
       refs.costs.push({ res, amt, row });
       costDiv.append(row);
@@ -367,7 +370,7 @@ function buildResearchPanel() {
   // Dauer (wenn nicht erledigt)
   if (!done) {
     const dur = duration('research', id);
-    const durationEl = h('p', { class: 'panel-duration', text: 'Dauer: ' + fmtClock(dur) });
+    const durationEl = h('p', { class: 'panel-duration', text: t('Dauer: {time}', { time: fmtClock(dur) }) });
     content.append(durationEl);
   }
 
@@ -386,7 +389,7 @@ function buildResearchPanel() {
 
   // Button "Erforschen"
   if (!done && !pending) {
-    const button = h('button', { class: 'panel-btn', type: 'button', text: 'Erforschen' });
+    const button = h('button', { class: 'panel-btn', type: 'button', text: t('Erforschen') });
     button.addEventListener('click', () => { buy('research', id, 1); updateResearchPanel(); });
     refs.btn = button;
     refs.reason = h('p', { class: 'panel-reason' });
@@ -398,6 +401,7 @@ function buildResearchPanel() {
 
 function applyTransform(container) {
   container.style.transform = `translate(${mapState.translateX}px, ${mapState.translateY}px) scale(${mapState.scale})`;
+  container.classList.toggle('compact', mapState.scale < LABEL_MIN_SCALE);
 }
 
 /**
@@ -415,15 +419,20 @@ function centerOn(container) {
   const viewport = container.parentElement;
   const vw = viewport.offsetWidth, vh = viewport.offsetHeight;
   if (vw <= 0 || vh <= 0) return false;
-  const padX = NODE_R + 90, padTop = NODE_R + 40, padBottom = NODE_R + 70;   // Platz für Beschriftung und Steuerknöpfe
-  const needW = Math.max(maxX - minX, 1) + padX * 2, needH = Math.max(maxY - minY, 1) + padTop + padBottom;
-  const symW = Math.max(maxX, -minX) * 2 + padX * 2, symH = Math.max(maxY, -minY) * 2 + padTop + padBottom;
+  // Rand: Beschriftung (unter dem Knoten) und Steuerknöpfe (oben rechts); ohne Beschriftung (kompakt) deutlich weniger
+  const fitFor = (padX, padTop, padBottom) => {
+    const needW = Math.max(maxX - minX, 1) + padX * 2, needH = Math.max(maxY - minY, 1) + padTop + padBottom;
+    return { padTop, padBottom, scale: Math.min(vw / needW, vh / needH) };
+  };
+  const symW = Math.max(maxX, -minX) * 2 + (NODE_R + 90) * 2, symH = Math.max(maxY, -minY) * 2 + (NODE_R + 40) + (NODE_R + 70);
   if (Math.min(vw / symW, vh / symH) >= START_SCALE) {
     mapState.scale = START_SCALE; mapState.translateX = 0; mapState.translateY = 0;   // Geologie mittig
   } else {
-    mapState.scale = Math.max(MIN_SCALE, Math.min(START_SCALE, vw / needW, vh / needH));
+    let f = fitFor(NODE_R + 90, NODE_R + 40, NODE_R + 70);
+    if (f.scale < LABEL_MIN_SCALE) f = fitFor(NODE_R + 30, NODE_R + 60, NODE_R + 30);   // kompakt: keine Labels, Platz für Steuerknöpfe oben
+    mapState.scale = Math.max(MIN_SCALE, Math.min(START_SCALE, f.scale));
     mapState.translateX = -((minX + maxX) / 2) * mapState.scale;
-    mapState.translateY = -((minY + maxY) / 2 + (padTop - padBottom) / 2) * mapState.scale;
+    mapState.translateY = -((minY + maxY) / 2 + (f.padBottom - f.padTop) / 2) * mapState.scale;
   }
   applyTransform(container);
   return true;
@@ -496,10 +505,10 @@ export function updateNodeStates() {
       }
 
       // ARIA Label
-      let state = done ? 'erledigt' : pending ? 'läuft' : lock ? 'gesperrt' : 'verfügbar';
-      let ariaLabel = `${def.name}. Status: ${state}`;
+      let state = done ? t('erledigt') : pending ? t('läuft') : lock ? t('gesperrt') : t('verfügbar');
+      let ariaLabel = t('{name}. Status: {status}', { name: tName('research', def), status: state });
       if (lock && !done && !pending) ariaLabel += `. ${lock}`;
-      if (pending) ariaLabel += `. ${pending.running ? 'Läuft' : 'Wartet'}`;
+      if (pending) ariaLabel += `. ${pending.running ? t('Läuft') : t('Wartet')}`;
       setAttr(el, 'aria-label', ariaLabel);
       setAttr(el, 'aria-disabled', lock && !done ? 'true' : 'false');
     }
@@ -532,12 +541,12 @@ export function updateResearchPanel() {
   if (r.btn) {
     const lock = lockReason('research', id), ok = !lock && bulkPlan('research', id, 1).affordable;
     r.btn.disabled = !ok;
-    setText(r.reason, lock ? lock : ok ? '' : 'Zu wenige Ressourcen');
+    setText(r.reason, lock ? lock : ok ? '' : t('Zu wenige Ressourcen'));
   }
   const p = pendingOf('research', id);
   if (p && r.progText) {
     const e = p.entry, prog = p.running && e.total > 0 ? Math.max(0, Math.min(1, 1 - e.left / e.total)) : 0;
-    setText(r.progText, p.running ? `Fortschritt: ${Math.round(prog * 100)} % · noch ${fmtClock(Math.max(e.left, 0))}` : 'Wartet in der Warteschlange');
+    setText(r.progText, p.running ? t('Fortschritt: {pct} % · noch {time}', { pct: Math.round(prog * 100), time: fmtClock(Math.max(e.left, 0)) }) : t('Wartet in der Warteschlange'));
     r.progFill.style.setProperty('--p', prog.toFixed(3));
   }
 }

@@ -1,5 +1,6 @@
 // Reine Berechnungen auf Basis des Zustands. Kein DOM, keine Seiteneffekte.
 import { state } from './state.js';
+import { t, tName } from './i18n.js';
 import { RES, RES_IDS } from '../data/resources.js';
 import { QUEUES, queueIdOf, SPEED_SHOP, SPEED_PER_LEVEL, AUTOMATION_RESEARCH, AUTOMATION_MULT, MIN_DURATION } from '../data/timers.js';
 import { GENS, GEN_MAP, genTier, tierName, tierPips, MILESTONE_STEP, ELITE_FROM, ELITE_GROWTH, MAX_LEVEL, EXTRA_MILESTONES } from '../data/generators.js';
@@ -13,10 +14,14 @@ import { ERAS, EVO_MAX, EVO_AT, EVO_MULT, EVO_COST } from '../data/eras.js';
 
 export { genTier, tierName, tierPips };
 
-// ---------- Zeitalter (abgeleitet von state.stats.total.ore UND state.stats.playTime) ----------
-export const eraIndex = (ore = state.stats.total.ore, time = state.stats.playTime) => {
+// ---------- Zeitalter (abgeleitet von state.stats.total.ore; erst ab dem 1. Neuguss wirksam) ----------
+/** Industrie/Zeitalter sind erst nach dem ersten Neuguss freigeschaltet; davor gilt faktisch Zeitalter 0. */
+export const industryUnlocked = () => (state.prestige?.count || 0) >= 1;
+
+export const eraIndex = (ore = state.stats.total.ore, unlocked = industryUnlocked()) => {
+  if (!unlocked) return 0;
   for (let i = ERAS.length - 1; i >= 0; i--) {
-    if (ore >= ERAS[i].at && time >= ERAS[i].minTime) return i;
+    if (ore >= ERAS[i].at) return i;
   }
   return 0;
 };
@@ -31,27 +36,14 @@ export const nextEra = () => {
   return idx + 1 < ERAS.length ? ERAS[idx + 1] : null;
 };
 
-/** Fortschritt zum nächsten Zeitalter (0..1): Minimum aus Erz-Fortschritt (logarithmisch) und Zeit-Fortschritt (linear). */
+/** Fortschritt zum nächsten Zeitalter (0..1), logarithmisch im kumulierten Erz. */
 export const eraProgress = () => {
   const next = nextEra();
   if (!next) return 1;
   const cur = ERAS[eraIndex()];
   const lg = v => Math.log10(Math.max(1, v));
   const clamp = x => Math.max(0, Math.min(1, x));
-  const fo = clamp((lg(state.stats.total.ore) - lg(cur.at)) / (lg(next.at) - lg(cur.at)));
-  const ft = clamp((state.stats.playTime - cur.minTime) / (next.minTime - cur.minTime));
-  return Math.min(fo, ft);
-};
-
-/** Was fehlt fürs nächste Zeitalter? null im letzten Zeitalter, sonst { ore, time (jeweils erfüllt?), missingTime (s) }. */
-export const eraNeeds = () => {
-  const next = nextEra();
-  if (!next) return null;
-  return {
-    ore: state.stats.total.ore >= next.at,
-    time: state.stats.playTime >= next.minTime,
-    missingTime: Math.max(0, next.minTime - state.stats.playTime),
-  };
+  return clamp((lg(state.stats.total.ore) - lg(cur.at)) / (lg(next.at) - lg(cur.at)));
 };
 
 // ---------- Generator-Ausbauten ----------
@@ -77,9 +69,10 @@ export const evoCost = id => {
 /** Begründung, warum die nächste Ausbaustufe nicht kaufbar ist (ohne Kostenprüfung), sonst null. */
 export const evoLock = id => {
   const lvl = evoLevel(id);
-  if (lvl >= EVO_MAX) return 'Maximum erreicht';
-  if (eraIndex() < lvl + 1) return `Benötigt Zeitalter: ${ERAS[lvl + 1].name}`;
-  if (genLevel(id) < EVO_AT[lvl]) return `Benötigt Stufe ${EVO_AT[lvl]}`;
+  if (lvl >= EVO_MAX) return t('Maximum erreicht');
+  if (!industryUnlocked()) return t('Benötigt den ersten Neuguss');
+  if (eraIndex() < lvl + 1) return t('Benötigt Zeitalter: {name}', { name: tName('eras', ERAS[lvl + 1]) });
+  if (genLevel(id) < EVO_AT[lvl]) return t('Benötigt Stufe {n}', { n: EVO_AT[lvl] });
   return null;
 };
 
@@ -116,6 +109,24 @@ export function researchMult(res) {
   return m;
 }
 
+/** Produkt eines reinen Sondersschlüssels (z. B. 'click', 'autoclick') über Forschung und Boosts; `all` zählt hier nicht. */
+export function keyMult(key) {
+  let m = 1;
+  for (const r of RESEARCH) if (state.research[r.id] && r.mult) m *= r.mult[key] ?? 1;
+  for (const b of BOOSTS) if (state.boosts[b.id]) m *= b.mult[key] ?? 1;
+  return m;
+}
+
+/** Sammel-Synergie (erst ab Zeitalter 1): kleiner Bonus je erledigter Forschung und je gekauftem Boost (flach addiert, daher moderat). */
+export const SYNERGY = { perResearch: 0.003, perBoost: 0.005 };
+export function synergyMult() {
+  if (eraIndex() < 1) return 1;
+  let r = 0, b = 0;
+  for (const x of RESEARCH) if (state.research[x.id]) r++;
+  for (const x of BOOSTS) if (state.boosts[x.id]) b++;
+  return 1 + SYNERGY.perResearch * r + SYNERGY.perBoost * b;
+}
+
 export function achievementBonus() {
   let sum = 0;
   for (const a of ACHIEVEMENTS) if (state.achievements[a.id]) sum += a.bonus;
@@ -140,7 +151,7 @@ export function buffMult(kind) {
 }
 
 /** Alles, was auf jede Produktion wirkt (außer Forschung/Boosts). */
-export const globalMult = () => prestigeMult() * achievementMult() * buffMult('prod') * eraMult();
+export const globalMult = () => prestigeMult() * achievementMult() * buffMult('prod') * eraMult() * synergyMult();
 export const mult = res => safe(researchMult(res) * globalMult());
 
 // ---------- Produktion ----------
@@ -151,7 +162,7 @@ export const clickLevel = id => state.clicks[id] || 0;
 
 /** Klickwert-Beitrag eines Klick-Upgrades auf Stufe n (ohne Resonanz/Buffs). */
 export function clickBaseAt(n, gm = globalMult(), def = CLICKS[0]) {
-  return safe((def.base + def.perLevel * n) * milestone(n) * researchMult('ore') * gm * (1 + 0.5 * shopLevel('click')));
+  return safe((def.base + def.perLevel * n) * milestone(n) * researchMult('ore') * keyMult('click') * gm * (1 + 0.5 * shopLevel('click')));
 }
 
 /** Summe der Beiträge aller Klick-Upgrades auf den aktuellen Stufen. */
@@ -185,7 +196,7 @@ export function rates() {
   }
   const clickRaw = safe(clickBaseTotal(gm) + (state.research.resonance ? 0.05 * r.ore : 0));
   r.click = safe(clickRaw * buffMult('click'));
-  if (state.research.autoclick) r.ore += 5 * clickRaw;
+  if (state.research.autoclick) r.ore += 5 * clickRaw * keyMult('autoclick');
   r.flows = [];
   for (const rc of RECIPES) {
     if (!recipeActive(rc)) continue;
@@ -272,14 +283,15 @@ const missingReqs = d => reqList(d?.req).filter(q => !state.research[q]);
 /** Liefert null, wenn kaufbar, sonst Begründung (Forschung fehlt, läuft bereits, Warteschlange voll). */
 export function lockReason(kind, id) {
   const miss = missingReqs(defOf(kind, id));
-  if (miss.length) return (kind === 'research' ? 'Benötigt: ' : 'Benötigt Forschung: ') + miss.map(q => RESEARCH_MAP[q].name).join(', ');
+  if (miss.length) return (kind === 'research' ? t('Benötigt: {list}', { list: miss.map(q => tName('research', RESEARCH_MAP[q])).join(', ') }) : t('Benötigt Forschung: {list}', { list: miss.map(q => tName('research', RESEARCH_MAP[q])).join(', ') }));
   const d = defOf(kind, id);
-  if (d?.era > eraIndex()) return `Benötigt Zeitalter: ${ERAS[d.era].name}`;
+  if (d?.era > eraIndex() && !industryUnlocked()) return t('Benötigt den ersten Neuguss');
+  if (d?.era > eraIndex()) return t('Benötigt Zeitalter: {name}', { name: tName('eras', ERAS[d.era]) });
   const q = queueIdOf(kind);
   if (q) {
     const p = pendingOf(kind, id);
-    if (p) return p.running ? 'Läuft' : 'In Warteschlange';
-    if (state.timers[q].length >= queueCapacity(q)) return QUEUES[q].name + ': Warteschlange voll';
+    if (p) return p.running ? t('Läuft') : t('In Warteschlange');
+    if (state.timers[q].length >= queueCapacity(q)) return t('{name}: Warteschlange voll', { name: tName('timers', QUEUES[q]) });
   }
   return null;
 }

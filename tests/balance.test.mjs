@@ -53,41 +53,42 @@ describe('Balance: Hochofen-Schleife', () => {
 });
 
 describe('Balance: Zeitalter-Progression', () => {
-  // Kurze Simulation (12 h mit dt=30) zum Prüfen der Zeitalter-Reihenfolge
-  const eras = simulate({ hours: 12, dt: 30, policy: 'rate', frac: 1 });
+  // Lange Simulation (bis Zeitalter 5, max. 14 Tage aktive Spielzeit, dt=30, ca. 2 Minuten Rechenzeit)
+  const eras = simulate({ hours: 336, dt: 30, policy: 'rate', frac: 1, stopAtEra: 5 });
+  const hours = i => eras.eraTimes[i] / H;
 
-  test('Zeitalter 1 wird früh erreicht (<2 h)', () => {
+  test('Zeitalter 1 kommt erst nach dem 1. Neuguss und mehrere Stunden danach (2..8 h)', () => {
     assert.ok(eras.eraTimes[1] !== undefined, 'Zeitalter 1 nicht erreicht');
-    assert.ok(eras.eraTimes[1] < 2 * H, `Zeitalter 1 zu spät: ${(eras.eraTimes[1] / H).toFixed(2)} h`);
+    const first = eras.prestiges[0].t;
+    assert.ok(eras.eraTimes[1] > first, 'Zeitalter 1 vor dem 1. Neuguss');
+    const after = eras.eraTimes[1] - first;
+    assert.ok(after >= 2 * H && after <= 8 * H, `Zeitalter 1 ${(after / H).toFixed(2)} h nach dem 1. Neuguss`);
   });
 
-  test('Zeitalter-Zeiten steigen streng monoton', () => {
-    let last = 0;
+  test('Zeitalter-Zeiten steigen streng monoton, ohne ein Zeitalter zu überspringen', () => {
     for (let i = 1; i < ERAS.length; i++) {
-      if (eras.eraTimes[i] !== undefined) {
-        assert.ok(eras.eraTimes[i] > last, `Zeitalter ${i} nicht später als ${i - 1}`);
-        last = eras.eraTimes[i];
-      }
+      if (eras.eraTimes[i] === undefined) continue;
+      assert.ok(i === 1 || eras.eraTimes[i - 1] !== undefined, `Zeitalter ${i} erreicht, ${i - 1} nicht`);
+      if (i > 1) assert.ok(eras.eraTimes[i] > eras.eraTimes[i - 1], `Zeitalter ${i} nicht später als ${i - 1}`);
     }
   });
 
-  test('Kein Zeitalter vor seiner Mindest-Spielzeit (Spielzeit läuft mit, Neuguss setzt sie nicht zurück)', () => {
+  test('Kein Zeitalter vor dem 1. Neuguss', () => {
     for (let i = 1; i < ERAS.length; i++) {
-      if (eras.eraTimes[i] !== undefined) assert.ok(eras.eraTimes[i] >= ERAS[i].minTime, `Zeitalter ${i} zu früh`);
+      if (eras.eraTimes[i] !== undefined) assert.ok(eras.eraTimes[i] > eras.prestiges[0].t, `Zeitalter ${i} zu früh`);
     }
   });
 
-  test('Zeitalter 2 wird deutlich später erreicht als Zeitalter 1 (Zeit-Tor: >= 4 h)', () => {
-    assert.ok(eras.eraTimes[2] !== undefined, 'Zeitalter 2 nach 12 h nicht erreicht');
-    assert.ok(eras.eraTimes[2] >= 4 * H);
-    assert.ok(eras.eraTimes[2] > eras.eraTimes[1] * 1.5);
+  test('Zeitalter 2-5 sind in endlicher Zeit erreichbar (obere Schranke je Zeitalter), jeder Schritt dauert mehrere Stunden', () => {
+    const upper = { 2: 100, 3: 180, 4: 240, 5: 336 };   // Stunden aktiver Spielzeit
+    for (const i of [2, 3, 4, 5]) {
+      assert.ok(eras.eraTimes[i] !== undefined, `Zeitalter ${i} in 14 Tagen nicht erreicht`);
+      assert.ok(hours(i) <= upper[i], `Zeitalter ${i} erst nach ${hours(i).toFixed(1)} h`);
+      assert.ok(hours(i) - hours(i - 1) >= 3, `Zeitalter ${i} nur ${(hours(i) - hours(i - 1)).toFixed(1)} h nach Zeitalter ${i - 1}`);
+    }
   });
 
-  test('Zeitalter 3 (Mindestzeit 36 h) wird nicht innerhalb der 12-h-Simulation erreicht', () => {
-    assert.equal(eras.eraTimes[3], undefined);
-  });
-
-  test('Zeitalter 5 wird nicht innerhalb der 12-h-Simulation erreicht', () => {
-    assert.equal(eras.eraTimes[5], undefined, 'Zeitalter 5 sollte nicht in 12 h erreicht werden');
+  test('Zeitalter 2, 3 und 5 werden nicht innerhalb der ersten 12 h erreicht', () => {
+    for (const i of [2, 3, 5]) assert.ok(hours(i) > 12, `Zeitalter ${i} schon nach ${hours(i).toFixed(1)} h`);
   });
 });

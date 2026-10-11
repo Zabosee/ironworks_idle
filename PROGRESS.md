@@ -41,3 +41,12 @@ Jeder abgeschlossene Schritt wird als Git-Commit in diesem Ordner gesichert (`gi
 - Phase 3E erledigt: Sidebar-Gruppe 'Weitere Materialien', res-/gen-Icons (assets.js), Emojis durch ui.svg ersetzt, Kontrast/CSS-Duplikate, mobile Leiste + FAB.
 - Phase 4b erledigt (E2E-Befunde): settings.js ohne gecachte state-Referenz (setSetting in state.js, tests/settings-ui.test.mjs); resVisible nutzt stats.run statt stats.total (Meter nach Neuguss wieder verborgen); #works-empty erscheint ohne gebauten Generator; Tab-Leiste umbricht (Desktop) bzw. zeigt mobil nur Symbole + aktives Label (title-Attribute); Orb-Zahlen klein/kurz/geclippt (max. 3 je Orb), Partikel-Sicherheitsnetz (1,6 s). E2E 82 PASS / 0 WARN / 0 FAIL, 280 Unit-Tests grün. Offen: Befund 6 (Emojis in Upgrades/Hochofen-Shop/Erfolgen durch SVG ersetzen, ca. 40+ Symbole) nicht umgesetzt.
 - Nach Freigabe (Nutzerwünsche): Hochofen exponentiell (growth 1,05, Meilensteine 5/25/150/1.000/10.000/250.000, Shop neu balanciert, tools/balance-sim.mjs); Neuguss-Chronik + Sidebar-Zähler; Kachel-Aufleuchten beim Tabwechsel behoben (Einmal-Animationsklassen werden entfernt). E2E-Szenario m misst nach erzwungener GC (vorher Schein-Leak direkt nach Reload). Stand: 315 Unit-Tests, E2E 86/86 PASS.
+
+## Aktueller Stand (2026-10-11, Zeitalter/Industrie/Sprache)
+- Sprachauswahl DE/EN (`js/core/i18n.js`, `js/i18n/`, `js/ui/static-i18n.js`, Einstellungen).
+- Langsamere Progression: Zeitalter hängen an kumulierten Erz-Schwellen; kalibrierter Sim-Lauf (`tools/balance-sim.mjs 175 4 1 30 rate`): 1. Neuguss 1,8 h, Zeitalter 1 bei 7,5 h, 2 bei 38 h, 3 bei 96 h, 4 bei 128 h, 5 bei ca. 192 h. Schneller Standardlauf (ohne Parameter): 1. Neuguss 2,6 h, Zeitalter 1 bis 5 bei 4,7 / 6,6 / 13,3 / 14,9 / 15,1 h. Details und Einordnung: docs/GAME-DESIGN.md, Abschnitt 3b.
+- Industrie-Tab (Generator-Ausbau) und Zeitalter erst ab dem 1. Neuguss; alte Spielstände werden nicht migriert.
+- 76 Forschungen (Zeitalter 0 bis 5), 15 neue Zeitalter-Boosts, 2 neue Klick-Upgrades (`hydraulic`, `plasmalance`).
+- Tests: 419 Unit-Tests, E2E 87/87 PASS.
+- Freigabe: release-gatekeeper 8/10.
+- Offene Punkte: Erster Neuguss erst nach ca. 2 h, bis dahin kein Industrie-Tab (Designrisiko, siehe GAME-DESIGN.md Abschnitt 8); kein echter Spieler gemessen; frühere Empfehlungen (render.js aufteilen, leere Forschungsebenen ausblenden, Werk-Hinweis max. 10 Sprites, Emoji-Fallbacks entfernen).

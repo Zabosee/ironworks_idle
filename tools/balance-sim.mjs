@@ -8,6 +8,7 @@
 // alt ist. Gussformen werden nach fester Prioritätsliste im Shop ausgegeben. Die Zeit entspricht aktiver Spielzeit
 // (Offline-Ertrag ist nicht eingerechnet: Obergrenze für die Dauer, Offline-Spiel macht es schneller).
 // Importierbar: simulate(opts) -> { milestones, prestiges, shop, hours }.
+import { pathToFileURL } from 'node:url';
 import { state, replaceState, defaultState } from '../js/core/state.js';
 import * as F from '../js/core/formulas.js';
 import * as P from '../js/systems/production.js';
@@ -40,8 +41,17 @@ export const SHOP_PLAN = [
 function buyGens(max = 30, pbLimit = 3000) {
   const need = new Set();
   const add = c => { for (const k in c) if (state.res[k] < c[k]) need.add(k); };
-  for (const r of RESEARCH) if (!state.research[r.id] && !F.lockReason('research', r.id)) add(r.cost);
-  for (const b of BOOSTS) if (!state.boosts[b.id] && !F.lockReason('boost', b.id)) add(b.cost);
+  // Bedarf: Kosten aller Forschungen/Boosts, deren Voraussetzungen erfüllt sind (Zeitalter-Tor zählt nicht, sonst
+  // würden Nebenressourcen erst nach Zeitalter-Eintritt produziert und die Kalibrierung wäre blind dafür).
+  const reqsDone = d => F.reqList(d.req).every(q => state.research[q]);
+  for (const r of RESEARCH) if (!state.research[r.id] && reqsDone(r)) add(r.cost);
+  for (const b of BOOSTS) if (!state.boosts[b.id] && reqsDone(b)) add(b.cost);
+  // Seltene Materialien (Chrom, Nickel, Wolfram, Gold): Generatoren sind billig, rechnen sich aber nie nach Amortisation.
+  // Ein echter Spieler baut sie trotzdem aus, also hält der Bot sie auf einem festen Anteil der Mischer-Stufe.
+  const mixerLvl = F.genLevel('mixer');
+  for (const [id, share] of [['chromeworks', 1], ['nickelref', 1], ['reactor', 0.8], ['crucible', 0.6]]) {
+    for (let n = 0; n < 5 && !F.lockReason('gen', id) && F.genLevel(id) < share * mixerLvl && F.bulkPlan('gen', id, 1).affordable; n++) P.buy('gen', id, 1);
+  }
   for (let n = 0; n < max; n++) {
     let best = null;
     for (const g of GENS) {
@@ -84,12 +94,14 @@ function spendShop(log) {
 
 /**
  * opts: hours (Obergrenze der aktiven Spielzeit), clicksPerSec, frac (Neuguss ab Gewinn >= frac * Gesamt),
- *       minRun (min. Sekunden je Durchlauf), dt (Schrittweite), stopAtAll (Abbruch, wenn alle Meilensteine erreicht).
+ *       minRun (min. Sekunden je Durchlauf), dt (Schrittweite), stopAtAll (Abbruch, wenn alle Meilensteine erreicht),
+ *       stopAtEra (Abbruch, sobald dieses Zeitalter erreicht ist). Rückgabe zusätzlich: eraTimes, snaps (Raten/Bestand beim
+ *       Zeitalter-Eintritt), runRates (Raten kurz vor jedem Neuguss, Grundlage der Kostenkalibrierung der Zeitalter-Forschung).
  */
-export function simulate({ hours = 48, clicksPerSec = 4, frac = 0.5, policy = 'rate', minGain = 3, minRun = 300, dt = 2, stopAtAll = false, probe = [] } = {}) {
+export function simulate({ hours = 48, clicksPerSec = 4, frac = 0.5, policy = 'rate', minGain = 3, minRun = 300, dt = 2, stopAtAll = false, stopAtEra = 0, probe = [] } = {}) {
   replaceState(defaultState());
   state.settings.autosave = false;
-  const milestones = {}, prestiges = [], shopLog = [], eraTimes = {}, probes = {};
+  const milestones = {}, prestiges = [], shopLog = [], eraTimes = {}, probes = {}, snaps = {}, runRates = [];
   let t = 0;
   const hist = [], WIN = 120;
   while (t < hours * 3600) {
@@ -100,7 +112,8 @@ export function simulate({ hours = 48, clicksPerSec = 4, frac = 0.5, policy = 'r
     for (const c of CLICKS) if (!F.lockReason('click', c.id) && worth(F.bulkPlan('click', c.id, 1).cost) < 0.3 * state.res.ore) P.buy('click', c.id);
     buyGens();
     buyEvos();
-    for (let i = 1; i < ERAS.length; i++) if (!(i in eraTimes) && F.eraIndex() >= i) eraTimes[i] = t;
+    for (let i = 1; i < ERAS.length; i++) if (!(i in eraTimes) && F.eraIndex() >= i) { eraTimes[i] = t; const q = F.rates(); delete q.flows; snaps[i] = { t, rates: q, res: { ...state.res } }; }
+    if (stopAtEra && stopAtEra in eraTimes) break;
     for (const ph of probe) if (!(ph in probes) && t >= ph * 3600) probes[ph] = state.stats.total.ore;
     const gain = F.prestigeGain();
     let go = false;
@@ -117,6 +130,7 @@ export function simulate({ hours = 48, clicksPerSec = 4, frac = 0.5, policy = 'r
     if (go) {
       hist.length = 0;
       const runTime = state.stats.runTime;
+      { const q = F.rates(); delete q.flows; runRates.push({ era: F.eraIndex(), t, rates: q }); }   // Spitzenraten des Durchlaufs je Zeitalter (Kalibrierung der Forschungskosten)
       doPrestige();
       prestiges.push({ t, runTime, gain, total: state.prestige.total, count: state.prestige.count });
       spendShop(shopLog);
@@ -124,12 +138,12 @@ export function simulate({ hours = 48, clicksPerSec = 4, frac = 0.5, policy = 'r
       if (stopAtAll && Object.keys(milestones).length === MILESTONES.length) break;
     }
   }
-  return { probes, eraTimes, milestones, prestiges, shop: Object.fromEntries(SHOP.map(s => [s.id, F.shopLevel(s.id)])), shopLog, hours: t / 3600, total: state.prestige.total };
+  return { probes, eraTimes, snaps, runRates, milestones, prestiges, shop: Object.fromEntries(SHOP.map(s => [s.id, F.shopLevel(s.id)])), shopLog, hours: t / 3600, total: state.prestige.total };
 }
 
 const fh = s => (s < 3600 ? `${(s / 60).toFixed(0)} min` : `${(s / 3600).toFixed(1)} h`);
 
-if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [hours = 48, clicksPerSec = 4, frac = 0.5, dt = 2, policy = 'rate'] = process.argv.slice(2);
   const r = simulate({ hours: +hours, clicksPerSec: +clicksPerSec, frac: +frac, dt: +dt, policy });
   console.log(`growth=${PRESTIGE.growth} perPoint=${PRESTIGE.perPoint} frac=${frac} clicks/s=${clicksPerSec}`);

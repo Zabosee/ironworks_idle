@@ -2,6 +2,7 @@
 import { state, addResource } from '../core/state.js';
 import { rates, goldenFreq, goldenDuration } from '../core/formulas.js';
 import { emit, toast } from '../core/events.js';
+import { t, tName, tDesc } from '../core/i18n.js';
 import { GOLDEN, BUFFS, GOLDEN_EVENTS } from '../data/golden.js';
 
 let current = null;   // { id, left, x, y } (x/y in Prozent der Spielfläche)
@@ -53,13 +54,13 @@ export function claim() {
     const dur = def.duration * goldenDuration();
     const existing = state.buffs.find(b => b.id === def.id);
     if (existing) existing.left = Math.max(existing.left, dur); else state.buffs.push({ id: def.id, left: dur });
-    toast(`${def.name}: ${def.desc} für ${Math.round(dur)} s!`, 'gold');
+    toast(t('{name}: {desc} für {sec} s!', { name: tName('golden', def), desc: tDesc('golden', def), sec: Math.round(dur) }), 'gold');
     emit('buffs');
   } else {
     const r = rates();
     const gain = Math.max(Math.min(state.res.ore * 0.15, r.ore * 900), r.ore * 60) + 50;
     addResource('ore', gain);
-    emit('toast', { msg: 'Glückstreffer!', kind: 'gold' });
+    emit('toast', { msg: t('Glückstreffer!'), kind: 'gold' });
     emit('golden:lucky', { gain });
   }
   emit('golden:claim', { id, type: ev.type });

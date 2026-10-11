@@ -4,7 +4,7 @@
 //   Kosten: entweder die festen Felder des Basis-Upgrades (oreBase/steelFrom/eliteFrom ...) oder `costs`:
 //           [{ res, base, growth, from? }] = base * growth^(Stufe - from), ab Stufe `from` (Standard 0).
 //   time:   Dauer in Sekunden je Stufe = min(max, base * growth^Stufe)
-//   req:    Forschungs-IDs, die das Upgrade freischalten
+//   req:    Forschungs-IDs, die das Upgrade freischalten; era: optionales Zeitalter-Tor (Index in ERAS)
 export const CLICKS = [
   {
     id: 'click', sym: 'pickaxe', icon: '⛏️', name: 'Verstärkte Spitzhacke',
@@ -32,9 +32,22 @@ export const CLICKS = [
     costs: [{ res: 'titan', base: 2e4, growth: 1.6 }, { res: 'tungsten', base: 100, growth: 1.5 }],
     time: { base: 120, growth: 1.15, max: 1500 },
   },
+  {
+    id: 'hydraulic', sym: 'cylinder', icon: '🔧', name: 'Hydraulikramme', req: ['ore_3'], era: 1,
+    base: 0, perLevel: 2e5,
+    costs: [{ res: 'steel', base: 5e15, growth: 1.6 }, { res: 'titan', base: 5e15, growth: 1.5, from: 3 }],
+    time: { base: 200, growth: 1.15, max: 1500 },
+  },
+  {
+    id: 'plasmalance', sym: 'lance', icon: '🚀', name: 'Plasmalanze', req: ['proc_3'], era: 3,
+    base: 0, perLevel: 5e8,
+    costs: [{ res: 'steel', base: 5e20, growth: 1.7 }, { res: 'tungsten', base: 5e20, growth: 1.55 }],
+    time: { base: 400, growth: 1.15, max: 1800 },
+  },
 ];
 export const CLICK_MAP = Object.fromEntries(CLICKS.map(c => [c.id, c]));
 
+//   mult-Schlüssel: Ressourcen-ID | all | click (Klickwert) | autoclick (Autoklick-Anteil)
 //   Boost: cost (einmalig), mult (Produktionsmultiplikator), time (Sekunden), req (Forschungs-IDs, optional)
 export const BOOSTS = [
   { id: 'diamond',   sym: 'gem', icon: '💠', name: 'Diamantbohrer',   desc: 'Erzproduktion ×2.',       cost: { steel: 150, titan: 5 },     mult: { ore: 2 },   time: 15 },
@@ -55,5 +68,21 @@ export const BOOSTS = [
   { id: 'superalloy', sym: 'shield', icon: '🛡️', name: 'Nickel-Superlegierung', desc: 'Titanproduktion ×2.',      cost: { titan: 5000, nickel: 1000, alloy: 300 },       mult: { titan: 2 },     time: 420, req: ['chromium'] },
   { id: 'carbide',   sym: 'disc', icon: '💿', name: 'Wolframkarbid-Bohrer',   desc: 'Erzproduktion ×3.',        cost: { titan: 2e4, tungsten: 200 },                   mult: { ore: 3 },       time: 600, req: ['tungsten'] },
   { id: 'goldplate', sym: 'medal', icon: '🏅', name: 'Goldveredelung',         desc: 'Alle Materialien ×2.',     cost: { tungsten: 500, gold: 50 },                     mult: { all: 2 },       time: 900, req: ['goldsmith'] },
+  // Zeitalter-Boosts: Kosten staffeln sich entlang der Zeitalter-Erz-Schwellen (1e17, 1e20, 1e22, 1e23, 3e23); Kosten je Ressource proportional zu deren Produktionsrate (tools/balance-sim.mjs, runRates)
+  { id: 'prospect',  sym: 'microscope', icon: '🔬', name: 'Erzprobenanalyse',       desc: 'Erzproduktion ×1,25.',     cost: { steel: 3e6, titan: 2e4 },                       mult: { ore: 1.25 },    time: 150,  req: ['ore_1'] },
+  { id: 'slagrecycle', sym: 'brick', icon: '🧱', name: 'Schlackenverwertung',     desc: 'Stahlproduktion ×1,25.',   cost: { steel: 2e6, coke: 5e4 },                        mult: { steel: 1.25 },  time: 200,  req: ['steel_1'] },
+  { id: 'waterwheel', sym: 'waterwheel', icon: '💧', name: 'Wasserrad-Antrieb',      desc: 'Erzproduktion ×1,5.',      cost: { steel: 2e16, titan: 6e10 },                      mult: { ore: 1.5 },     time: 300,  req: ['ore_3'], era: 1 },
+  { id: 'rollingmill', sym: 'rollmill', icon: '🟫', name: 'Walzstraße',              desc: 'Stahlproduktion ×1,5.',    cost: { steel: 1e17, coke: 1.4e14 },                       mult: { steel: 1.5 },   time: 360,  req: ['steel_2'], era: 1 },
+  { id: 'clickforge', sym: 'forgehammer', icon: '👆', name: 'Schmiedeautomat',         desc: 'Klickwert ×2.',            cost: { steel: 4.5e16, copper: 8.2e11 },                     mult: { click: 2 },     time: 420,  req: ['ore_3'], era: 1 },
+  { id: 'steamdrill', sym: 'steamdrill', icon: '♨️', name: 'Dampfbohrer',             desc: 'Erzproduktion ×1,5.',      cost: { steel: 3.4e19, coke: 4.4e15 },                      mult: { ore: 1.5 },     time: 540,  req: ['ore_4'], era: 2 },
+  { id: 'bessemer',  sym: 'converter', icon: '🔥', name: 'Bessemer-Konverter',       desc: 'Stahlproduktion ×2.',      cost: { steel: 5.8e19, coke: 7.5e15, manganese: 3.2e11 },     mult: { steel: 2 },     time: 600,  req: ['steel_3'], era: 2 },
+  { id: 'autotap',   sym: 'stopwatch', icon: '⏱️', name: 'Servo-Klopfer',        desc: 'Autoklick-Ertrag ×2.',     cost: { steel: 2e19, copper: 2.4e13 },                    mult: { autoclick: 2 }, time: 480,  req: ['autoclick'], era: 2 },
+  { id: 'valves',    sym: 'press', icon: '🗜️', name: 'Überdruckventile',         desc: 'Alle Materialien ×1,25.',  cost: { steel: 1e20, copper: 1.2e14, coke: 1.3e16 },        mult: { all: 1.25 },    time: 720,  req: ['boiler'], era: 2 },
+  { id: 'arcfurnace', sym: 'arcfurnace', icon: '⚡', name: 'Lichtbogenofen',           desc: 'Stahlproduktion ×2.',      cost: { steel: 2e21, copper: 2.4e15, chrome: 2.7e11 },      mult: { steel: 2 },     time: 840,  req: ['steel_4'], era: 3 },
+  { id: 'copperbus', sym: 'chain', icon: '🔗', name: 'Kupfersammelschiene',      desc: 'Alle Materialien ×1,25.',  cost: { steel: 1e22, copper: 1.2e16 },                    mult: { all: 1.25 },    time: 960,  req: ['grid'], era: 3 },
+  { id: 'assemblyopt', sym: 'factory', icon: '🏭', name: 'Taktstraßen-Optimierung', desc: 'Alle Materialien ×1,5.', cost: { steel: 2e22, alloy: 4.7e14 },                     mult: { all: 1.5 },     time: 1200, req: ['proc_4'], era: 4 },
+  { id: 'robotarm',  sym: 'robot', icon: '🤖', name: 'Roboterarm-Kalibrierung',  desc: 'Klickwert ×2, Autoklick-Ertrag ×1,5.', cost: { steel: 1e23, alloy: 2.3e15, tungsten: 7.2e13 }, mult: { click: 2, autoclick: 1.5 }, time: 1300, req: ['plantnet'], era: 4 },
+  { id: 'nanocoat',  sym: 'nanogrid', icon: '✨', name: 'Nano-Beschichtung',      desc: 'Erzproduktion ×2.',        cost: { steel: 6e22, titan: 3e16 },                     mult: { ore: 2 },       time: 1400, req: ['proc_5'], era: 5 },
+  { id: 'fusioncat', sym: 'atom', icon: '☀️', name: 'Fusions-Katalysator',       desc: 'Alle Materialien ×1,5.',   cost: { steel: 3e23, tungsten: 2e14, gold: 6.8e13 },      mult: { all: 1.5 },     time: 1600, req: ['fusion'], era: 5 },
 ];
 export const BOOST_MAP = Object.fromEntries(BOOSTS.map(b => [b.id, b]));

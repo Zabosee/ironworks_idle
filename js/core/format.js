@@ -1,4 +1,7 @@
 // Robuste Zahlenformatierung (Standard-Suffixe, wissenschaftlich, Engineering).
+// Dezimaltrennzeichen und Locale folgen der Sprache (de: Komma, en: Punkt). Die Labels sind deutsche i18n-Schlüssel (Anzeige per t()).
+import { getLang, locale } from './i18n.js';
+
 export const FORMATS = [
   { id: 'standard',    label: 'Standard (1,23M)' },
   { id: 'scientific',  label: 'Wissenschaftlich (1,23e6)' },
@@ -11,7 +14,9 @@ export function setFormat(id) { mode = FORMATS.some(f => f.id === id) ? id : 'st
 export function getFormat() { return mode; }
 
 const trim = s => (s.includes('.') ? s.replace(/\.?0+$/, '') : s);
-const dec = s => s.replace('.', ',');
+const dec = s => (getLang() === 'en' ? s : s.replace('.', ','));
+/** Wandelt eine Zahl bzw. einen Zahltext mit Punkt ins sprachabhängige Dezimalformat (de: Komma). */
+export const decimal = x => dec(String(x));
 
 function exponentOf(n) {
   let e = Math.floor(Math.log10(n));
@@ -28,7 +33,7 @@ export function formatNumber(value, m = mode, digits = 2) {
   if (n < 0) return '-' + formatNumber(-n, m, digits);
   if (n === 0) return '0';
   if (n < 1000) {
-    if (n < 0.01) return '<0,01';
+    if (n < 0.01) return '<' + dec('0.01');
     const s = n >= 100 ? n.toFixed(0) : n >= 10 ? n.toFixed(1) : n.toFixed(digits);
     if (parseFloat(s) < 1000) return dec(trim(s));
     // Rundung erreicht 1000 (z. B. 999,9) -> Suffix-Zweig
@@ -64,7 +69,7 @@ export const fmt = n => formatNumber(n);
 export function fmtInt(n) {
   n = Number(n);
   if (!Number.isFinite(n)) return fmt(n);
-  if (Math.abs(n) < 1e6) return (Math.round(n) + 0).toLocaleString('de-DE'); // +0 normalisiert -0
+  if (Math.abs(n) < 1e6) return (Math.round(n) + 0).toLocaleString(locale()); // +0 normalisiert -0
   return fmt(n);
 }
 
