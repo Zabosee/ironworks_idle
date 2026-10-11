@@ -12,6 +12,7 @@ import * as golden from './systems/golden.js';
 import * as achievements from './systems/achievements.js';
 import { initRender, frame, refresh } from './ui/render.js';
 import { initTabs } from './ui/tabs.js';
+import { initWorks } from './ui/works.js';
 import { initToasts } from './ui/toast.js';
 import { initCollect, initGoldenUI, initFlash } from './ui/effects.js';
 import { initSettings, applySettings } from './ui/settings.js';
@@ -40,6 +41,7 @@ function boot() {
   }
 
   initRender();
+  initWorks();
   initTabs($('#tabs'));
   initSettings();
   initCollect($('#collect'), $('#click-zone'), refresh);

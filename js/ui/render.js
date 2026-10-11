@@ -75,7 +75,7 @@ function buildMeters() {
     meters[k] = m;
     m.el = h('div', { class: 'meter', style: `--c:${r.color}` },
       h('div', { class: 'orb', id: 'orb-' + k, 'aria-hidden': 'true' },
-        h('span', { class: 'ring' }), h('span', { class: 'orb-core' }, imgFor(r) ? h('img', { src: r.img, alt: '', draggable: 'false' }) : r.icon)),
+        h('span', { class: 'ring' }), h('span', { class: 'orb-core' }, imgFor(r) ? h('img', { src: imgFor(r), alt: '', draggable: 'false' }) : r.icon)),
       h('div', { class: 'meter-body' },
         h('div', { class: 'meter-row' }, h('span', { class: 'meter-name', text: r.name }), m.amt),
         h('div', { class: 'meter-row small' }, h('span', {}, m.rps, '/s'), m.delta),
@@ -100,7 +100,7 @@ function makeCard(kind, id, extra = {}) {
 
 function buildCards() {
   const add = (container, kind, def) => {
-    const c = makeCard(kind, def.id, imgFor(def) ? { img: def.img } : {});
+    const c = makeCard(kind, def.id, imgFor(def) ? { img: imgFor(def) } : {});
     c.def = def;
     cards.push(c);
     container.append(c.el);
