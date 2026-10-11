@@ -26,8 +26,9 @@ Jeder abgeschlossene Schritt wird als Git-Commit in diesem Ordner gesichert (`gi
 - [x] Phase 2b: backend-developer – Timer-System, neue Materialien/Generatoren/Upgrades, Save v3, docs/GAME-DESIGN.md
 - [x] Parallel zu 2b: ui-designer – SVG-Assets (assets/sprites/gens.svg, flasks.svg, ui.svg, bg/lab.svg, bg/works-floor.svg, neue res-/gen-Icons, assets/preview.html)
 - [x] Phase 3: UI (Kaufmenge nur Generatoren, Generator-Showcase mit Evolutionsstufen, Labor-Look, Timer-Anzeige)
-- [ ] Phase 4: Live-Tests im Browser
-- [ ] Phase 5: release-gatekeeper >= 7
+- [x] Phase 4: Live-Tests im Browser (tools/e2e.mjs, 82/82 PASS) + Fixes (Phase 4b)
+- [x] Phase 5: release-gatekeeper 1. Durchlauf: 7/10, Freigabe ja (teilweise: Emojis→SVG, Review-Befunde 7/8/Mehr-Tab, README veraltet)
+- [ ] Release-Runde: ui-designer (Emojis→SVG) ‖ backend-developer (Befunde 7, 8, Mehr-Tab) → technical-writer (README) → Gatekeeper 2. Durchlauf
 
 ## Notizen / Entscheidungen
 - Live-Browser starten: `"C:/Program Files/Google/Chrome/Application/chrome.exe" --remote-debugging-port=9222 --user-data-dir=<tmp> http://localhost:8080/`
