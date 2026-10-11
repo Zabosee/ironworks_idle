@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid slice" width="1200" height="600">
+<defs>
+<linearGradient id="hall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#111827"/><stop offset=".7" stop-color="#0f172a"/><stop offset="1" stop-color="#0b1220"/></linearGradient>
+<pattern id="plate" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M0 0h48v48H0z" fill="none" stroke="#1e293b" stroke-width="1.5"/><path d="M12 12l8 8M28 28l8 8" stroke="#334155" stroke-width="2" stroke-linecap="round" opacity=".35"/></pattern>
+</defs>
+<rect width="1200" height="600" fill="url(#hall)"/>
+<!-- Binder / Stuetzen -->
+<g fill="#1e293b" opacity=".6"><rect x="60" y="0" width="24" height="520"/><rect x="420" y="0" width="24" height="520"/><rect x="780" y="0" width="24" height="520"/><rect x="1140" y="0" width="24" height="520"/></g>
+<g stroke="#1e293b" stroke-width="6" opacity=".6" fill="none"><path d="M72 60 432 0M432 60l360-60M792 60l360-60"/></g>
+<!-- Kranbahn -->
+<g opacity=".8">
+<rect x="0" y="70" width="1200" height="16" fill="#334155"/>
+<rect x="0" y="86" width="1200" height="4" fill="#1e293b"/>
+<g stroke="#1e293b" stroke-width="3" fill="none"><path d="M0 70l30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20 30-20 30 20"/></g>
+<!-- Laufkatze -->
+<rect x="700" y="90" width="90" height="22" rx="3" fill="#475569"/>
+<circle cx="716" cy="112" r="6" fill="#334155"/><circle cx="774" cy="112" r="6" fill="#334155"/>
+<path d="M745 112v90" stroke="#475569" stroke-width="4" stroke-dasharray="6 3"/>
+<path d="M735 202h20v14a10 10 0 0 1-20 0z M745 202v-6" fill="#f59e0b" stroke="#78350f" stroke-width="2" opacity=".8"/>
+</g>
+<!-- Rohre -->
+<g fill="none" stroke-linecap="round" opacity=".7">
+<path d="M0 190H260V300H520V190H900V250H1200" stroke="#1e293b" stroke-width="16"/>
+<path d="M0 186H260V296H520V186H900V246H1200" stroke="#334155" stroke-width="3" opacity=".6"/>
+<path d="M0 330H180V420H640" stroke="#1e293b" stroke-width="10"/>
+<g stroke="#475569" stroke-width="4"><path d="M120 178v24M380 288v24M700 178v24M1020 238v24"/></g>
+</g>
+<g fill="#f97316" opacity=".35"><circle cx="260" cy="245" r="4"/><circle cx="520" cy="245" r="4"/><circle cx="900" cy="220" r="4"/></g>
+<!-- Boden -->
+<rect x="0" y="500" width="1200" height="100" fill="url(#plate)"/>
+<rect x="0" y="494" width="1200" height="8" fill="#334155" opacity=".7"/>
+<g fill="#f59e0b" opacity=".5"><path d="M0 556h1200v6H0z" opacity=".35"/></g>
+<path d="M0 556h1200" stroke="#f59e0b" stroke-width="4" stroke-dasharray="26 26" opacity=".3"/>
+</svg>

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice" width="800" height="600">
+<defs>
+<linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0f2a2e"/><stop offset="1" stop-color="#0b1a24"/></linearGradient>
+<pattern id="tile" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#1d4650" stroke-width="1.5" opacity=".45"/><path d="M4 4h10" stroke="#2c6470" stroke-width="2" opacity=".25" stroke-linecap="round"/></pattern>
+</defs>
+<rect width="800" height="600" fill="url(#wall)"/>
+<rect width="800" height="600" fill="url(#tile)"/>
+<!-- Abzug -->
+<g opacity=".7">
+<rect x="560" y="70" width="190" height="330" rx="6" fill="#0a161d" stroke="#1d4650" stroke-width="4"/>
+<rect x="574" y="170" width="162" height="180" fill="#123540" opacity=".6" stroke="#2c6470" stroke-width="2"/>
+<path d="M580 176l40-0M580 190l60 0" stroke="#7dd3fc" stroke-width="3" opacity=".25" stroke-linecap="round"/>
+<rect x="574" y="86" width="162" height="60" rx="3" fill="#0f2a2e" stroke="#1d4650" stroke-width="2"/>
+<circle cx="600" cy="116" r="8" fill="#134e4a"/><circle cx="640" cy="116" r="8" fill="#134e4a"/>
+<rect x="680" y="108" width="44" height="16" rx="2" fill="#164e63"/>
+<path d="M590 400v30h140v-30" fill="#0a161d" stroke="#1d4650" stroke-width="3"/>
+</g>
+<!-- Regale -->
+<g stroke="#1d4650" stroke-width="6" stroke-linecap="round" opacity=".8">
+<path d="M30 150h440M30 290h440M30 430h440"/>
+</g>
+<g fill="#0a161d" opacity=".8"><path d="M40 156h16v10H40zM470 156v10"/>
+<path d="M24 150v8h446v-8z" opacity="0"/></g>
+<!-- Gefaesse auf Regalen -->
+<g opacity=".55" stroke="#2c6470" stroke-width="2.5" fill="#12353c" stroke-linejoin="round">
+<path d="M60 150v-30h12v-18h12v18h12v30zM140 150v-60h14v60zM180 150V110a18 18 0 1 1 0 0z"/>
+<path d="M230 150l16-40h8l16 40z" /><rect x="300" y="100" width="20" height="50" rx="3"/><rect x="330" y="116" width="20" height="34" rx="3"/><rect x="380" y="90" width="50" height="60" rx="4"/>
+<path d="M50 290v-36h40v36zM120 290v-50h14v50zM150 290v-30h14v30zM230 290l20-50 20 50zM320 290v-44h30v44zM380 290v-28h60v28z"/>
+<path d="M60 430v-40h12v40zM100 430v-30h12v30zM160 430l18-46 18 46zM260 430v-50h40v50zM340 430v-34h34v34zM400 430v-46h14v46zM430 430v-30h14v30z"/>
+</g>
+<g opacity=".4" fill="#2dd4bf"><rect x="62" y="130" width="8" height="18" rx="2"/><rect x="144" y="120" width="6" height="28" rx="2"/><rect x="304" y="130" width="12" height="18" rx="2"/><rect x="384" y="124" width="42" height="24" rx="2"/><rect x="324" y="270" width="22" height="18" rx="2"/></g>
+<!-- Schlaeuche -->
+<g fill="none" stroke-linecap="round" opacity=".6">
+<path d="M560 330C510 330 520 480 440 480S380 560 300 560S220 520 120 540" stroke="#1d4650" stroke-width="9"/>
+<path d="M560 330C510 330 520 480 440 480S380 560 300 560S220 520 120 540" stroke="#2c6470" stroke-width="2" stroke-dasharray="14 18"/>
+<path d="M610 70V30H480V10" stroke="#1d4650" stroke-width="7"/>
+<path d="M700 70V20H800" stroke="#1d4650" stroke-width="7"/>
+</g>
+<!-- Boden -->
+<path d="M0 590h800v10H0z" fill="#06121a"/>
+</svg>
