@@ -178,8 +178,9 @@ button { cursor: pointer; }
 .ach-list { list-style: none; padding: 0; margin: 1rem 0 0; display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); }
 .ach { display: flex; gap: .75rem; align-items: center; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: .6rem .8rem; opacity: .55; }
 .ach.done { opacity: 1; border-color: var(--gold); }
-.ach-icon { font-size: 1.6rem; filter: grayscale(1); }
-.ach.done .ach-icon { filter: none; }
+.ach-icon { display: inline-grid; place-items: center; width: 2rem; height: 2rem; flex: none; }
+.ach-icon .sym { width: 1.7rem; height: 1.7rem; color: var(--muted); }
+.ach.done .ach-icon .sym { color: var(--sym-ach); }
 .ach-text { flex: 1; display: flex; flex-direction: column; font-size: .8rem; color: var(--muted); }
 .ach-text strong { color: var(--text); font-size: .9rem; }
 .ach-bonus { font-family: ui-monospace, monospace; font-size: .8rem; color: var(--good); }
@@ -561,3 +562,17 @@ body { background: linear-gradient(180deg, var(--steel-900), var(--steel-800) 60
 .meter { overflow: clip; }
 .particle.orb-float { font-size: .62rem; z-index: 2; transform: translate(-50%, -50%); animation: orb-rise .9s ease-out forwards; }
 @keyframes orb-rise { from { opacity: 0; transform: translate(-50%, -30%); } 20% { opacity: 1; } to { opacity: 0; transform: translate(-50%, -150%); } }
+
+/* Item-Symbole (assets/sprites/items.svg), Farbe je Kategorie */
+:root { --sym-click: #fb923c; --sym-boost: #38bdf8; --sym-shop: #fbbf24; --sym-prestige: #f97316; --sym-ach: #fbbf24; --sym-buff: #fbbf24; }
+.sym { stroke-linecap: round; }
+.sym-click { color: var(--sym-click); } .sym-boost { color: var(--sym-boost); } .sym-shop { color: var(--sym-shop); }
+.sym-prestige { color: var(--sym-prestige); } .sym-ach { color: var(--sym-ach); } .sym-buff { color: var(--sym-buff); }
+.card-sym { display: inline-grid; place-items: center; width: 2.4rem; height: 2.4rem; filter: none; }
+.card-sym .sym { width: 1.9rem; height: 1.9rem; }
+.timer-ring.on .card-sym { width: 2.1rem; height: 2.1rem; }
+.timer-ring.on .card-sym .sym { width: 1.6rem; height: 1.6rem; }
+.btn .sym { color: currentColor; width: 1.3rem; height: 1.3rem; vertical-align: -.25em; }
+h2 .h-ico { width: 1.3rem; height: 1.3rem; vertical-align: -.2em; }
+.cost-sym { width: 1rem; height: 1rem; vertical-align: -.15em; margin-right: .2rem; }
+.buff-ico { display: inline-grid; place-items: center; }

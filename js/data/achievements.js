@@ -4,7 +4,10 @@ import { BOOSTS } from './upgrades.js';
 
 const ACH = [];
 const fmtBig = n => (n >= 1e15 ? `10^${Math.round(Math.log10(n))}` : n.toLocaleString('de-DE'));
-const add = (id, icon, name, desc, bonus, check) => ACH.push({ id, icon, name, desc, bonus, check });
+// Emoji (Fallback) -> Symbol-ID im Sprite assets/sprites/items.svg
+const SYM = { '👆': 'finger', '🪨': 'rock', '🏭': 'factory', '⭐': 'star', '🔩': 'nut', '💎': 'gem', '⚫': 'coal', '🟫': 'brick', '🟧': 'ingot', '🔗': 'chain', '🧿': 'target',
+  '🥇': 'medal', '🔬': 'microscope', '🧠': 'brain', '🚀': 'rocket', '⏱️': 'stopwatch', '🔥': 'flame', '🌟': 'sparkle', '⏳': 'hourglass' };
+const add = (id, icon, name, desc, bonus, check) => ACH.push({ id, icon, sym: SYM[icon], name, desc, bonus, check });
 const sumGens = s => Object.values(s.gens).reduce((a, b) => a + b, 0);
 const maxGen = s => Math.max(0, ...Object.values(s.gens));
 const researchCount = s => Object.keys(s.research).length;

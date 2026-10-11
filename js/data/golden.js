@@ -5,8 +5,8 @@ export const GOLDEN = {
   lifetime: 15,              // Sekunden, die der goldene Barren sichtbar bleibt
 };
 export const BUFFS = {
-  frenzy:      { id: 'frenzy', img: 'assets/icons/furnace.svg',      icon: '🔥', name: 'Schmelzrausch', kind: 'prod',  mult: 7,  duration: 45, desc: 'Produktion ×7' },
-  clickfrenzy: { id: 'clickfrenzy', icon: '🔨', name: 'Hammerwut',     kind: 'click', mult: 25, duration: 20, desc: 'Klickwert ×25' },
+  frenzy:      { id: 'frenzy', img: 'assets/icons/furnace.svg',      sym: 'flame', icon: '🔥', name: 'Schmelzrausch', kind: 'prod',  mult: 7,  duration: 45, desc: 'Produktion ×7' },
+  clickfrenzy: { id: 'clickfrenzy', sym: 'hammer', icon: '🔨', name: 'Hammerwut',     kind: 'click', mult: 25, duration: 20, desc: 'Klickwert ×25' },
 };
 // Gewichtete Ereignisse
 export const GOLDEN_EVENTS = [

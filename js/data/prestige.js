@@ -2,6 +2,7 @@
 export const PRESTIGE = {
   name: 'Hochofen-Neuguss',
   currency: 'Gussformen',
+  sym: 'flame',
   icon: '🔥',
   minRun: 1e7,      // Mindest-Erzmenge (in diesem Durchlauf produziert) für den ersten Punkt
   divisor: 1e7,
@@ -11,21 +12,21 @@ export const PRESTIGE = {
 
 // kind 'level': mehrstufig, kind 'unlock': einmalig. cost = Basiskosten in Gussformen.
 export const SHOP = [
-  { id: 'pp_eff',   icon: '🧬', name: 'Legierungskunde',    desc: '+20 % Wirkung deiner Gussformen je Stufe.',                 cost: 3,  growth: 1.8, max: 10 },
-  { id: 'pp_gain',  icon: '🏺', name: 'Hochofen-Kapazität', desc: '+10 % Gussformen bei jedem Neuguss je Stufe.',              cost: 4,  growth: 1.9, max: 10 },
-  { id: 'click',    icon: '🔨', name: 'Schmiedehand',       desc: '+50 % Klickwert je Stufe.',                                 cost: 2,  growth: 1.7, max: 10 },
-  { id: 'start',    icon: '🪨', name: 'Erzvorrat',          desc: 'Starte jeden Durchlauf mit Erz (500 × 3^(Stufe-1)).',       cost: 2,  growth: 2.5, max: 5 },
-  { id: 'offline',  icon: '🌙', name: 'Nachtschicht',       desc: '+2 Stunden maximaler Offline-Ertrag je Stufe (Basis 8 h).', cost: 3,  growth: 2,   max: 5 },
-  { id: 'golden',   icon: '🍀', name: 'Glücksbringer',      desc: 'Goldene Events 10 % häufiger, Effekte 10 % länger je Stufe.', cost: 5, growth: 2,  max: 5 },
-  { id: 'keep',     icon: '📚', name: 'Wissensarchiv',      desc: 'Forschung bleibt beim Neuguss erhalten.',                   cost: 25, growth: 1,   max: 1 },
-  { id: 'q_lab',     icon: '🧫', name: 'Zusatz-Laborplatz',   desc: '+1 gleichzeitig laufende Forschung je Stufe.',               cost: 8,  growth: 2.5, max: 3 },
-  { id: 'q_work',    icon: '🛠️', name: 'Zusatz-Werkbank',     desc: '+1 gleichzeitig laufendes Upgrade/Boost je Stufe.',          cost: 6,  growth: 2.5, max: 3 },
-  { id: 'q_speed',   icon: '⏲️', name: 'Zeitraffer',          desc: 'Forschung, Boosts und Klick-Upgrades dauern 8 % kürzer je Stufe.', cost: 5, growth: 2, max: 6 },
-  { id: 'ab_gens',     icon: '🤖', name: 'Auto-Buyer: Generatoren', desc: 'Kauft automatisch Generator-Stufen.',    cost: 5,  growth: 1, max: 1 },
-  { id: 'ab_click',    icon: '🤖', name: 'Auto-Buyer: Spitzhacke',  desc: 'Kauft automatisch Klick-Upgrades.',      cost: 8,  growth: 1, max: 1 },
-  { id: 'ab_research', icon: '🤖', name: 'Auto-Buyer: Forschung',   desc: 'Erforscht automatisch verfügbare Technologien.', cost: 15, growth: 1, max: 1 },
-  { id: 'ab_boosts',   icon: '🤖', name: 'Auto-Buyer: Boosts',      desc: 'Kauft automatisch Elite-Boosts.',        cost: 20, growth: 1, max: 1 },
-  { id: 'ab_speed',    icon: '⏱️', name: 'Auto-Buyer-Takt',         desc: 'Auto-Buyer arbeiten +50 % schneller je Stufe.', cost: 10, growth: 2.5, max: 4 },
+  { id: 'pp_eff',   sym: 'dna', icon: '🧬', name: 'Legierungskunde',    desc: '+20 % Wirkung deiner Gussformen je Stufe.',                 cost: 3,  growth: 1.8, max: 10 },
+  { id: 'pp_gain',  sym: 'urn', icon: '🏺', name: 'Hochofen-Kapazität', desc: '+10 % Gussformen bei jedem Neuguss je Stufe.',              cost: 4,  growth: 1.9, max: 10 },
+  { id: 'click',    sym: 'hammer', icon: '🔨', name: 'Schmiedehand',       desc: '+50 % Klickwert je Stufe.',                                 cost: 2,  growth: 1.7, max: 10 },
+  { id: 'start',    sym: 'rock', icon: '🪨', name: 'Erzvorrat',          desc: 'Starte jeden Durchlauf mit Erz (500 × 3^(Stufe-1)).',       cost: 2,  growth: 2.5, max: 5 },
+  { id: 'offline',  sym: 'moon', icon: '🌙', name: 'Nachtschicht',       desc: '+2 Stunden maximaler Offline-Ertrag je Stufe (Basis 8 h).', cost: 3,  growth: 2,   max: 5 },
+  { id: 'golden',   sym: 'clover', icon: '🍀', name: 'Glücksbringer',      desc: 'Goldene Events 10 % häufiger, Effekte 10 % länger je Stufe.', cost: 5, growth: 2,  max: 5 },
+  { id: 'keep',     sym: 'books', icon: '📚', name: 'Wissensarchiv',      desc: 'Forschung bleibt beim Neuguss erhalten.',                   cost: 25, growth: 1,   max: 1 },
+  { id: 'q_lab',     sym: 'petri', icon: '🧫', name: 'Zusatz-Laborplatz',   desc: '+1 gleichzeitig laufende Forschung je Stufe.',               cost: 8,  growth: 2.5, max: 3 },
+  { id: 'q_work',    sym: 'wrench', icon: '🛠️', name: 'Zusatz-Werkbank',     desc: '+1 gleichzeitig laufendes Upgrade/Boost je Stufe.',          cost: 6,  growth: 2.5, max: 3 },
+  { id: 'q_speed',   sym: 'stopwatch', icon: '⏲️', name: 'Zeitraffer',          desc: 'Forschung, Boosts und Klick-Upgrades dauern 8 % kürzer je Stufe.', cost: 5, growth: 2, max: 6 },
+  { id: 'ab_gens',     sym: 'robot', icon: '🤖', name: 'Auto-Buyer: Generatoren', desc: 'Kauft automatisch Generator-Stufen.',    cost: 5,  growth: 1, max: 1 },
+  { id: 'ab_click',    sym: 'robot', icon: '🤖', name: 'Auto-Buyer: Spitzhacke',  desc: 'Kauft automatisch Klick-Upgrades.',      cost: 8,  growth: 1, max: 1 },
+  { id: 'ab_research', sym: 'robot', icon: '🤖', name: 'Auto-Buyer: Forschung',   desc: 'Erforscht automatisch verfügbare Technologien.', cost: 15, growth: 1, max: 1 },
+  { id: 'ab_boosts',   sym: 'robot', icon: '🤖', name: 'Auto-Buyer: Boosts',      desc: 'Kauft automatisch Elite-Boosts.',        cost: 20, growth: 1, max: 1 },
+  { id: 'ab_speed',    sym: 'clock', icon: '⏱️', name: 'Auto-Buyer-Takt',         desc: 'Auto-Buyer arbeiten +50 % schneller je Stufe.', cost: 10, growth: 2.5, max: 4 },
 ];
 export const SHOP_MAP = Object.fromEntries(SHOP.map(s => [s.id, s]));
 

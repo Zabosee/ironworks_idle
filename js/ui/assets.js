@@ -15,6 +15,7 @@ export const GEN_SPRITE = {
 };
 export const spriteHref = id => `assets/sprites/gens.svg#gen-${GEN_SPRITE[id] ?? id}`;
 export const UI_SPRITE = 'assets/sprites/ui.svg';
+export const ITEM_SPRITE = 'assets/sprites/items.svg';   // Symbole der Daten-Felder `sym` (id im Sprite: sym-<sym>)
 export const FLASK_SPRITE = 'assets/sprites/flasks.svg';
 
 /** Bildpfad der Definition, falls die Datei existiert, sonst null (dann Emoji verwenden). */

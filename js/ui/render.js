@@ -20,7 +20,7 @@ import { doPrestige, buyShop, canPrestige } from '../systems/prestige.js';
 import { setEnabled } from '../systems/autobuyers.js';
 import { queueState, cancel } from '../systems/timers.js';
 import { QUEUES, QUEUE_IDS, REFUND } from '../data/timers.js';
-import { imgFor, UI_SPRITE } from './assets.js';
+import { imgFor, UI_SPRITE, ITEM_SPRITE } from './assets.js';
 import { buildFlask, ensureClipDefs } from './lab.js';
 import { h, $, clear, setText, setClass, setAttr, confirmDialog } from './dom.js';
 import { activeTab } from './tabs.js';
@@ -32,6 +32,14 @@ function svgUse(name, cls = '') {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'), u = document.createElementNS('http://www.w3.org/2000/svg', 'use');
   svg.setAttribute('class', ('ico ' + cls).trim()); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
   u.setAttribute('href', UI_SPRITE + '#' + name); svg.append(u);
+  return svg;
+}
+
+/** Item-Symbol aus items.svg; `cat` färbt per CSS-Klasse (sym-click, sym-boost, sym-shop, sym-ach, sym-buff, sym-prestige). */
+function symUse(sym, cat = '', cls = '') {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'), u = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  svg.setAttribute('class', ('ico sym ' + (cat ? 'sym-' + cat + ' ' : '') + cls).trim()); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
+  u.setAttribute('href', ITEM_SPRITE + '#sym-' + sym); svg.append(u);
   return svg;
 }
 
@@ -121,8 +129,8 @@ function makeCard(kind, id, extra = {}) {
   };
   c.nIco = svgUse('lock', 'note-ico'); c.nTxt = h('span');
   c.n.append(c.nIco, c.nTxt);
-  const ico = extra.img ? h('img', { class: 'card-ico', src: extra.img, alt: '', draggable: 'false' }) : extra.emoji ? h('span', { class: 'card-ico card-emoji', 'aria-hidden': 'true', text: extra.emoji }) : null;
-  delete extra.img; delete extra.emoji;
+  const ico = extra.img ? h('img', { class: 'card-ico', src: extra.img, alt: '', draggable: 'false' }) : extra.sym ? h('span', { class: 'card-ico card-sym', 'aria-hidden': 'true' }, symUse(extra.sym, extra.cat)) : extra.emoji ? h('span', { class: 'card-ico card-emoji', 'aria-hidden': 'true', text: extra.emoji }) : null;
+  delete extra.img; delete extra.emoji; delete extra.sym; delete extra.cat;
   if (kind === 'gen') { c.msFill = h('i'); c.ms = h('span', { class: 'ms-bar', 'aria-hidden': 'true' }, c.msFill); }
   // Boosts/Klick-Upgrades: Ring um das Icon zeigt den Fortschritt des Auftrags (Variable --p)
   if (kind === 'boost' || kind === 'click') c.ring = h('span', { class: 'timer-ring', 'aria-hidden': 'true' }, ico);
@@ -149,7 +157,7 @@ function wrapResearch(c) {
 
 function buildCards() {
   const add = (container, kind, def) => {
-    const c = makeCard(kind, def.id, imgFor(def) ? { img: imgFor(def) } : (kind === 'boost' || kind === 'click') ? { emoji: def.icon } : {});
+    const c = makeCard(kind, def.id, imgFor(def) ? { img: imgFor(def) } : (kind === 'boost' || kind === 'click') ? (def.sym ? { sym: def.sym, cat: kind } : { emoji: def.icon }) : {});
     c.def = def;
     cards.push(c);
     if (kind === 'research') wrapResearch(c);
@@ -335,11 +343,11 @@ function costEntries(plan) {
 }
 
 function setCost(el, entries) {
-  const key = entries.map(e => e.img + e.text + (e.ok ? '+' : '-')).join('|');
+  const key = entries.map(e => e.img + e.sym + e.text + (e.ok ? '+' : '-')).join('|');
   if (el._k === key) return;
   el._k = key;
   clear(el);
-  for (const e of entries) el.append(h('span', { class: e.ok ? 'ok' : 'bad', title: e.name }, e.img ? h('img', { class: 'cost-ico', src: e.img, alt: e.name ? e.name + ': ' : '', draggable: 'false' }) : null, e.text));
+  for (const e of entries) el.append(h('span', { class: e.ok ? 'ok' : 'bad', title: e.name }, e.img ? h('img', { class: 'cost-ico', src: e.img, alt: e.name ? e.name + ': ' : '', draggable: 'false' }) : e.sym ? symUse(e.sym, 'prestige', 'cost-sym') : null, e.text));
 }
 
 /** Notizzeile: Text und optionales ui.svg-Symbol (lock, star, hourglass, clock). */
@@ -449,6 +457,7 @@ function buildPrestige() {
   pv.points = h('strong'); pv.total = h('strong'); pv.mult = h('strong'); pv.gain = h('strong'); pv.hint = h('p', { class: 'hint' });
   pv.fill = h('div', { class: 'bar-fill' });
   pv.bar = h('div', { class: 'bar', role: 'progressbar', 'aria-label': 'Fortschritt zum nächsten Punkt', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0' }, pv.fill);
+  pv.btnT = h('span');
   pv.btn = h('button', {
     class: 'btn btn-primary btn-big', type: 'button',
     onclick: async () => {
@@ -461,7 +470,7 @@ function buildPrestige() {
       });
       if (ok) doPrestige();
     },
-  });
+  }, symUse(PRESTIGE.sym || 'flame', 'prestige'), ' ', pv.btnT);
   pv.msList = h('ul', { class: 'milestones' });
   pv.ms = MILESTONES.map(m => {
     const li = h('li', {}, h('strong', { text: `${fmtInt(m.at)} ${PRESTIGE.currency}` }), ' – ' + m.desc, h('span', { class: 'ms-state' }));
@@ -470,7 +479,7 @@ function buildPrestige() {
   });
   const shopGrid = h('div', { class: 'grid' });
   for (const it of SHOP) {
-    const c = makeCard('shop', it.id);
+    const c = makeCard('shop', it.id, it.sym ? { sym: it.sym, cat: 'shop' } : {});
     c.it = it;
     c.el.removeAttribute('data-kind');
     c.el.dataset.shop = it.id;
@@ -484,7 +493,7 @@ function buildPrestige() {
 
   root.append(
     h('div', { class: 'panel-box' },
-      h('h2', { text: `${PRESTIGE.icon} ${PRESTIGE.name}` }),
+      h('h2', {}, PRESTIGE.sym ? symUse(PRESTIGE.sym, 'prestige', 'h-ico') : PRESTIGE.icon, ' ' + PRESTIGE.name),
       h('p', { text: `Schmelze alles ein und gieße neu: Du erhältst ${PRESTIGE.currency}, die deine Produktion dauerhaft um +${PRESTIGE.perPoint * 100} % je Stück erhöhen. Je mehr Erz du in einem Durchlauf produzierst, desto mehr bekommst du (Wurzel-Skalierung).` }),
       h('dl', { class: 'kv' },
         h('dt', { text: `${PRESTIGE.currency} (verfügbar)` }), h('dd', {}, pv.points),
@@ -509,7 +518,7 @@ function renderPrestige() {
   setText(pv.hint, gain >= 1
     ? `Nächste Gussform ab ${fmt(target)} Erz in diesem Durchlauf (aktuell ${fmt(run)}).`
     : `Erste Gussform ab ${fmt(target)} Erz in diesem Durchlauf (aktuell ${fmt(run)}).`);
-  setText(pv.btn, gain >= 1 ? `${PRESTIGE.icon} Neuguss: +${fmtInt(gain)} ${PRESTIGE.currency}` : `${PRESTIGE.icon} Noch nicht möglich`);
+  setText(pv.btnT, gain >= 1 ? `Neuguss: +${fmtInt(gain)} ${PRESTIGE.currency}` : 'Noch nicht möglich');
   setAttr(pv.btn, 'aria-disabled', gain < 1);
   for (const { li, state: st, m } of pv.ms) {
     const done = p.total >= m.at;
@@ -519,11 +528,11 @@ function renderPrestige() {
   for (const it of SHOP) {
     const c = shopCards[it.id], lvl = shopLevel(it.id), maxed = lvl >= it.max, cost = shopCost(it.id);
     const can = !maxed && p.points >= cost;
-    setText(c.t, `${it.icon} ${it.name}`);
+    setText(c.t, it.sym ? it.name : `${it.icon} ${it.name}`);
     setText(c.b, it.max > 1 ? `Stufe ${lvl}/${it.max}` : (maxed ? 'Gekauft' : ''));
     setText(c.d, it.desc);
     setNote(c, '');
-    setCost(c.c, maxed ? [] : [{ text: `${PRESTIGE.icon} ${fmtInt(cost)}`, ok: p.points >= cost }]);
+    setCost(c.c, maxed ? [] : [{ text: (PRESTIGE.sym ? '' : PRESTIGE.icon + ' ') + fmtInt(cost), sym: PRESTIGE.sym, name: PRESTIGE.currency, ok: p.points >= cost }]);
     setAttr(c.el, 'aria-disabled', !can);
     setClass(c.el, 'can', can);
     setClass(c.el, 'done', maxed);
@@ -539,7 +548,7 @@ function buildAchievements() {
   for (const a of ACHIEVEMENTS) {
     const st = h('span', { class: 'ach-state' });
     const li = h('li', { class: 'ach' },
-      h('span', { class: 'ach-icon', 'aria-hidden': 'true', text: a.icon }),
+      h('span', { class: 'ach-icon', 'aria-hidden': 'true' }, a.sym ? symUse(a.sym, 'ach') : a.icon),
       h('span', { class: 'ach-text' }, h('strong', { text: a.name }), h('span', { text: a.desc })),
       h('span', { class: 'ach-bonus', text: `+${(a.bonus * 100).toFixed(1).replace('.0', '')} %` }), st);
     achItems[a.id] = { li, st };
@@ -634,7 +643,7 @@ function renderBuffs(force = false) {
       if (!def) continue;
       const time = h('span', { class: 'buff-time' });
       buffTimes[b.id] = time;
-      els.buffs.append(h('li', { class: 'buff' }, h('span', { 'aria-hidden': 'true', text: def.icon }), h('span', { class: 'buff-name', text: `${def.name} (${def.desc})` }), time));
+      els.buffs.append(h('li', { class: 'buff' }, h('span', { class: 'buff-ico', 'aria-hidden': 'true' }, def.sym ? symUse(def.sym, 'buff') : def.icon), h('span', { class: 'buff-name', text: `${def.name} (${def.desc})` }), time));
     }
   }
   for (const b of state.buffs) if (buffTimes[b.id]) setText(buffTimes[b.id], Math.ceil(b.left) + ' s');
