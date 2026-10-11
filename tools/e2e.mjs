@@ -812,6 +812,9 @@ await scenario('m', 'Performance: 30 s Laufzeit, DOM stabil, Partikel aufgeräum
   await G(`(Object.assign(state.res, { ore: 1e8, steel: 1e7 }), true)`);
   await tab('works');
   const counters = async () => {
+    // Vor jeder Messung Garbage Collection erzwingen: Direkt nach einem Reload zählt
+    // Memory.getDOMCounters sonst noch Knoten/Dokumente der alten Seite mit (Schein-"Leak").
+    await c.send('HeapProfiler.collectGarbage').catch(() => {});
     const m = await c.send('Memory.getDOMCounters');
     const part = await ev(`({ particles: document.querySelectorAll('.particle').length, sparks: document.querySelectorAll('.spark-p').length, toasts: document.querySelectorAll('.toast').length, elements: document.getElementsByTagName('*').length,
       maxPerParent: Math.max(0, ...[...document.querySelectorAll('.orb, #click-zone')].map(p => p.querySelectorAll(':scope > .particle').length)) })`);
