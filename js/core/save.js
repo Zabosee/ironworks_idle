@@ -1,7 +1,8 @@
 // Speichern, Laden, Versionierung/Migration, Export/Import (Base64), Offline-Fortschritt.
 // Nutzt localStorage/btoa, aber kein DOM.
 import { state, defaultState, replaceState, addResource, FORMAT_IDS, BUY_AMOUNTS, AUTOSAVE_OPTIONS } from './state.js';
-import { rates, offlineCapSeconds, safe } from './formulas.js';
+import { rates, offlineCapSeconds, safe, defOf } from './formulas.js';
+import { timeToNext, tick as timersTick } from '../systems/timers.js';
 import { emit } from './events.js';
 import { RES_IDS } from '../data/resources.js';
 import { GENS, MAX_LEVEL } from '../data/generators.js';
@@ -10,8 +11,9 @@ import { RESEARCH } from '../data/research.js';
 import { SHOP, AUTOBUYERS } from '../data/prestige.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { BUFFS } from '../data/golden.js';
+import { QUEUES, QUEUE_IDS, MAX_ENTRIES } from '../data/timers.js';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 // Der Schlüssel bleibt bewusst 'v2': die Formatversion steckt im Spielstand selbst (Feld v), so lädt der alte Spielstand ohne Umkopieren.
 export const SAVE_KEY = 'eisenwerk-idle-save-v2';
 export const BACKUP_KEY = SAVE_KEY + '-backup';
@@ -40,6 +42,25 @@ export function sanitize(d) {
   const rs = isObj(d.research) ? d.research : {}, bs = isObj(d.boosts) ? d.boosts : {};
   for (const r of RESEARCH) if (rs[r.id]) s.research[r.id] = 1;
   for (const b of BOOSTS) if (bs[b.id]) s.boosts[b.id] = 1;
+
+  // Warteschlangen: nur bekannte Aufträge der passenden Art, keine Duplikate, nichts bereits Abgeschlossenes
+  const tm = isObj(d.timers) ? d.timers : {};
+  const owned = { research: s.research, boost: s.boosts };
+  const seen = new Set();
+  for (const q of QUEUE_IDS) {
+    const src = Array.isArray(tm[q]) ? tm[q].slice(0, MAX_ENTRIES) : [];
+    for (const e of src) {
+      if (!isObj(e) || typeof e.kind !== 'string' || typeof e.id !== 'string') continue;
+      if (!QUEUES[q].kinds.includes(e.kind) || !defOf(e.kind, e.id) || owned[e.kind]?.[e.id]) continue;
+      const key = e.kind + ':' + e.id;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const total = num(e.total, 1, 0.001, 86400);
+      const cost = {};
+      if (isObj(e.cost)) for (const k of RES_IDS) { const v = num(e.cost[k]); if (v > 0) cost[k] = v; }
+      s.timers[q].push({ kind: e.kind, id: e.id, total, left: num(e.left, total, 0, total), cost, silent: bool(e.silent, false) });
+    }
+  }
 
   const p = isObj(d.prestige) ? d.prestige : {};
   s.prestige.points = num(p.points); s.prestige.total = num(p.total); s.prestige.count = int(p.count, 1e9);
@@ -94,6 +115,13 @@ export function migrateV2toV3(old) {
   return out;
 }
 
+/** v3 -> v4: Warteschlangen (leer) und Zähler stats.timersDone kommen neu hinzu; alle bisherigen Daten bleiben unverändert. */
+export function migrateV3toV4(old) {
+  const out = { ...old, timers: { lab: [], workshop: [] } };
+  if (isObj(old.stats)) out.stats = { ...old.stats, timersDone: 0 };
+  return out;
+}
+
 /** Bringt beliebige bekannte Formate auf die aktuelle Version: { v, t, state }. */
 export function migrate(data) {
   if (!isObj(data)) throw new Error('Spielstand hat kein gültiges Format.');
@@ -111,6 +139,7 @@ export function migrate(data) {
   if (!isObj(data.state)) throw new Error('Spielstand enthält keine Daten.');
   let st = data.state;
   if (v < 3) st = migrateV2toV3(st);
+  if (v < 4) st = migrateV3toV4(st);
   return { v: SAVE_VERSION, t: num(data.t, Date.now(), 0, 8.64e15), state: st };
 }
 
@@ -227,13 +256,25 @@ export function applyOffline(seconds, { runtime = false } = {}) {
   const sec = Math.min(seconds, cap);
   const buffs = state.buffs;
   state.buffs = [];
-  const r = rates();
+  const gains = Object.fromEntries(RES_IDS.map(k => [k, 0]));
+  // Abschnittsweise: Abgeschlossene Timer ändern die Raten (neue Boosts/Forschung/Generatoren), also je Abschluss neu rechnen.
+  let rem = sec;
+  for (let guard = 0; rem > 1e-9 && guard < 100; guard++) {
+    const r = rates();
+    const step = Math.min(rem, timeToNext());
+    for (const k of RES_IDS) { const g = safe(r[k] * step); addResource(k, g); gains[k] += g; }
+    timersTick(step);
+    rem -= step;
+  }
+  if (rem > 1e-9) {   // Sicherheitsnetz: Rest mit den letzten Raten
+    const r = rates();
+    for (const k of RES_IDS) { const g = safe(r[k] * rem); addResource(k, g); gains[k] += g; }
+  }
+  if (seconds > sec) timersTick(seconds - sec);   // Timer laufen auch über das Offline-Maximum hinaus weiter
   if (runtime) {
     state.buffs = buffs.map(b => ({ ...b, left: b.left - seconds })).filter(b => b.left > 0);
     if (state.buffs.length !== buffs.length) emit('buffs');
   }
-  const gains = {};
-  for (const k of RES_IDS) { gains[k] = safe(r[k] * sec); addResource(k, gains[k]); }
   state.stats.playTime += sec;
   state.stats.runTime += sec;
   return { seconds: sec, capped: seconds > cap, gains };

@@ -373,3 +373,16 @@ body { background: linear-gradient(180deg, var(--steel-900), var(--steel-800) 60
   .bg-gear { animation: none; }
   .golden { animation: none; }
 }
+
+/* Warteschlangen (Phase 2b, minimal) */
+.queue { margin-bottom: 1rem; padding: .6rem .8rem; border: 1px solid var(--steel-500); border-radius: .6rem; background: var(--panel); }
+.queue[hidden], .meter[hidden], .card[hidden] { display: none; }
+.queue-title { font-size: .9rem; margin: 0 0 .4rem; }
+.queue-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; }
+.queue-item { display: grid; grid-template-columns: 1fr minmax(6rem, 12rem) auto; gap: .6rem; align-items: center; font-size: .85rem; }
+.queue-item .bar { margin: 0; }
+.queue-item .bar i { display: block; height: 100%; width: 100%; transform-origin: left; transform: scaleX(0); background: linear-gradient(90deg, var(--accent), var(--gold)); }
+.queue-cancel { min-height: 2.75rem; font-size: .75rem; }
+.card.pending { border-style: dotted; border-color: var(--gold); }
+.card.pending .n { color: #fde68a; }
+@media (max-width: 640px) { .queue-item { grid-template-columns: 1fr auto; } .queue-item .bar { grid-column: 1 / -1; order: 3; } }

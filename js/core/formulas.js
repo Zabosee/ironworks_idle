@@ -1,13 +1,16 @@
 // Reine Berechnungen auf Basis des Zustands. Kein DOM, keine Seiteneffekte.
 import { state } from './state.js';
-import { RES_IDS } from '../data/resources.js';
-import { GENS, GEN_MAP, MILESTONE_STEP, ELITE_FROM, ELITE_GROWTH, MAX_LEVEL, EXTRA_MILESTONES } from '../data/generators.js';
+import { RES, RES_IDS } from '../data/resources.js';
+import { QUEUES, queueIdOf, SPEED_SHOP, SPEED_PER_LEVEL, AUTOMATION_RESEARCH, AUTOMATION_MULT, MIN_DURATION } from '../data/timers.js';
+import { GENS, GEN_MAP, genTier, tierName, tierPips, MILESTONE_STEP, ELITE_FROM, ELITE_GROWTH, MAX_LEVEL, EXTRA_MILESTONES } from '../data/generators.js';
 import { CLICKS, CLICK_MAP, BOOSTS, BOOST_MAP } from '../data/upgrades.js';
 import { RESEARCH, RESEARCH_MAP } from '../data/research.js';
 import { RECIPES } from '../data/recipes.js';
 import { PRESTIGE, SHOP_MAP, MILESTONES, AUTOBUYERS, AUTOBUYER_INTERVAL } from '../data/prestige.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { BUFFS } from '../data/golden.js';
+
+export { genTier, tierName, tierPips };
 
 const CAP = 1e300;
 /** Schützt vor NaN/Infinity: NaN -> 0, Werte auf [-CAP, CAP] begrenzt. */
@@ -137,6 +140,11 @@ export function unitCost(kind, id, lvl) {
     return c;
   }
   const d = CLICK_MAP[id];
+  if (d.costs) {
+    const c = {};
+    for (const k of d.costs) if (lvl >= (k.from || 0)) c[k.res] = Math.ceil(safe(k.base * k.growth ** (lvl - (k.from || 0))));
+    return c;
+  }
   const c = { ore: Math.ceil(safe(d.oreBase * d.oreGrowth ** lvl)) };
   if (lvl >= d.steelFrom) c.steel = Math.ceil(safe(d.steelBase * d.steelGrowth ** (lvl - d.steelFrom)));
   if (lvl >= d.eliteFrom) c.titan = eliteCost(lvl, d.eliteBase);
@@ -152,23 +160,61 @@ export function levelOf(kind, id) {
 }
 
 export function defOf(kind, id) {
-  return kind === 'gen' ? GEN_MAP[id] : kind === 'boost' ? BOOST_MAP[id] : kind === 'research' ? RESEARCH_MAP[id] : kind === 'click' ? CLICK_MAP[id] : undefined;
+  const map = kind === 'gen' ? GEN_MAP : kind === 'boost' ? BOOST_MAP : kind === 'research' ? RESEARCH_MAP : kind === 'click' ? CLICK_MAP : null;
+  return map && Object.hasOwn(map, id) ? map[id] : undefined;   // hasOwn: keine Treffer auf __proto__/constructor
 }
 
 /** GEN.req darf String oder Array sein. */
 export const reqList = req => (req == null ? [] : Array.isArray(req) ? req : [req]);
 
-/** Liefert null, wenn kaufbar, sonst Begründung. */
+// ---------- Warteschlangen (Zustand lesen; Änderungen in systems/timers.js) ----------
+export const queueSlots = q => QUEUES[q].slots + shopLevel(QUEUES[q].slotShop);
+export const queueCapacity = q => queueSlots(q) + QUEUES[q].waiting;
+/** Faktor auf alle Dauern: Shop 'Zeitraffer' und Forschung 'Laborautomatisierung'. */
+export const timeMult = () => SPEED_PER_LEVEL ** shopLevel(SPEED_SHOP) * (state.research[AUTOMATION_RESEARCH] ? AUTOMATION_MULT : 1);
+
+/** Dauer in Sekunden vor Zeitverkürzung; Klick-Upgrades wachsen mit ihrer Stufe. */
+export function baseTime(kind, id, lvl = levelOf(kind, id)) {
+  const d = defOf(kind, id);
+  if (kind === 'click') { const t = d.time ?? { base: 0, growth: 1, max: 0 }; return Math.min(t.max, t.base * t.growth ** lvl); }
+  return d.time ?? 0;
+}
+/** Tatsächliche Dauer eines Auftrags, wenn er jetzt eingereiht wird. */
+export const duration = (kind, id) => Math.max(MIN_DURATION, safe(baseTime(kind, id) * timeMult()));
+
+/** { queue, index, entry, running } wenn kind/id in einer Warteschlange steckt, sonst null. */
+export function pendingOf(kind, id) {
+  const q = queueIdOf(kind);
+  if (!q) return null;
+  const list = state.timers[q];
+  const index = list.findIndex(e => e.kind === kind && e.id === id);
+  return index < 0 ? null : { queue: q, index, entry: list[index], running: index < queueSlots(q) };
+}
+
+const missingReqs = d => reqList(d?.req).filter(q => !state.research[q]);
+
+/** Liefert null, wenn kaufbar, sonst Begründung (Forschung fehlt, läuft bereits, Warteschlange voll). */
 export function lockReason(kind, id) {
-  if (kind === 'gen') {
-    const miss = reqList(GEN_MAP[id].req).filter(q => !state.research[q]);
-    return miss.length ? 'Benötigt Forschung: ' + miss.map(q => RESEARCH_MAP[q].name).join(', ') : null;
-  }
-  if (kind === 'research') {
-    const miss = (RESEARCH_MAP[id].req || []).filter(q => !state.research[q]);
-    return miss.length ? 'Benötigt: ' + miss.map(q => RESEARCH_MAP[q].name).join(', ') : null;
+  const miss = missingReqs(defOf(kind, id));
+  if (miss.length) return (kind === 'research' ? 'Benötigt: ' : 'Benötigt Forschung: ') + miss.map(q => RESEARCH_MAP[q].name).join(', ');
+  const q = queueIdOf(kind);
+  if (q) {
+    const p = pendingOf(kind, id);
+    if (p) return p.running ? 'Läuft' : 'In Warteschlange';
+    if (state.timers[q].length >= queueCapacity(q)) return QUEUES[q].name + ': Warteschlange voll';
   }
   return null;
+}
+
+/** Gestaffelte Anzeige: sichtbar ist, was schon erforscht/gekauft ist oder dessen fehlende Voraussetzungen direkt freischaltbar sind. */
+export function isRevealed(kind, id) {
+  if (levelOf(kind, id) > 0) return true;
+  return missingReqs(defOf(kind, id)).every(q => missingReqs(RESEARCH_MAP[q]).length === 0);
+}
+/** Material erscheint erst, wenn seine Forschung abgeschlossen ist oder schon etwas davon da ist. */
+export function resVisible(id) {
+  const req = RES[id].req;
+  return !req || req.every(q => state.research[q]) || state.res[id] > 0 || state.stats.total[id] > 0;
 }
 
 const MAX_BULK = 1000;
@@ -193,6 +239,7 @@ function prefixOf(kind, id, lvl, n) {
  */
 export function bulkPlan(kind, id, amount = '1') {
   const lvl = levelOf(kind, id);
+  if (pendingOf(kind, id)) return { count: 0, cost: {}, affordable: false };   // läuft bereits: kein Doppelkauf
   if (kind === 'boost' || kind === 'research') {
     if (lvl) return { count: 0, cost: {}, affordable: false };
     const cost = defOf(kind, id).cost;

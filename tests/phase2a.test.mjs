@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { state, reset, give, collect, installStorage, quietConsole } from './helpers.mjs';
+import { state, reset, give, collect, installStorage, quietConsole, finishAll, zeroRes } from './helpers.mjs';
 import { replaceState, defaultState, addResource } from '../js/core/state.js';
 import * as F from '../js/core/formulas.js';
 import * as S from '../js/core/save.js';
@@ -31,17 +31,20 @@ describe('Review 4: Kaufmenge nur fuer Generatoren', () => {
     give({ ore: 1e9, steel: 1e9, titan: 1e9 });
     state.settings.buyAmount = 'max';
     assert.equal(buy('click', 'click'), true);
+    finishAll();
     assert.equal(state.clicks.click, 1);
     assert.equal(buy('gen', 'mine'), true);
     assert.ok(state.gens.mine > 1);
     state.settings.buyAmount = '10';
     assert.equal(buy('click', 'click'), true);
+    finishAll();
     assert.equal(state.clicks.click, 2);
   });
-  test('explizite Menge wird weiter respektiert', () => {
+  test('Klick-Upgrades kaufen auch mit expliziter Menge genau 1 Stufe (Timer)', () => {
     give({ ore: 1e9, steel: 1e9 });
     assert.equal(buy('click', 'click', 2), true);
-    assert.equal(state.clicks.click, 2);
+    finishAll();
+    assert.equal(state.clicks.click, 1);
   });
 });
 
@@ -253,7 +256,7 @@ describe('Rezepte (Konverter)', () => {
 
 describe('Klick-Upgrades als Liste', () => {
   test('zweites Upgrade: Zustand, Kauf, Summe, Save-Roundtrip', () => {
-    const def = { id: 'click2', icon: 'x', name: 'Test', base: 0, perLevel: 5, oreBase: 10, oreGrowth: 1.1, steelFrom: 99, steelBase: 1, steelGrowth: 1, eliteFrom: 99, eliteBase: 1 };
+    const def = { id: 'click2', icon: 'x', name: 'Test', base: 0, perLevel: 5, oreBase: 10, oreGrowth: 1.1, steelFrom: 99, steelBase: 1, steelGrowth: 1, eliteFrom: 99, eliteBase: 1, time: { base: 2, growth: 1, max: 2 } };
     CLICKS.push(def); CLICK_MAP.click2 = def;
     try {
       replaceState(defaultState());
@@ -261,6 +264,7 @@ describe('Klick-Upgrades als Liste', () => {
       assert.equal(F.rates().click, 1);
       give({ ore: 1e6 });
       assert.equal(buy('click', 'click2'), true);
+      finishAll();
       assert.equal(state.clicks.click2, 1);
       assert.equal(F.rates().click, 1 + 5);
       assert.equal(F.levelOf('click', 'click2'), 1);
@@ -270,7 +274,7 @@ describe('Klick-Upgrades als Liste', () => {
       assert.equal(state.clicks.click2, 1);
       state.stats.run.ore = 1e8;
       doPrestige();
-      assert.deepEqual(state.clicks, { click: 0, click2: 0 });
+      assert.deepEqual(state.clicks, Object.fromEntries(CLICKS.map(c => [c.id, 0])));
     } finally { CLICKS.pop(); delete CLICK_MAP.click2; replaceState(defaultState()); }
   });
   test('unbekannte Klick-ID kauft nichts', () => {
@@ -280,9 +284,9 @@ describe('Klick-Upgrades als Liste', () => {
 });
 
 describe('Save v3 / Migration', () => {
-  test('SAVE_VERSION ist 3, serialize schreibt v:3', () => {
-    assert.equal(S.SAVE_VERSION, 3);
-    assert.equal(JSON.parse(S.serialize()).v, 3);
+  test('SAVE_VERSION ist 4, serialize schreibt v:4', () => {
+    assert.equal(S.SAVE_VERSION, 4);
+    assert.equal(JSON.parse(S.serialize()).v, 4);
   });
   const v2 = {
     v: 2, t: 1_700_000_000_000,
@@ -298,8 +302,8 @@ describe('Save v3 / Migration', () => {
     ls.setItem(S.SAVE_KEY, JSON.stringify(v2));
     assert.deepEqual(S.load(), { loaded: true, migrated: false });
     assert.equal(state.clicks.click, 5);
-    assert.deepEqual(state.stats.total, { ore: 1e6, steel: 200, titan: 30 });
-    assert.deepEqual(state.stats.run, { ore: 5e5, steel: 0, titan: 0 });
+    assert.deepEqual(state.stats.total, zeroRes({ ore: 1e6, steel: 200, titan: 30 }));
+    assert.deepEqual(state.stats.run, zeroRes({ ore: 5e5 }));
     assert.equal(state.stats.clicks, 7); assert.equal(state.stats.runClicks, 3);
     assert.equal(state.stats.playTime, 99); assert.equal(state.stats.golden, 2);
     assert.equal(state.stats.startedAt, 1_600_000_000_000);
@@ -308,9 +312,9 @@ describe('Save v3 / Migration', () => {
     assert.deepEqual(state.prestige, { points: 2, total: 6, count: 1, shop: { pp_eff: 1 } });
     assert.equal(state.settings.format, 'scientific'); assert.equal(state.settings.buyAmount, '10');
     assert.equal(state.settings.autosave, false);
-    // nach dem Speichern liegt v3 vor und laedt gleich
+    // nach dem Speichern liegt v4 vor und laedt gleich
     S.save();
-    assert.equal(JSON.parse(ls.getItem(S.SAVE_KEY)).v, 3);
+    assert.equal(JSON.parse(ls.getItem(S.SAVE_KEY)).v, 4);
     const snap = JSON.stringify({ ...state, savedAt: 0 });
     S.load();
     assert.equal(JSON.stringify({ ...state, savedAt: 0 }), snap);
@@ -325,7 +329,7 @@ describe('Save v3 / Migration', () => {
     assert.equal(out.stats.total.ore, 1e6);
   });
   test('v2 ohne stats/click migriert ohne Fehler', () => {
-    assert.equal(S.migrate({ v: 2, t: 5, state: {} }).v, 3);
+    assert.equal(S.migrate({ v: 2, t: 5, state: {} }).v, 4);
     ls.setItem(S.SAVE_KEY, JSON.stringify({ v: 2, t: 5, state: { gens: { mine: 2 } } }));
     assert.equal(S.load().loaded, true);
     assert.equal(state.gens.mine, 2);

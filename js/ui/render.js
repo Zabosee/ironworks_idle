@@ -1,10 +1,11 @@
 // Rendering aller Panels. Baut das DOM einmal auf (ohne innerHTML) und aktualisiert danach nur Textknoten/Klassen.
 import { state } from '../core/state.js';
 import { on } from '../core/events.js';
-import { fmt, fmtInt, fmtTime } from '../core/format.js';
+import { fmt, fmtInt, fmtTime, fmtClock } from '../core/format.js';
 import {
-  rates, bulkPlan, levelOf, lockReason, genOutputAt, clickBaseAt, milestone, researchMult, achievementBonus,
+  rates, bulkPlan, duration, levelOf, lockReason, genOutputAt, clickBaseAt, milestone, researchMult, achievementBonus,
   prestigeMult, globalMult, buffMult, prestigeGain, oreForGain, shopLevel, shopCost, autobuyerUnlocked, researchDepth,
+  pendingOf, isRevealed, resVisible, queueSlots, queueCapacity,
 } from '../core/formulas.js';
 import { RES, RES_IDS } from '../data/resources.js';
 import { GENS, ELITE_FROM, EXTRA_MILESTONES, MILESTONE_STEP } from '../data/generators.js';
@@ -17,6 +18,9 @@ import { BUFFS } from '../data/golden.js';
 import { buy } from '../systems/production.js';
 import { doPrestige, buyShop, canPrestige } from '../systems/prestige.js';
 import { setEnabled } from '../systems/autobuyers.js';
+import { queueState, cancel } from '../systems/timers.js';
+import { QUEUES, QUEUE_IDS } from '../data/timers.js';
+import { imgFor } from './assets.js';
 import { h, $, clear, setText, setClass, setAttr, confirmDialog } from './dom.js';
 import { activeTab } from './tabs.js';
 import { restartAnim, updateOrbs } from './effects.js';
@@ -38,6 +42,7 @@ export function initRender() {
   buildMeters();
   buildCards();
   buildAutobuyers();
+  buildQueues();
   buildPrestige();
   buildAchievements();
   buildStats();
@@ -51,6 +56,7 @@ export function initRender() {
     refresh();
   });
   on('shop', refresh);
+  for (const ev of ['timer:queued', 'timer:done', 'timer:cancel']) on(ev, refresh);
   on('prestige', refresh);
   on('loaded', refresh);
   on('tab', refresh);
@@ -67,13 +73,14 @@ function buildMeters() {
       delta: h('span', { class: 'delta' }), canvas: h('canvas', { class: 'spark', 'aria-hidden': 'true' }),
     };
     meters[k] = m;
-    els.meters.append(h('div', { class: 'meter', style: `--c:${r.color}` },
+    m.el = h('div', { class: 'meter', style: `--c:${r.color}` },
       h('div', { class: 'orb', id: 'orb-' + k, 'aria-hidden': 'true' },
-        h('span', { class: 'ring' }), h('span', { class: 'orb-core' }, r.img ? h('img', { src: r.img, alt: '', draggable: 'false' }) : r.icon)),
+        h('span', { class: 'ring' }), h('span', { class: 'orb-core' }, imgFor(r) ? h('img', { src: r.img, alt: '', draggable: 'false' }) : r.icon)),
       h('div', { class: 'meter-body' },
         h('div', { class: 'meter-row' }, h('span', { class: 'meter-name', text: r.name }), m.amt),
         h('div', { class: 'meter-row small' }, h('span', {}, m.rps, '/s'), m.delta),
-        m.canvas)));
+        m.canvas));
+    els.meters.append(m.el);
   }
 }
 
@@ -93,7 +100,7 @@ function makeCard(kind, id, extra = {}) {
 
 function buildCards() {
   const add = (container, kind, def) => {
-    const c = makeCard(kind, def.id, def.img ? { img: def.img } : {});
+    const c = makeCard(kind, def.id, imgFor(def) ? { img: def.img } : {});
     c.def = def;
     cards.push(c);
     container.append(c.el);
@@ -132,6 +139,51 @@ function bindActions() {
     state.settings.buyAmount = b.dataset.amount;
     refresh();
   });
+}
+
+// ---------- Warteschlangen (minimal; das Laborlook folgt in Phase 3) ----------
+const qv = {};   // queue -> { root, title, list, key, rows: [{ text, fill }] }
+function buildQueues() {
+  for (const q of QUEUE_IDS) {
+    const root = document.getElementById('queue-' + q);
+    if (!root) continue;
+    qv[q] = { root, title: h('h3', { class: 'queue-title' }), list: h('ul', { class: 'queue-list' }), key: '', rows: [] };
+    root.append(qv[q].title, qv[q].list);
+    qv[q].list.addEventListener('click', e => {
+      const b = e.target.closest('button[data-index]');
+      if (!b) return;
+      cancel(q, Number(b.dataset.index));
+      refresh();
+    });
+  }
+}
+
+function renderQueues(only) {
+  for (const q of QUEUE_IDS) {
+    const v = qv[q];
+    if (!v || (only && !only.includes(q))) continue;
+    const st = queueState(q), slots = queueSlots(q);
+    setText(v.title, `${QUEUES[q].name}: ${Math.min(st.length, slots)}/${slots} aktiv · ${Math.max(0, st.length - slots)}/${queueCapacity(q) - slots} wartend`);
+    const key = st.map(e => e.kind + ':' + e.id + (e.running ? '*' : '')).join('|');
+    if (key !== v.key) {
+      v.key = key;
+      clear(v.list);
+      v.rows = st.map(e => {
+        const text = h('span', { class: 'queue-text' }), fill = h('i');
+        const refund = e.running ? '50 %' : '100 %';
+        const btn = h('button', { class: 'btn queue-cancel', type: 'button', dataset: { index: e.index }, 'aria-label': `${e.name} abbrechen (${refund} Erstattung)`, text: 'Abbrechen (' + refund + ')' });
+        v.list.append(h('li', { class: 'queue-item' + (e.running ? ' running' : '') }, text, h('span', { class: 'bar', 'aria-hidden': 'true' }, fill), btn));
+        return { text, fill };
+      });
+    }
+    st.forEach((e, i) => {
+      const row = v.rows[i];
+      setText(row.text, e.running ? `${e.name} – noch ${fmtClock(e.left)}` : `${e.name} – wartet (${fmtClock(e.total)})`);
+      const f = e.running ? e.progress.toFixed(3) : '0';
+      if (row.fill._f !== f) { row.fill._f = f; row.fill.style.transform = `scaleX(${f})`; }
+    });
+    v.root.hidden = st.length === 0;
+  }
 }
 
 // ---------- Auto-Buyer ----------
@@ -205,7 +257,7 @@ function describe(c) {
   const lock = lockReason(kind, def.id);
   const plan = bulkPlan(kind, def.id, kind === 'gen' ? state.settings.buyAmount : 1);
   const k = Math.max(plan.count, 1);
-  const o = { title: def.img ? def.name : `${def.icon} ${def.name}`, badge: '', desc: '', note: '', plan, status: 'ok' };
+  const o = { title: imgFor(def) ? def.name : `${def.icon} ${def.name}`, badge: '', desc: '', note: '', plan, status: 'ok' };
 
   if (kind === 'gen') {
     const out = genOutputAt(def, lvl);
@@ -215,7 +267,7 @@ function describe(c) {
   } else if (kind === 'click') {
     o.badge = `Stufe ${fmtInt(lvl)}`;
     o.desc = `Basis-Klick: ${fmt(clickBaseAt(lvl, undefined, def))} → ${fmt(clickBaseAt(lvl + k, undefined, def))} Erz`;
-    o.note = lvl >= def.eliteFrom - 1 ? '⭐ Elite: kostet Titan' : lvl >= def.steelFrom - 1 ? `Ab Stufe ${def.steelFrom} kostet es Stahl` : '';
+    o.note = def.costs ? '' : lvl >= def.eliteFrom - 1 ? '⭐ Elite: kostet Titan' : lvl >= def.steelFrom - 1 ? `Ab Stufe ${def.steelFrom} kostet es Stahl` : '';
   } else {
     const done = lvl > 0;
     o.badge = done ? (kind === 'research' ? '✓ Erforscht' : '✓ Aktiv') : '';
@@ -223,7 +275,17 @@ function describe(c) {
     o.note = !done && lock ? '🔒 ' + lock : '';
     if (done) o.status = 'done';
   }
+  const p = kind === 'gen' ? null : pendingOf(kind, def.id);
+  if (p) {
+    // Auftrag läuft oder wartet: Restzeit als Text auf der Karte, kein Doppelkauf
+    const e = queueState(p.queue)[p.index];
+    o.status = 'pending';
+    o.note = e.running ? `⏳ Läuft: noch ${fmtClock(e.left)} (${Math.round(e.progress * 100)} %)` : `⏳ Wartet (Platz ${p.index - queueSlots(p.queue) + 1}) · ${fmtClock(e.total)}`;
+  } else if (kind !== 'gen' && o.status === 'ok' && !lock) {
+    o.note = (o.note ? o.note + ' · ' : '') + `⏱ Dauer ${fmtClock(duration(kind, def.id))}`;
+  }
   if (lock && o.status === 'ok') o.status = 'locked';
+  o.hidden = !isRevealed(kind, def.id);
   return o;
 }
 
@@ -232,8 +294,9 @@ function renderCards(kinds) {
     if (!kinds.includes(c.kind)) continue;
     const o = describe(c);
     const can = o.status === 'ok' && o.plan.count > 0 && o.plan.affordable;
+    if (c.el.hidden !== o.hidden) c.el.hidden = o.hidden;
     setText(c.t, o.title); setText(c.b, o.badge); setText(c.d, o.desc); setText(c.n, o.note);
-    setCost(c.c, o.status === 'done' ? [] : costEntries(o.plan));
+    setCost(c.c, o.status === 'done' || o.status === 'pending' ? [] : costEntries(o.plan));
     if (c.msFill) {
       const lv = levelOf(c.kind, c.def.id), a = prevMilestone(lv), b = nextMilestone(lv);
       const f = ((lv - a) / Math.max(b - a, 1)).toFixed(3);
@@ -242,6 +305,7 @@ function renderCards(kinds) {
     setAttr(c.el, 'aria-disabled', !can);
     setClass(c.el, 'can', can);
     setClass(c.el, 'done', o.status === 'done');
+    setClass(c.el, 'pending', o.status === 'pending');
     setClass(c.el, 'locked', o.status === 'locked');
   }
 }
@@ -260,7 +324,7 @@ function buildPrestige() {
       const gain = prestigeGain();
       const ok = await confirmDialog({
         title: `${PRESTIGE.name}?`,
-        message: `Du setzt Ressourcen, Generatoren, Klick-Upgrades und Boosts${shopLevel('keep') ? '' : ' sowie Forschung'} zurück und erhältst ${gain} ${PRESTIGE.currency}. Shop-Käufe, Erfolge und Auto-Buyer bleiben erhalten.`,
+        message: `Du setzt Ressourcen, Generatoren, Klick-Upgrades und Boosts${shopLevel('keep') ? '' : ' sowie Forschung'} zurück (laufende Aufträge der Werkbank${shopLevel('keep') ? '' : ' und des Labors'} verfallen ohne Erstattung) und erhältst ${gain} ${PRESTIGE.currency}. Shop-Käufe, Erfolge und Auto-Buyer bleiben erhalten.`,
         confirmLabel: 'Neuguss durchführen',
       });
       if (ok) doPrestige();
@@ -446,6 +510,8 @@ function renderBuffs(force = false) {
 
 function renderTop(r) {
   for (const k of RES_IDS) {
+    const vis = resVisible(k);
+    if (meters[k].el.hidden === vis) meters[k].el.hidden = !vis;
     setText(meters[k].amt, fmt(state.res[k]));
     setText(meters[k].rps, fmt(r[k]));
   }
@@ -462,8 +528,8 @@ function renderTop(r) {
 function renderActive() {
   switch (activeTab()) {
     case 'gens': renderCards(['gen']); break;
-    case 'upgrades': renderCards(['click', 'boost']); renderAutobuyers(); break;
-    case 'research': renderCards(['research']); break;
+    case 'upgrades': renderCards(['click', 'boost']); renderQueues(['workshop']); renderAutobuyers(); break;
+    case 'research': renderCards(['research']); renderQueues(['lab']); break;
     case 'prestige': renderPrestige(); break;
     case 'achievements': renderAchievements(); break;
     case 'stats': renderStats(); drawHistory(sv.canvas); break;

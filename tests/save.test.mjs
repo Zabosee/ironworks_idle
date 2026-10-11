@@ -1,6 +1,6 @@
 import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { state, reset, installStorage, collect, quietConsole } from './helpers.mjs';
+import { state, reset, installStorage, collect, quietConsole, zeroRes } from './helpers.mjs';
 import * as S from '../js/core/save.js';
 import { defaultState } from '../js/core/state.js';
 import { MAX_LEVEL } from '../js/data/generators.js';
@@ -99,7 +99,7 @@ describe('Validierung (sanitize) – negative / NaN / Muell-Werte', () => {
       click: -1,
       prestige: { points: -1, total: 'x', count: -4, shop: { pp_eff: 999, pp_gain: -2, keep: 5 } },
     }));
-    assert.deepEqual(state.res, { ore: 0, steel: 0, titan: 0 });
+    assert.deepEqual(state.res, zeroRes());
     assert.equal(state.gens.mine, 0);
     assert.equal(state.gens.drill, MAX_LEVEL);
     assert.equal(state.gens.smelter, 2);
@@ -126,7 +126,7 @@ describe('Validierung (sanitize) – negative / NaN / Muell-Werte', () => {
     assert.equal(state.evil, undefined);
     assert.equal(state.gens.hack, undefined);
     assert.deepEqual(state.research, { geology: 1 });
-    assert.deepEqual(state.res, { ore: 0, steel: 0, titan: 0 });
+    assert.deepEqual(state.res, zeroRes());
   });
   test('Einstellungen: ungueltige Werte -> Defaults', () => {
     S.importSave(wrap({ settings: { format: 'hex', autosave: 'ja', autosaveSec: 7, particles: 0, buyAmount: '5' } }));
@@ -193,14 +193,15 @@ describe('Migration alter Saves (eisenwerk-idle-save)', () => {
   test('Legacy-Save mit fehlenden Feldern / Muell wird bereinigt', () => {
     ls.setItem(S.LEGACY_KEY, JSON.stringify({ S: { ore: -1, steel: 'x', gens: null, research: [] }, t: 'heute' }));
     assert.equal(S.load().loaded, true);
-    assert.deepEqual(state.res, { ore: 0, steel: 0, titan: 0 });
+    assert.deepEqual(state.res, zeroRes());
     assert.deepEqual(state.research, {});
     assert.ok(state.savedAt > 0, 'Fallback-Zeitstempel statt NaN');
   });
   test('migrate: v2 passt durch, falsche Versionen werfen', () => {
-    assert.equal(S.migrate({ v: 2, t: 5, state: {} }).v, 3);
-    assert.equal(S.migrate({ v: 3, t: 5, state: {} }).v, 3);
-    assert.throws(() => S.migrate({ v: 4, state: {} }), /neueren/);
+    assert.equal(S.migrate({ v: 2, t: 5, state: {} }).v, 4);
+    assert.equal(S.migrate({ v: 3, t: 5, state: {} }).v, 4);
+    assert.equal(S.migrate({ v: 4, t: 5, state: {} }).v, 4);
+    assert.throws(() => S.migrate({ v: 5, state: {} }), /neueren/);
     assert.throws(() => S.migrate({ state: {} }), /Version/);
     assert.throws(() => S.migrate(null), /Format/);
   });

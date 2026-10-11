@@ -23,7 +23,7 @@ Jeder abgeschlossene Schritt wird als Git-Commit in diesem Ordner gesichert (`gi
 - [x] Checkpoint 0: Ausgangsstand (176/176 Tests grün, Redesign mit SVGs)
 - [x] Phase 1: Review → docs/REVIEW-logic.md (Logik+Security), docs/SPEC-design.md (UX+Konzept)
 - [x] Phase 2a: backend-developer – Review-Fixes + Ressourcen datengetrieben + Security-Härtung
-- [ ] Phase 2b: backend-developer – Timer-System, neue Materialien/Generatoren/Upgrades, Save v3, docs/GAME-DESIGN.md
+- [x] Phase 2b: backend-developer – Timer-System, neue Materialien/Generatoren/Upgrades, Save v3, docs/GAME-DESIGN.md
 - [x] Parallel zu 2b: ui-designer – SVG-Assets (assets/sprites/gens.svg, flasks.svg, ui.svg, bg/lab.svg, bg/works-floor.svg, neue res-/gen-Icons, assets/preview.html)
 - [ ] Phase 3: UI (Kaufmenge nur Generatoren, Generator-Showcase mit Evolutionsstufen, Labor-Look, Timer-Anzeige)
 - [ ] Phase 4: Live-Tests im Browser

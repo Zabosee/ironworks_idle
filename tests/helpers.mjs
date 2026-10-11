@@ -34,6 +34,12 @@ export function fakeRandom(...values) {
   return () => { Math.random = orig; };
 }
 
+import { RES_IDS } from '../js/data/resources.js';
+import { finishAll } from '../js/systems/timers.js';
+export { finishAll };
+/** Alle Ressourcen mit 0, einzelne Werte überschreibbar. */
+export const zeroRes = (o = {}) => ({ ...Object.fromEntries(RES_IDS.map(k => [k, 0])), ...o });
+
 export const give = (res) => Object.assign(state.res, res);
 export const quietConsole = () => {
   const orig = console.error;

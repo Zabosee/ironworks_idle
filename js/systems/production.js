@@ -1,6 +1,7 @@
 // Produktion, Klicks und Käufe.
 import { state, addResource } from '../core/state.js';
-import { rates, bulkPlan, lockReason, defOf } from '../core/formulas.js';
+import { rates, bulkPlan, lockReason, defOf, genTier } from '../core/formulas.js';
+import { enqueue, tick as timersTick } from './timers.js';
 import { emit } from '../core/events.js';
 import { RES_IDS } from '../data/resources.js';
 
@@ -19,6 +20,7 @@ export function tick(dt) {
     state.buffs = state.buffs.filter(b => b.left > 0);
     if (state.buffs.length !== before) emit('buffs');
   }
+  timersTick(dt);
   return r;
 }
 
@@ -33,23 +35,24 @@ export function click() {
 }
 
 /**
- * Kauft kind/id in der gewünschten Menge. Gibt true bei Erfolg zurück.
+ * Kauft kind/id. Gibt true bei Erfolg zurück.
  * kind: 'gen' | 'click' | 'boost' | 'research'
- * Ohne explizite Menge gilt die Kaufmenge aus den Einstellungen nur für Generatoren; alles andere kauft 1 Stufe.
+ * Generatoren wirken sofort (Menge: explizit oder Einstellung). Klick-Upgrades, Boosts und Forschung kosten sofort,
+ * wirken aber erst nach Ablauf ihres Timers (systems/timers.js: enqueue); sie kaufen immer genau 1 Stufe.
  */
 export function buy(kind, id, amount, { silent = false } = {}) {
   if (!defOf(kind, id) || lockReason(kind, id)) return false;
-  if (amount === undefined) amount = kind === 'gen' ? state.settings.buyAmount : 1;
+  if (kind !== 'gen') return enqueue(kind, id, { silent });
+  if (amount === undefined) amount = state.settings.buyAmount;
   const plan = bulkPlan(kind, id, amount);
   if (!plan.count || !plan.affordable) return false;
   for (const k in plan.cost) state.res[k] -= plan.cost[k];
   for (const k of RES_IDS) if (state.res[k] < 0) state.res[k] = 0; // Rundungsschutz
-  if (kind === 'gen') state.gens[id] += plan.count;
-  else if (kind === 'click') state.clicks[id] = (state.clicks[id] || 0) + plan.count;
-  else if (kind === 'boost') state.boosts[id] = 1;
-  else if (kind === 'research') state.research[id] = 1;
+  const before = genTier(state.gens[id]);
+  state.gens[id] += plan.count;
   state.stats.buys += plan.count;
   emit('buy', { kind, id, count: plan.count, silent });
-  if (kind === 'research' && !silent) emit('toast', { msg: `Forschung abgeschlossen: ${defOf(kind, id).name}`, kind: 'good' });
+  const tier = genTier(state.gens[id]);
+  if (tier > before) emit('gen:evolve', { id, tier });
   return true;
 }

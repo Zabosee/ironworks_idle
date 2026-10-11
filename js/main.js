@@ -4,8 +4,10 @@ import { on, toast } from './core/events.js';
 import { fmt, fmtTime } from './core/format.js';
 import { load, save, autoSave, applyOffline } from './core/save.js';
 import { RES, RES_IDS } from './data/resources.js';
-import { tick } from './systems/production.js';
+import { tick, buy } from './systems/production.js';
 import * as autobuyers from './systems/autobuyers.js';
+import * as timers from './systems/timers.js';
+import * as F from './core/formulas.js';
 import * as golden from './systems/golden.js';
 import * as achievements from './systems/achievements.js';
 import { initRender, frame, refresh } from './ui/render.js';
@@ -70,7 +72,8 @@ function boot() {
   // Beim Verlassen nur speichern, wenn der Nutzer Autosave eingeschaltet hat (und nie bei gesperrtem Speichern).
   document.addEventListener('visibilitychange', () => { if (document.hidden) autoSave(); });
   addEventListener('pagehide', autoSave);
-  window.__eisenwerk = true;
+  // Debug-Hook nur lokal (Live-Tests per DevTools); sonst bleibt es beim Boot-Marker.
+  window.__eisenwerk = ['localhost', '127.0.0.1'].includes(location.hostname) ? { state, F, timers, buy, save, refresh } : true;
 }
 
 try {

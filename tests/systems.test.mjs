@@ -1,6 +1,6 @@
 import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { state, reset, give, collect, fakeRandom } from './helpers.mjs';
+import { state, reset, give, collect, fakeRandom, finishAll } from './helpers.mjs';
 import * as A from '../js/systems/achievements.js';
 import * as G from '../js/systems/golden.js';
 import * as AB from '../js/systems/autobuyers.js';
@@ -218,6 +218,7 @@ describe('Auto-Buyer', () => {
     state.prestige.shop.ab_research = 1; give({ ore: 1e4, steel: 100 });
     AB.setEnabled('research', true);
     AB.tick(2);
+    finishAll();
     assert.equal(state.research.geology, 1);
     assert.equal(state.research.metallurgy, undefined);
     assert.equal(state.research.titanium, undefined);
@@ -226,6 +227,7 @@ describe('Auto-Buyer', () => {
     state.prestige.shop.ab_boosts = 1; give({ steel: 300, titan: 10 });
     AB.setEnabled('boosts', true);
     AB.tick(2); AB.tick(2);
+    finishAll();
     assert.equal(state.boosts.diamond, 1);
     assert.equal(state.res.steel, 150); assert.equal(state.res.titan, 5);
   });
@@ -233,6 +235,7 @@ describe('Auto-Buyer', () => {
     state.prestige.shop.ab_click = 1; give({ ore: 25 });
     AB.setEnabled('click', true);
     AB.tick(2);
+    finishAll();
     assert.equal(state.clicks.click, 1);
   });
   test('nie negative Ressourcen', () => {
@@ -245,6 +248,7 @@ describe('Auto-Buyer', () => {
     state.prestige.shop.ab_click = 1; give({ ore: 1e12, steel: 1e12, titan: 1e12 });
     AB.setEnabled('click', true);
     AB.tick(1e6);
+    finishAll();
     assert.equal(state.clicks.click, 1);
   });
 });

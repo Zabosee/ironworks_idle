@@ -1,6 +1,6 @@
 import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { state, reset, give, collect } from './helpers.mjs';
+import { state, reset, give, collect, finishAll } from './helpers.mjs';
 import { tick, click, buy } from '../js/systems/production.js';
 import { applyOffline } from '../js/core/save.js';
 import { addResource } from '../js/core/state.js';
@@ -127,13 +127,18 @@ describe('Kaufen', () => {
     give({ ore: 1e6, steel: 1e6 });
     assert.equal(buy('research', 'resonance'), false);
     assert.equal(buy('research', 'geology'), true);
-    assert.equal(buy('research', 'geology'), false);
+    assert.equal(buy('research', 'geology'), false, 'laeuft bereits');
     assert.equal(state.res.ore, 1e6 - 300);
+    assert.equal(buy('research', 'resonance'), false, 'Voraussetzung erst nach Ablauf des Timers');
+    finishAll();
+    assert.equal(buy('research', 'geology'), false, 'schon erforscht');
     assert.equal(buy('research', 'resonance'), true);
   });
   test('Boost kaufen', () => {
     give({ steel: 150, titan: 5 });
     assert.equal(buy('boost', 'diamond'), true);
+    assert.equal(state.boosts.diamond, undefined, 'wirkt erst nach dem Timer');
+    finishAll();
     assert.equal(state.boosts.diamond, 1);
     assert.equal(state.res.steel, 0); assert.equal(state.res.titan, 0);
     assert.equal(buy('boost', 'diamond'), false);
@@ -141,10 +146,13 @@ describe('Kaufen', () => {
   test('Klick-Upgrade braucht ab Stufe 2 Stahl', () => {
     give({ ore: 1e6 });
     assert.equal(buy('click', 'click', '1'), true);
+    finishAll();
     assert.equal(buy('click', 'click', '1'), true);
+    finishAll();
     assert.equal(buy('click', 'click', '1'), false);
     give({ steel: 100 });
     assert.equal(buy('click', 'click', '1'), true);
+    finishAll();
     assert.equal(state.clicks.click, 3);
   });
   test('unbekannte Kategorie/ID wirft nicht und kauft nichts', () => {

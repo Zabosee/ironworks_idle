@@ -83,3 +83,13 @@ export function fmtTime(sec) {
   if ((s || !parts.length) && parts.length < 2) parts.push(s + ' s');
   return parts.join(' ');
 }
+
+/** Restzeit als Uhr "m:ss" (ab einer Stunde "h:mm:ss"); Sekunden werden aufgerundet. */
+export function fmtClock(sec) {
+  sec = Number(sec);
+  if (!Number.isFinite(sec) || sec < 0) sec = 0;
+  sec = Math.ceil(sec - 1e-9);
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
+  const ss = String(s).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
+}

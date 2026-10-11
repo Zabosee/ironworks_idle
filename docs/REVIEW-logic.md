@@ -60,3 +60,15 @@ Härtung
 - `style` in dom.h über CSSOM (vereinbar mit style-src 'self') -> js/ui/dom.js
 - Import-Limit 200000 Zeichen -> js/core/save.js
 - legacy/ entfernt, README angepasst
+
+# Erledigt in Phase 2b
+Details und Zahlen: docs/GAME-DESIGN.md. Tests: tests/phase2b.test.mjs (56 Tests; Gesamtstand 277 grün).
+- Timer-Warteschlangen `lab`/`workshop` -> js/systems/timers.js (enqueue, cancel, tick, queueState, isPending, timeToNext), js/data/timers.js; Lesehelfer in js/core/formulas.js (queueSlots, duration, pendingOf, lockReason mit „Läuft“/„In Warteschlange“/„voll“); buy() reiht Forschung/Boost/Klick ein, Generatoren bleiben sofort -> js/systems/production.js
+- Offline/Hintergrund: abschnittsweise Berechnung, Raten nach jedem Abschluss neu -> js/core/save.js (applyOffline)
+- Save v4 (`timers`, `stats.timersDone`), sanitize prüft Aufträge gegen die Daten, Migration v3->v4 -> js/core/save.js, js/core/state.js
+- Prestige: Werkbank leeren, Labor nur ohne Wissensarchiv leeren, keine Erstattung -> js/systems/prestige.js
+- Fund: `defOf('click','__proto__')` lieferte Object.prototype -> `Object.hasOwn` in formulas.defOf
+- Inhalte: +9 Materialien, +9 Generatoren, +12 Forschungen, +10 Boosts, +3 Klick-Upgrades, +5 Rezepte, +3 Shop-Einträge, +14 Erfolge -> js/data/*
+- Evolution: genTier/tierName/tierPips, Event gen:evolve -> js/data/generators.js, js/systems/production.js
+- Minimal-UI: Warteschlangen-Listen mit Abbrechen, Restzeit auf Karten, gestaffelte Sichtbarkeit, Emoji-Fallback für fehlende Icons (js/ui/assets.js) -> js/ui/render.js, index.html, css/styles.css
+- Debug-Hook `window.__eisenwerk = { state, F, timers, buy, save, refresh }` nur auf localhost/127.0.0.1 -> js/main.js

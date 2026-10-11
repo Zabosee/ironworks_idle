@@ -3,6 +3,7 @@ import { RES_IDS } from '../data/resources.js';
 import { GENS } from '../data/generators.js';
 import { CLICKS } from '../data/upgrades.js';
 import { AUTOBUYERS } from '../data/prestige.js';
+import { QUEUE_IDS } from '../data/timers.js';
 
 export const FORMAT_IDS = ['standard', 'scientific', 'engineering'];
 export const BUY_AMOUNTS = ['1', '10', '100', 'max'];
@@ -15,6 +16,7 @@ export function defaultState() {
     clicks: Object.fromEntries(CLICKS.map(c => [c.id, 0])),   // Stufen der wiederholbaren Klick-Upgrades
     research: {},
     boosts: {},
+    timers: Object.fromEntries(QUEUE_IDS.map(q => [q, []])),   // Warteschlangen: je [{ kind, id, total, left, cost }], die ersten `slots` Einträge laufen
     prestige: { points: 0, total: 0, count: 0, shop: {} },
     autobuyers: Object.fromEntries(AUTOBUYERS.map(a => [a.id, false])),
     achievements: {},
@@ -24,7 +26,7 @@ export function defaultState() {
       total: Object.fromEntries(RES_IDS.map(k => [k, 0])),   // je Ressource insgesamt produziert
       run: Object.fromEntries(RES_IDS.map(k => [k, 0])),     // je Ressource in diesem Durchlauf produziert
       runTime: 0, playTime: 0,
-      golden: 0, buys: 0, bestOreRate: 0,
+      golden: 0, buys: 0, bestOreRate: 0, timersDone: 0,
       bestPrestige: 0, startedAt: Date.now(),
     },
     settings: { format: 'standard', autosave: true, autosaveSec: 10, particles: true, buyAmount: '1' },

@@ -26,11 +26,22 @@ add('steel_2', '🔩', 'Stahlwerk', 'Produziere insgesamt 1 Mio. Stahl.', 0.02, 
 add('titan_1', '💎', 'Titanfunke', 'Produziere insgesamt 100 Titan.', 0.01, s => s.stats.total.titan >= 100);
 add('titan_2', '💎', 'Titanschmied', 'Produziere insgesamt 100.000 Titan.', 0.02, s => s.stats.total.titan >= 1e5);
 
+// Eisenhütten-Kette
+[['coal', 1e4, '⚫', 'Kohlenstaub', 'Kohle'], ['coke', 1e3, '🟫', 'Koksfeuer', 'Koks'], ['copper', 1e3, '🟧', 'Kupferdach', 'Kupfer'], ['alloy', 100, '🔗', 'Legierungskunst', 'Legierung'],
+  ['tungsten', 50, '🧿', 'Wolframwerker', 'Wolfram'], ['gold', 10, '🥇', 'Goldrausch', 'Gold']]
+  .forEach(([k, n, icon, name, label], i) => add(k + '_1', icon, name, `Produziere insgesamt ${fmtBig(n)} ${label}.`, 0.01 + 0.002 * i, s => s.stats.total[k] >= n));
+add('gold_2', '🥇', 'Goldreserve', 'Produziere insgesamt 10.000 Gold.', 0.03, s => s.stats.total.gold >= 1e4);
+
 add('res_1', '🔬', 'Wissbegierig', 'Schließe 3 Forschungen ab.', 0.01, s => researchCount(s) >= 3);
 add('res_2', '🔬', 'Forscherdrang', 'Schließe 7 Forschungen ab.', 0.02, s => researchCount(s) >= 7);
+add('res_4', '🔬', 'Laborleiter', 'Schließe 15 Forschungen ab.', 0.03, s => researchCount(s) >= 15);
 add('res_3', '🧠', 'Allwissend', 'Schließe alle Forschungen ab.', 0.05, s => researchCount(s) >= RESEARCH.length);
 add('boost_1', '🚀', 'Turbo', 'Kaufe 3 Elite-Boosts.', 0.02, s => Object.keys(s.boosts).length >= 3);
+add('boost_3', '🚀', 'Werkbankprofi', 'Kaufe 10 Elite-Boosts.', 0.03, s => Object.keys(s.boosts).length >= 10);
 add('boost_2', '🚀', 'Vollgas', 'Kaufe alle Elite-Boosts.', 0.04, s => Object.keys(s.boosts).length >= BOOSTS.length);
+
+[[10, 'Geduldsprobe'], [50, 'Zeitplaner'], [200, 'Taktgeber']]
+  .forEach(([n, name], i) => add('timer_' + n, '⏱️', name, `Schließe ${n} Aufträge in Labor und Werkbank ab.`, 0.01 * (i + 1), s => s.stats.timersDone >= n));
 
 [[1, 'Neuguss'], [5, 'Gussprofi'], [25, 'Gießmeister'], [100, 'Ewige Esse']]
   .forEach(([n, name], i) => add('prestige_' + n, '🔥', name, `Führe ${n} Hochofen-Neuguss${n > 1 ? 'e' : ''} durch.`, 0.02 * (i + 1), s => s.prestige.count >= n));

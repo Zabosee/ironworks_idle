@@ -3,6 +3,7 @@ import { state, defaultState } from '../core/state.js';
 import { prestigeGain, shopCost, shopLevel, startOre } from '../core/formulas.js';
 import { emit, toast } from '../core/events.js';
 import { autoSave } from '../core/save.js';
+import { resetForPrestige } from './timers.js';
 import { SHOP_MAP, MILESTONES, PRESTIGE } from '../data/prestige.js';
 
 export const canPrestige = () => prestigeGain() >= 1;
@@ -20,6 +21,7 @@ export function doPrestige() {
   state.boosts = {};
   if (shopLevel('keep') < 1) state.research = {};
   state.buffs = [];
+  resetForPrestige(shopLevel('keep') >= 1);   // Werkbank-Aufträge verfallen; Forschungsaufträge laufen mit Wissensarchiv weiter
 
   state.stats.run = fresh.stats.run;
   state.stats.runTime = 0;

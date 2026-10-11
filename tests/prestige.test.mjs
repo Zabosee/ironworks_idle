@@ -1,6 +1,6 @@
 import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { state, reset, collect } from './helpers.mjs';
+import { state, reset, collect, zeroRes } from './helpers.mjs';
 import { doPrestige, canPrestige, buyShop } from '../js/systems/prestige.js';
 import { prestigeGain } from '../js/core/formulas.js';
 import { SHOP } from '../js/data/prestige.js';
@@ -27,7 +27,7 @@ describe('Hochofen-Neuguss', () => {
     assert.equal(state.prestige.points, 2);
     assert.equal(state.prestige.total, 2);
     assert.equal(state.prestige.count, 1);
-    assert.deepEqual(state.res, { ore: 0, steel: 0, titan: 0 });
+    assert.deepEqual(state.res, zeroRes());
     assert.equal(state.gens.mine, 0);
     assert.equal(state.clicks.click, 0);
     assert.deepEqual(state.boosts, {});
