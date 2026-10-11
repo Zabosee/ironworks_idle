@@ -564,13 +564,13 @@ await scenario('i', 'Speichern/Reload und Offline-Simulation', async () => {
 // =====================================================================================
 await scenario('j', 'Prestige (Hochofen-Neuguss)', async () => {
   await seed({ ore: 1e6, steel: 1e5, titan: 1e4 });
-  await G('(state.stats.run.ore = 2e7, window.__eisenwerk.refresh(), true)');
+  await G('(state.stats.run.ore = 1.2e7, window.__eisenwerk.refresh(), true)');
   await tab('prestige');
   let before;
-  await step('Neuguss-Knopf zeigt erwarteten Ertrag (+2 Gussformen bei 2e7 Erz)', async () => {
+  await step('Neuguss-Knopf zeigt erwarteten Ertrag (+4 Gussformen bei 1,2e7 Erz)', async () => {
     before = await G('({ ach: Object.keys(state.achievements).length, gens: Object.values(state.gens).reduce((a, b) => a + b, 0) })');
     const t = await ev(`document.querySelector('#prestige-root .btn-big').textContent`);
-    assert(/\+2/.test(t), 'Knopf: ' + t);
+    assert(/\+4/.test(t), 'Knopf: ' + t);
   });
   await step('Dialog: Abbrechen lässt den Spielstand unverändert', async () => {
     await realClick('#prestige-root .btn-big');
@@ -581,7 +581,7 @@ await scenario('j', 'Prestige (Hochofen-Neuguss)', async () => {
     assert(!(await isVisible('dialog[open]')), 'Dialog noch offen');
     assert(await G('state.prestige.count') === 0 && await G('state.prestige.points') === 0, 'Prestige trotz Abbruch');
   });
-  await step('Dialog bestätigen: Reset korrekt (Gussformen +2, Generatoren/Forschung/Boosts/Queues/Erz zurück)', async () => {
+  await step('Dialog bestätigen: Reset korrekt (Gussformen +4, Generatoren/Forschung/Boosts/Queues/Erz zurück)', async () => {
     await realClick('#prestige-root .btn-big');
     await waitFor(() => isVisible('dialog[open]'), 3000, 'Dialog offen');
     await realClick('dialog button[value="ok"]');
@@ -589,7 +589,7 @@ await scenario('j', 'Prestige (Hochofen-Neuguss)', async () => {
     const s = await G(`({ pts: state.prestige.points, tot: state.prestige.total, cnt: state.prestige.count, gens: Object.values(state.gens).reduce((a, b) => a + b, 0), res: Object.keys(state.research).length,
       boosts: Object.keys(state.boosts).length, q: state.timers.lab.length + state.timers.workshop.length, ore: state.res.ore, steel: state.res.steel, run: state.stats.run.ore, clicks: Object.values(state.clicks).reduce((a, b) => a + b, 0),
       ach: Object.keys(state.achievements).length, mult: F.prestigeMult() })`);
-    assert(s.pts === 2 && s.tot === 2 && s.cnt === 1, `Prestige-Zähler: ${J(s)}`);
+    assert(s.pts === 4 && s.tot === 4 && s.cnt === 1, `Prestige-Zähler: ${J(s)}`);
     assert(s.gens === 0 && s.res === 0 && s.boosts === 0 && s.q === 0 && s.clicks === 0, `Reset unvollständig: ${J(s)}`);
     assert(s.ore < 1 && s.steel < 1 && s.run < 1, `Ressourcen nicht zurückgesetzt: ${J(s)}`);
     assert(s.ach >= before.ach, 'Erfolge verloren');
@@ -622,7 +622,7 @@ await scenario('k', 'Export/Import Roundtrip', async () => {
     exported = await ev(`document.getElementById('set-export').value`);
     assert(exported.length > 100, 'Export leer');
     const parsed = JSON.parse(Buffer.from(exported, 'base64').toString('utf8'));
-    assert(parsed.v === 4 && parsed.state.prestige.points === 2 && parsed.state.gens.mine === 3, `Export-Inhalt: v=${parsed.v}`);
+    assert(parsed.v === 4 && parsed.state.prestige.points === 4 && parsed.state.gens.mine === 3, `Export-Inhalt: v=${parsed.v}`);
     snap = parsed.state;
   });
   await step('Stand ändern, Import per echter Texteingabe + Bestätigung: Zustand = Export', async () => {
@@ -637,7 +637,7 @@ await scenario('k', 'Export/Import Roundtrip', async () => {
     const st = await ev(`document.querySelector('#settings-root .status').textContent`);
     assert(st === 'Spielstand importiert.', 'Status: ' + st);
     const now = await G('({ mine: state.gens.mine, pts: state.prestige.points, ore: state.res.ore, imp: document.getElementById("set-import").value })');
-    assert(now.mine === 3 && now.pts === 2, `Zustand nach Import: ${J(now)}`);
+    assert(now.mine === 3 && now.pts === 4, `Zustand nach Import: ${J(now)}`);
     assert(Math.abs(now.ore - snap.res.ore) < 50, `Erz ${now.ore} vs Export ${snap.res.ore}`);
     assert(now.imp === '', 'Importfeld nicht geleert');
   });

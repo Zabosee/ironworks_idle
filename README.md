@@ -45,7 +45,7 @@ assets/icons/         einzelne res-* und gen-* Icons, Goldbarren
 assets/bg/            Hintergründe: lab, works-floor, skyline
 assets/preview.html   Vorschau aller Assets
 tests/                Unit-Tests (node:test)
-tools/                live.mjs, e2e.mjs, cdp.mjs
+tools/                live.mjs, e2e.mjs, cdp.mjs, balance-sim.mjs (Prestige-Balance-Simulation: node tools/balance-sim.mjs [Stunden] [Klicks/s] [Anteil] [dt] [rate|frac])
 docs/                 Design und Reviews
 ```
 

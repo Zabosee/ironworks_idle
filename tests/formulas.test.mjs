@@ -66,7 +66,8 @@ describe('Multiplikatoren', () => {
     assert.equal(F.prestigeMult(0), 1);
     assert.ok(Math.abs(F.prestigeMult(4) - 1.4) < 1e-12);
     assert.ok(Math.abs(F.prestigeMult(5) - 1.5 * 1.25) < 1e-12);
-    assert.ok(Math.abs(F.prestigeMult(20) - 3 * 1.25 * 1.5) < 1e-12);
+    assert.ok(Math.abs(F.prestigeMult(24) - 3.4 * 1.25) < 1e-12);
+    assert.ok(Math.abs(F.prestigeMult(25) - 3.5 * 1.25 * 1.5) < 1e-12);
   });
   test('pp_eff erhoeht die Wirkung der Gussformen', () => {
     state.prestige.shop.pp_eff = 5;
@@ -211,7 +212,7 @@ describe('Prestige-Formeln', () => {
     for (let g = 0; g < 300; g++) {
       assert.ok(Math.abs(F.oreForGain(g + 1) / F.oreForGain(g) - G) < 1e-9, `g ${g}`);
     }
-    assert.ok(F.oreForGain(100) / F.oreForGain(10) > 1e10); // quadratisch wäre ~100
+    assert.ok(F.oreForGain(500) / F.oreForGain(10) > 1e10); // quadratisch wäre ~2500
   });
   test('pp_gain Bonus', () => {
     state.prestige.shop.pp_gain = 5;

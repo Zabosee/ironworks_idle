@@ -65,21 +65,30 @@ Reine Funktionen in `js/data/generators.js` (auch über `core/formulas.js` errei
 - Kostenkurve: Basiskosten steigen je Materialstufe etwa um den Faktor 3 bis 10, Wachstum je Stufe 1,17 (Zeche) bis 1,27 (Tiegel); die Elite-Titankosten wachsen mit den späten Generatoren (2 bis 10). Basisproduktion sinkt dafür (Zeche 2/s, Tiegel 0,004/s), weil der Wert pro Einheit steigt.
 - Erster neuer Inhalt: Kohleflöz-Erkundung kostet 15.000 Erz + 150 Stahl und dauert 20 s (Geologie 5 s, Tiefbau 15 s davor). In der Simulation (greedy Bot, 4 Klicks/s, Verhalten der echten Module) erscheint die Kohle nach etwa 4:30 (Forschung) und 5:20 (Zeche), Koks nach etwa 10 min.
 - Mitte: Simulation – Kupfer ca. 42 bis 50 min, Mangan ca. 56 bis 60 min, Legierung ca. 73 bis 79 min, Chrom/Nickel ca. 97 min, Wolfram ca. 109 min, Gold ca. 147 min bei einem eher passiven Bot. Ein menschlicher Spieler mit Vorplanung ist schneller, der Neuguss (bereits ab ca. 50 min möglich) verschiebt das Ende weiter nach hinten: Die Kette trägt über den ersten Neuguss hinaus, weil ohne „Wissensarchiv“ die Forschung verloren geht und die Kette erneut (schneller durch den Gussformen-Bonus) aufgebaut wird.
-- Hochofen-Skalierung (exponentiell): Der Erzbedarf für insgesamt n Gussformen in einem Durchlauf beträgt `divisor * growth^(n-1)` mit `divisor = 1e7`, `growth = 1,5` (js/data/prestige.js); jede weitere Gussform braucht also ×1,5 so viel Erz. Gewinn = `floor(log(erz/divisor) / log(growth)) + 1` ab `erz >= divisor`, sonst 0, anschließend × (1 + 0,1 × Stufe „Hochofen-Kapazität“), abgerundet. Rundungsfehler von `log` werden durch einen Korrekturschritt gegen die exakte Schwelle beseitigt. Der erste Neuguss bleibt bei 1e7 Erz (ca. 50 min). Die alte Wurzel-Formel (Bedarf quadratisch in n) ließ den Gewinn zu schnell mitwachsen; jetzt bringt eine Verdopplung der Produktion nur etwa +1,7 Gussformen, und der Bonus von +10 % je Gussform (`perPoint`) bleibt unverändert. Bereits erhaltene Gussformen sind Zähler im Spielstand und bleiben unberührt (keine Migration). Erzbedarf vor Shop-Multiplikator:
+- Hochofen-Skalierung (exponentiell): Der Erzbedarf für insgesamt n Gussformen in einem Durchlauf beträgt `divisor * growth^(n-1)` mit `divisor = 1e7`, `growth = 1,05` (js/data/prestige.js); jede weitere Gussform braucht also ×1,05 so viel Erz. Gewinn = `floor(log(erz/divisor) / log(growth)) + 1` ab `erz >= divisor`, sonst 0, anschließend × (1 + 0,1 × Stufe „Hochofen-Kapazität“), abgerundet; Rundungsfehler von `log` fängt ein Korrekturschritt gegen die exakte Schwelle ab. `perPoint = 0,1` (+10 % je Gussform) bleibt unverändert. Der erste Neuguss ist ab 1e7 Erz (ca. 45 min) möglich. Der Faktor 1,5 (Commit 9fb69f7) war zu steil: Gussformen sind ein Zähler und wachsen nur mit dem Logarithmus des Erzes, bei ×1,5 blieben die Meilensteine ab 20 Gussformen praktisch außer Reichweite (100 Gussformen bräuchten 2,7e24 Erz). Mit ×1,05 bringt eine Verdopplung des Erzes etwa +14 Gussformen. Bereits erhaltene Gussformen sind Zähler im Spielstand (keine Migration). Erzbedarf vor Shop-Multiplikator:
 
 | Gussformen | Erz im Durchlauf |
 |---|---|
 | 1 | 1,00e7 |
-| 2 | 1,50e7 |
-| 3 | 2,25e7 |
-| 4 | 3,38e7 |
-| 5 | 5,06e7 |
-| 10 | 3,84e8 |
-| 20 | 2,22e10 |
-| 30 | 1,28e12 |
-| 50 | 4,25e15 |
-| 100 | 2,71e24 |
+| 10 | 1,55e7 |
+| 50 | 1,09e8 |
+| 100 | 1,25e9 |
+| 200 | 1,65e11 |
+| 500 | 3,75e17 |
 
+- Meilensteine (`MILESTONES.at` bezieht sich auf die **insgesamt verdienten** Gussformen über alle Durchläufe, `prestige.total`, nicht auf den ausgebbaren Bestand). Simulation: `tools/balance-sim.mjs` (echte Module, gieriger Bot mit 4 Klicks/s, Shop-Käufe nach fester Prioritätsliste; Zeit = aktive Spielzeit ohne Offline-Ertrag, also eine obere Schranke). Benchmark „Aktiv“: Neuguss, sobald der Gewinnzuwachs der letzten 2 min unter den Durchlauf-Schnitt fällt (ab dem Wissensarchiv dauert ein Durchlauf ca. 7 min und bringt ca. 1.200 Gussformen). Benchmark „Gelegentlich“: Neuguss bei Gewinn >= 10 % des Bestands.
+
+| Meilenstein (Gussformen gesamt) | Wirkung | Aktiv (Neuguss Nr.) | Gelegentlich (Neuguss Nr.) |
+|---|---|---|---|
+| 5 | ×1,25 | 1,7 h (1) | 1,3 h (2) |
+| 25 | ×1,5 | 1,7 h (1) | 3,2 h (9) |
+| 150 | ×2 | 1,8 h (2) | 4,3 h (20) |
+| 1.000 | ×3 | 2,1 h (5) | 4,6 h (24) |
+| 10.000 | ×5 | 3,8 h (19) | 6,0 h (38) |
+| 250.000 | ×10 | ca. 24 bis 30 h (ca. 250) | nicht erreicht |
+
+  Begründung: Der Gewinn je Durchlauf pendelt sich bei ca. 1.200 Gussformen ein (er wächst nur logarithmisch mit dem Erz), der Gesamtbestand wächst danach linear mit der Anzahl der Durchläufe (ca. 10.000 je Stunde im Dauerlauf). Die unteren Meilensteine liegen deshalb nah beieinander in den ersten Stunden (Einstieg, Wissensarchiv, Snowball), der letzte (250.000) ist das Langzeitziel von etwa 1 bis 1,5 Tagen aktiver Spielzeit im ununterbrochenen Neuguss-Rhythmus. Wer nur bei Gewinn >= 25 % des Bestands gießt, stagniert bei ca. 5.000 Gussformen; das ist gewollt (Anreiz, häufiger zu gießen) und für die ersten vier Meilensteine unkritisch. Der Test `tests/balance.test.mjs` sichert die Staffelung (erster Meilenstein nach 1 bis 2 Neugüssen, Hochrechnung des letzten unter 2 Tagen, Shop komplett bezahlbar).
+- Shop-Kosten (an die Gussformen-Menge angepasst, im Aktiv-Benchmark innerhalb von 6 h komplett kaufbar): Legierungskunde 3 × 2^Stufe, Hochofen-Kapazität 4 × 2,1^Stufe, Schmiedehand 2 × 1,9^Stufe, Zeitraffer 5 × 2,2^Stufe, Zusatz-Laborplatz 20 × 2,5^Stufe, Zusatz-Werkbank 15 × 2,5^Stufe, Wissensarchiv 100, Auto-Buyer 30 / 50 / 120 / 200 (Generatoren / Spitzhacke / Forschung / Boosts), Auto-Buyer-Takt 30 × 3^Stufe; Gesamtkosten aller Stufen ca. 13.000 Gussformen. Erfolge mit Gussform-Bezug zählen Neugüsse (1 / 5 / 25 / 100), keine Gussform-Mengen, und blieben unverändert.
 - Timer: Die frühen Einträge sind absichtlich kurz (Spieler wartet nicht), die späten lang, damit Offline-Zeit sinnvoll ist. Parallele Slots und Zeitverkürzung sind Prestige-Ziele und machen den Neuguss attraktiver.
 - Hammerwut wirkt nur auf manuelle Klicks (Phase 2a); die neuen Klick-Upgrades haben Basis 0 und addieren sich zum Klickwert erst ab Stufe 1.
 
@@ -189,9 +198,9 @@ Reine Funktionen in `js/data/generators.js` (auch über `core/formulas.js` errei
 
 | Eintrag | Wirkung | Kosten | Max |
 |---|---|---|---|
-| Zusatz-Laborplatz | +1 gleichzeitig laufende Forschung je Stufe. | 8 × 2.5^Stufe | 3 |
-| Zusatz-Werkbank | +1 gleichzeitig laufendes Upgrade/Boost je Stufe. | 6 × 2.5^Stufe | 3 |
-| Zeitraffer | Forschung, Boosts und Klick-Upgrades dauern 8 % kürzer je Stufe. | 5 × 2^Stufe | 6 |
+| Zusatz-Laborplatz | +1 gleichzeitig laufende Forschung je Stufe. | 20 × 2.5^Stufe | 3 |
+| Zusatz-Werkbank | +1 gleichzeitig laufendes Upgrade/Boost je Stufe. | 15 × 2.5^Stufe | 3 |
+| Zeitraffer | Forschung, Boosts und Klick-Upgrades dauern 8 % kürzer je Stufe. | 5 × 2.2^Stufe | 6 |
 
 ### Neue Erfolge
 Kohle (10.000), Koks (1.000), Kupfer (1.000), Legierung (100), Wolfram (50), Gold (10 und 10.000) insgesamt produziert; 15 Forschungen; 10 Boosts; 10 / 50 / 200 abgeschlossene Aufträge.
