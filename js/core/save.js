@@ -9,6 +9,7 @@ import { GENS, MAX_LEVEL } from '../data/generators.js';
 import { CLICKS, BOOSTS } from '../data/upgrades.js';
 import { RESEARCH } from '../data/research.js';
 import { SHOP, AUTOBUYERS } from '../data/prestige.js';
+import { HISTORY_MAX } from '../data/prestige.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { BUFFS } from '../data/golden.js';
 import { QUEUES, QUEUE_IDS, MAX_ENTRIES } from '../data/timers.js';
@@ -66,6 +67,16 @@ export function sanitize(d) {
   s.prestige.points = num(p.points); s.prestige.total = num(p.total); s.prestige.count = int(p.count, 1e9);
   const shop = isObj(p.shop) ? p.shop : {};
   for (const it of SHOP) { const l = int(shop[it.id], it.max); if (l > 0) s.prestige.shop[it.id] = Math.min(l, it.max); }
+
+  // Neuguss-Chronik: nur die letzten HISTORY_MAX gültigen Einträge, nur bekannte Felder
+  if (Array.isArray(p.history)) {
+    for (const e of p.history.slice(-HISTORY_MAX)) {
+      if (!isObj(e)) continue;
+      const gain = int(e.gain, 1e12);
+      if (gain < 1) continue;
+      s.prestige.history.push({ gain, ore: num(e.ore), time: num(e.time, 0, 0, 1e10), at: num(e.at, 0, 0, 8.64e15) });
+    }
+  }
 
   const ab = isObj(d.autobuyers) ? d.autobuyers : {};
   for (const a of AUTOBUYERS) s.autobuyers[a.id] = bool(ab[a.id], false);

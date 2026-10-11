@@ -4,7 +4,8 @@ import { prestigeGain, shopCost, shopLevel, startOre } from '../core/formulas.js
 import { emit, toast } from '../core/events.js';
 import { autoSave } from '../core/save.js';
 import { resetForPrestige } from './timers.js';
-import { SHOP_MAP, MILESTONES, PRESTIGE } from '../data/prestige.js';
+import { SHOP_MAP, MILESTONES, PRESTIGE, HISTORY_MAX } from '../data/prestige.js';
+
 
 export const canPrestige = () => prestigeGain() >= 1;
 
@@ -23,15 +24,23 @@ export function doPrestige() {
   state.buffs = [];
   resetForPrestige(shopLevel('keep') >= 1);   // Werkbank-Aufträge verfallen; Forschungsaufträge laufen mit Wissensarchiv weiter
 
+  // Chronik: Daten des beendeten Durchlaufs festhalten, bevor sie zurückgesetzt werden
+  const runTime = Math.max(0, state.stats.runTime || 0);
+  const entry = { gain, ore: state.stats.run.ore || 0, time: runTime, at: Date.now() };
+
   state.stats.run = fresh.stats.run;
   state.stats.runTime = 0;
   state.stats.runClicks = 0;
   state.stats.bestPrestige = Math.max(state.stats.bestPrestige, gain);
+  if (runTime > 0 && (!(state.stats.fastestPrestige > 0) || runTime < state.stats.fastestPrestige)) state.stats.fastestPrestige = runTime;
 
   const p = state.prestige;
   p.points += gain;
   p.total += gain;
   p.count += 1;
+  if (!Array.isArray(p.history)) p.history = [];
+  p.history.push(entry);
+  if (p.history.length > HISTORY_MAX) p.history.splice(0, p.history.length - HISTORY_MAX);
 
   emit('prestige', { gain });
   toast(`${PRESTIGE.name}! +${gain} ${PRESTIGE.currency}`, 'gold');

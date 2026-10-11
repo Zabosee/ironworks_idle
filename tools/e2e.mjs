@@ -608,6 +608,46 @@ await scenario('j', 'Prestige (Hochofen-Neuguss)', async () => {
     const vis = await ev(`(() => { const m = [...document.querySelectorAll('.meter')].find(m => m.querySelector('.meter-name').textContent === 'Kohle'); return !m.hidden && m.getClientRects().length > 0; })()`);
     assert(!vis, 'Kohle-Meter bleibt nach Neuguss sichtbar (resVisible nutzt stats.total, das beim Reset erhalten bleibt) -- Forschung ist zurückgesetzt');
   }, { soft: true });
+  await step('Neuguss-Zähler: Sidebar zeigt 1 Neuguss und 4 Gussformen, Klick öffnet Hochofen', async () => {
+    const t = await ev(`document.querySelector('#cast-summary').textContent`);
+    assert(/Neugüsse:\s*1(?!\d)/.test(t) && /Gussformen:\s*4(?!\d)/.test(t), 'Sidebar: ' + t);
+    await tab('works');
+    await realClick('#cast-summary');
+    await sleep(150);
+    assert(await ev(`document.querySelector('[data-tab="prestige"]').getAttribute('aria-selected') === 'true'`), 'Hochofen-Tab nicht geöffnet');
+  });
+  await step('Neuguss-Chronik: Eintrag #1 mit Gussformen und Dauer, Fortschritt als progressbar', async () => {
+    const info = await ev(`(() => { const rows = [...document.querySelectorAll('.chronicle tbody tr')].map(r => r.textContent); return { rows, tableVisible: !document.querySelector('.chronicle').hidden, pb: document.querySelectorAll('#prestige-root [role="progressbar"]').length, cnt: state.prestige.history.length }; })()`.replace('state.', 'window.__eisenwerk.state.'));
+    assert(info.tableVisible && info.rows.length === 1 && /#1/.test(info.rows[0]) && /\+4/.test(info.rows[0]), 'Chronik: ' + J(info));
+    assert(info.pb >= 2, 'progressbar fehlt: ' + J(info));
+    await shot('j-chronik');
+  });
+  await step('Tab-Wechsel: auf Karten laufen keine Einmal-Animationen (kein Aufleuchten)', async () => {
+    await seed({ ore: 1e9, steel: 1e8, titan: 1e7 });
+    await tab('gens');
+    await realClick('#tab-gens .card.can');
+    await sleep(100);
+    // übrig gebliebene Klassen simulieren, wie sie in verborgenen Panels entstehen
+    await ev(`document.querySelectorAll('.card, .flask-card, .ach').forEach(e => e.classList.add('bought', 'done-flash', 'just'))`);
+    const bad = [];
+    for (const name of ['upgrades', 'research', 'gens', 'prestige', 'achievements', 'upgrades']) {
+      await tab(name);
+      const r = await ev(`(() => [...document.querySelectorAll('#tab-${name} .card, #tab-${name} .flask-card, #tab-${name} .ach')].flatMap(e => [...e.getAnimations()].filter(a => ['bought', 'done-flash', 'ach-flash', 'pop'].includes(a.animationName)).map(a => a.animationName)))()`);
+      if (r.length) bad.push(name + ': ' + r.join(','));
+    }
+    assert(bad.length === 0, 'Einmal-Animationen nach Tabwechsel: ' + bad.join(' | '));
+    const left = await ev(`document.querySelectorAll('.bought, .done-flash, .flash-go, .just').length`);
+    assert(left === 0, 'Einmal-Klassen nicht entfernt: ' + left);
+  });
+  await step('Einmal-Klasse nach Kauf wird nach der Animation entfernt', async () => {
+    await tab('gens');
+    await realClick('#tab-gens .card.can');
+    await sleep(1900);
+    const left = await ev(`document.querySelectorAll('#tab-gens .bought, #tab-gens .pop').length`);
+    assert(left === 0, 'Klassen bleiben: ' + left);
+    // Zustand für die folgenden Szenarien wieder leeren
+    await G('(Object.keys(state.gens).forEach(k => { state.gens[k] = 0; }), Object.keys(state.res).forEach(k => { state.res[k] = 0; }), window.__eisenwerk.refresh(), true)');
+  });
   await shot('j-nach-neuguss');
 });
 

@@ -15,7 +15,7 @@ describe('Export / Import', () => {
   test('Roundtrip erhaelt den Spielstand', () => {
     state.res.ore = 1234.5; state.gens.mine = 42; state.clicks.click = 7;
     state.research.geology = 1; state.boosts.diamond = 1;
-    state.prestige = { points: 3, total: 9, count: 2, shop: { pp_eff: 2 } };
+    state.prestige = { points: 3, total: 9, count: 2, shop: { pp_eff: 2 }, history: [] };
     state.achievements.click_1 = 12345;
     state.buffs = [{ id: 'frenzy', left: 30 }];
     state.settings.format = 'engineering'; state.settings.buyAmount = 'max'; state.settings.autosaveSec = 30;
@@ -257,5 +257,33 @@ describe('save / load', () => {
       if (prev) assert.equal(snap, prev);
       prev = snap;
     }
+  });
+});
+
+describe('Neuguss-Chronik im Spielstand', () => {
+  test('Alter Spielstand ohne history: leere Liste, Zaehler bleibt', () => {
+    const s = S.sanitize({ prestige: { points: 2, total: 7, count: 3, shop: {} } });
+    assert.deepEqual(s.prestige.history, []);
+    assert.equal(s.prestige.count, 3);
+    assert.equal(s.stats.fastestPrestige, 0);
+  });
+  test('sanitize: Whitelist, Klemmen, max. 10, ungueltige Eintraege verworfen', () => {
+    const hist = [{ gain: 0, ore: 1, time: 1, at: 1 }, 'x', null, [], { gain: 'a' }];
+    for (let i = 1; i <= 14; i++) hist.push({ gain: i, ore: -5, time: 'x', at: 1e30, evil: '<b>' });
+    const s = S.sanitize({ prestige: { history: hist } });
+    assert.equal(s.prestige.history.length, 10);
+    assert.equal(s.prestige.history[0].gain, 5);
+    assert.equal(s.prestige.history.at(-1).gain, 14);
+    const e = s.prestige.history[0];
+    assert.deepEqual(Object.keys(e).sort(), ['at', 'gain', 'ore', 'time']);
+    assert.equal(e.ore, 0); assert.equal(e.time, 0); assert.ok(e.at <= 8.64e15);
+  });
+  test('history ist kein Array: leer', () => {
+    assert.deepEqual(S.sanitize({ prestige: { history: { a: 1 } } }).prestige.history, []);
+  });
+  test('Roundtrip serialize/sanitize erhaelt Historie', () => {
+    state.prestige.history = [{ gain: 4, ore: 5e7, time: 90, at: 1700000000000 }];
+    const back = S.sanitize(JSON.parse(S.serialize()).state);
+    assert.deepEqual(back.prestige.history, state.prestige.history);
   });
 });

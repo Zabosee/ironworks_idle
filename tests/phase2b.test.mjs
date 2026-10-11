@@ -352,7 +352,7 @@ describe('Save v4: Timer, Sanitize, Migration', () => {
     assert.equal(state.clicks.click, 5); assert.equal(state.clicks.sledge, 0);
     assert.deepEqual(state.research, { geology: 1, converter: 1 });
     assert.deepEqual(state.boosts, { diamond: 1 });
-    assert.deepEqual(state.prestige, { points: 2, total: 6, count: 1, shop: { pp_eff: 1, keep: 1 } });
+    assert.deepEqual(state.prestige, { points: 2, total: 6, count: 1, shop: { pp_eff: 1, keep: 1 }, history: [] });
     assert.equal(state.autobuyers.gens, true);
     assert.equal(state.achievements.click_1, 123);
     assert.deepEqual(state.stats.total, zeroRes({ ore: 1e6, steel: 200, titan: 30 }));

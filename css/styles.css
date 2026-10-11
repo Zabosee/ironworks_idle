@@ -314,7 +314,7 @@ body { background: linear-gradient(180deg, var(--steel-900), var(--steel-800) 60
 .card:hover .card-ico { transform: scale(1.12) rotate(-4deg); }
 .card:active:not([aria-disabled="true"]) { transform: scale(.98); }
 .card.can::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; pointer-events: none; background: linear-gradient(100deg, transparent, rgba(253, 230, 138, .16), transparent); transform: translateX(-120%); animation: sweep 3.6s ease-in-out infinite; }
-.card.can::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 1px var(--gold), inset 0 0 18px var(--gold-glow); opacity: .2; animation: can-pulse 2s ease-in-out infinite; }
+.card.can::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 1px var(--gold), inset 0 0 18px var(--gold-glow); opacity: .28; animation: can-pulse 2s ease-in-out infinite; }
 .card.can:hover { background: var(--panel-2); transform: translateY(-2px); box-shadow: var(--shadow-2); }
 .card.can:hover::after { animation-duration: 1.2s; }
 .ms-bar { display: block; height: 4px; border-radius: 99px; background: rgba(148, 163, 184, .2); overflow: hidden; }
@@ -352,7 +352,7 @@ body { background: linear-gradient(180deg, var(--steel-900), var(--steel-800) 60
 @keyframes tab-in { from { opacity: 0; transform: translateY(10px); } }
 @keyframes sweep { 0%, 55% { transform: translateX(-120%); } 100% { transform: translateX(380%); } }
 @keyframes sweep-bar { to { transform: translateX(100%); } }
-@keyframes can-pulse { 0%, 100% { opacity: .15; } 50% { opacity: .6; } }
+@keyframes can-pulse { 0%, 100% { opacity: .28; } 50% { opacity: .4; } }
 @keyframes bought { 40% { transform: scale(.97); } 100% { transform: scale(1); } }
 @keyframes shimmer { 0% { transform: translateX(-130%); } 60%, 100% { transform: translateX(130%); } }
 @keyframes toast-in { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
@@ -576,3 +576,29 @@ body { background: linear-gradient(180deg, var(--steel-900), var(--steel-800) 60
 h2 .h-ico { width: 1.3rem; height: 1.3rem; vertical-align: -.2em; }
 .cost-sym { width: 1rem; height: 1rem; vertical-align: -.15em; margin-right: .2rem; }
 .buff-ico { display: inline-grid; place-items: center; }
+
+/* ---------- Neuguss-Übersicht (Sidebar) und Chronik (Hochofen) ---------- */
+.cast-summary { display: flex; align-items: center; gap: .65rem; width: 100%; text-align: left; font: inherit; color: var(--text); cursor: pointer; background: rgba(30, 41, 59, .6); border: 1px solid rgba(71, 85, 105, .5); border-radius: var(--radius); padding: .5rem .65rem; box-shadow: var(--shadow-1); transition: background var(--t-med), border-color var(--t-med); }
+.cast-summary:hover { background: var(--panel-2); border-color: var(--sym-prestige); }
+.cast-ico { flex: none; display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; background: rgba(249, 115, 22, .15); }
+.cast-ico .sym { width: 1.25rem; height: 1.25rem; }
+.cast-text { display: grid; gap: .1rem; min-width: 0; font-size: .85rem; }
+.cast-k { color: var(--muted); }
+.cast-bonus { color: var(--muted); font-size: .75rem; white-space: nowrap; }
+.chron-h { margin: 1rem 0 .5rem; font-size: 1rem; }
+.chronicle { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.chronicle th, .chronicle td { padding: .4rem .6rem; text-align: right; border-bottom: 1px solid var(--border); font-family: ui-monospace, monospace; }
+.chronicle thead th { color: var(--muted); font-weight: 600; font-size: .8rem; font-family: inherit; }
+.chronicle th:first-child, .chronicle td:first-child { text-align: left; }
+.chronicle tbody th { font-weight: 600; color: var(--sym-prestige); }
+.chron-gain { display: inline-flex; align-items: center; gap: .5rem; justify-content: flex-end; width: 100%; }
+.chron-gain b { min-width: 3ch; }
+.chron-bar { display: block; width: min(40%, 8rem); height: .5rem; border-radius: 99px; background: var(--panel); overflow: hidden; }
+.chron-bar i { display: block; height: 100%; transform-origin: left; background: linear-gradient(90deg, var(--ember), var(--gold)); }
+@media (max-width: 1023px) {
+  .cast-summary { padding: .3rem .6rem; gap: .5rem; }
+  .cast-ico { width: 1.6rem; height: 1.6rem; }
+  .cast-text { display: flex; flex-wrap: wrap; gap: 0 .75rem; font-size: .8rem; }
+  .cast-bonus { display: none; }
+}
+@media (max-width: 559px) { .chron-bar { display: none; } .chronicle th, .chronicle td { padding: .35rem .3rem; } }

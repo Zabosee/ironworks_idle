@@ -12,7 +12,7 @@ import { GENS, ELITE_FROM, EXTRA_MILESTONES, MILESTONE_STEP } from '../data/gene
 import { CLICKS, BOOSTS } from '../data/upgrades.js';
 import { RECIPE_MAP } from '../data/recipes.js';
 import { RESEARCH } from '../data/research.js';
-import { PRESTIGE, SHOP, MILESTONES, AUTOBUYERS } from '../data/prestige.js';
+import { PRESTIGE, SHOP, MILESTONES, AUTOBUYERS, HISTORY_MAX } from '../data/prestige.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { BUFFS } from '../data/golden.js';
 import { buy } from '../systems/production.js';
@@ -24,7 +24,7 @@ import { imgFor, UI_SPRITE, ITEM_SPRITE } from './assets.js';
 import { buildFlask, ensureClipDefs } from './lab.js';
 import { h, $, clear, setText, setClass, setAttr, confirmDialog } from './dom.js';
 import { activeTab } from './tabs.js';
-import { restartAnim, updateOrbs } from './effects.js';
+import { restartAnim, clearOneShots, updateOrbs } from './effects.js';
 import { sample, spark, drawSparkline, drawHistory } from './charts.js';
 
 /** Kleines ui.svg-Symbol (currentColor). */
@@ -55,6 +55,7 @@ export function initRender() {
   els = {
     meters: $('#meters'), clickVal: $('#clickVal'), conv: $('#conv'), buffs: $('#buffs'), saved: $('#saved'),
     buyAmount: $('#buyamount'), prestigeDot: $('#prestige-dot'),
+    castCount: $('#cast-count'), castPoints: $('#cast-points'), castBonus: $('#cast-bonus'),
   };
   buildMeters();
   buildCards();
@@ -82,7 +83,7 @@ export function initRender() {
   });
   on('prestige', refresh);
   on('loaded', refresh);
-  on('tab', refresh);
+  on('tab', () => { clearOneShots(); refresh(); });
   on('buffs', () => renderBuffs(true));
   on('saved', t => setText(els.saved, 'Gespeichert ' + new Date(t).toLocaleTimeString('de-DE')));
   on('save-failed', () => setText(els.saved, 'Speichern nicht möglich'));
@@ -97,6 +98,8 @@ function buildMeters() {
   els.more = h('div', { class: 'meters-more' }, toggle, moreList);
   const setOpen = open => { toggle.setAttribute('aria-expanded', String(open)); moreList.hidden = !open; };
   toggle.addEventListener('click', () => setOpen(moreList.hidden));
+  $('#cast-ico').append(symUse(PRESTIGE.sym || 'flame', 'prestige'));
+  $('#cast-summary').addEventListener('click', () => document.getElementById('tabbtn-prestige')?.click());
   for (const k of RES_IDS) {
     const r = RES[k];
     const m = {
@@ -491,6 +494,7 @@ function buildPrestige() {
     if (el && el.getAttribute('aria-disabled') !== 'true') buyShop(el.dataset.shop);
   });
 
+  buildChronicle();
   root.append(
     h('div', { class: 'panel-box' },
       h('h2', {}, PRESTIGE.sym ? symUse(PRESTIGE.sym, 'prestige', 'h-ico') : PRESTIGE.icon, ' ' + PRESTIGE.name),
@@ -502,7 +506,75 @@ function buildPrestige() {
         h('dt', { text: 'Ertrag bei Neuguss jetzt' }), h('dd', {}, pv.gain)),
       pv.bar, pv.hint, pv.btn),
     h('div', { class: 'panel-box' }, h('h2', { text: 'Meilensteine' }), h('p', { class: 'hint', text: 'Basierend auf den insgesamt verdienten Gussformen.' }), pv.msList),
+    cv.box,
     h('div', { class: 'panel-box wide' }, h('h2', { text: 'Gießerei-Shop' }), shopGrid));
+}
+
+// ---------- Neuguss-Chronik ----------
+const cv = {};
+const fmtDate = t => (t > 0 ? new Date(t).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '–');
+function buildChronicle() {
+  const row = (label, node) => [h('dt', { text: label }), h('dd', {}, node)];
+  for (const k of ['count', 'points', 'best', 'fastest', 'cur', 'next']) cv[k] = h('span');
+  cv.fill = h('div', { class: 'bar-fill' });
+  cv.bar = h('div', { class: 'bar', role: 'progressbar', 'aria-label': 'Fortschritt zum nächsten Meilenstein', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0' }, cv.fill);
+  cv.empty = h('p', { class: 'hint', text: 'Noch keine Einträge. Dein nächster Neuguss erscheint hier.' });
+  cv.body = h('tbody');
+  cv.table = h('table', { class: 'chronicle' },
+    h('caption', { class: 'sr-only', text: `Die letzten ${HISTORY_MAX} Neugüsse, neueste zuerst` }),
+    h('thead', {}, h('tr', {}, ['Nr.', 'Dauer', PRESTIGE.currency, 'Erz im Durchlauf'].map(t => h('th', { scope: 'col', text: t })))),
+    cv.body);
+  cv.box = h('div', { class: 'panel-box wide' },
+    h('h2', {}, symUse('urn', 'prestige', 'h-ico'), ' Neuguss-Chronik'),
+    h('dl', { class: 'kv' },
+      ...row('Neugüsse durchgeführt', cv.count),
+      ...row(`${PRESTIGE.currency} (gesamt verdient / Bestand)`, cv.points),
+      ...row('Bester Durchlauf', cv.best),
+      ...row('Schnellster Durchlauf', cv.fastest),
+      ...row('Aktueller Durchlauf', cv.cur),
+      ...row('Nächster Meilenstein', cv.next)),
+    cv.bar,
+    h('h3', { class: 'chron-h', text: `Letzte ${HISTORY_MAX} Neugüsse` }),
+    cv.empty, cv.table);
+  cv.key = '';
+}
+
+function renderChronicle(gain) {
+  const p = state.prestige, st = state.stats, hist = Array.isArray(p.history) ? p.history : [];
+  setText(cv.count, fmtInt(p.count));
+  setText(cv.points, `${fmtInt(p.total)} / ${fmtInt(p.points)}`);
+  setText(cv.best, st.bestPrestige > 0 ? `${fmtInt(st.bestPrestige)} ${PRESTIGE.currency}` : '–');
+  setText(cv.fastest, st.fastestPrestige > 0 ? fmtTime(st.fastestPrestige) : '–');
+  setText(cv.cur, `${fmtTime(st.runTime)} · +${fmtInt(gain)} ${PRESTIGE.currency} bei Neuguss jetzt`);
+  const idx = MILESTONES.findIndex(m => p.total < m.at);
+  let frac = 1;
+  if (idx < 0) setText(cv.next, 'Alle Meilensteine erreicht');
+  else {
+    const m = MILESTONES[idx], from = idx > 0 ? MILESTONES[idx - 1].at : 0;
+    frac = Math.min(1, Math.max(0, (p.total - from) / Math.max(m.at - from, 1)));
+    setText(cv.next, `${fmtInt(m.at)} ${PRESTIGE.currency} (${m.desc}) · noch ${fmtInt(m.at - p.total)}`);
+  }
+  cv.fill.style.transform = `scaleX(${frac.toFixed(3)})`;
+  setAttr(cv.bar, 'aria-valuenow', Math.round(frac * 100));
+  setAttr(cv.bar, 'aria-valuetext', idx < 0 ? 'Alle Meilensteine erreicht' : `${Math.round(frac * 100)} % bis ${fmtInt(MILESTONES[idx].at)} ${PRESTIGE.currency}`);
+  // Tabelle nur bei Änderung neu aufbauen
+  const key = p.count + ':' + hist.length + ':' + (hist.at(-1)?.at || 0);
+  if (key === cv.key) return;
+  cv.key = key;
+  clear(cv.body);
+  const max = Math.max(1, ...hist.map(e => e.gain));
+  hist.forEach((e, i) => {
+    const bar = h('i'); bar.style.transform = `scaleX(${(e.gain / max).toFixed(3)})`;
+    cv.body.append(h('tr', {},
+      h('th', { scope: 'row', text: '#' + fmtInt(p.count - (hist.length - 1 - i)), title: fmtDate(e.at) }),
+      h('td', { text: fmtTime(e.time) }),
+      h('td', {}, h('span', { class: 'chron-gain' }, h('b', { text: '+' + fmtInt(e.gain) }), h('span', { class: 'chron-bar', 'aria-hidden': 'true' }, bar))),
+      h('td', { text: fmt(e.ore) })));
+  });
+  // neueste zuerst
+  [...cv.body.children].reverse().forEach(tr => cv.body.append(tr));
+  cv.empty.hidden = hist.length > 0;
+  cv.table.hidden = hist.length === 0;
 }
 
 function renderPrestige() {
@@ -525,6 +597,7 @@ function renderPrestige() {
     setClass(li, 'done', done);
     setText(st, done ? ' (erreicht)' : ' (gesperrt)');
   }
+  renderChronicle(gain);
   for (const it of SHOP) {
     const c = shopCards[it.id], lvl = shopLevel(it.id), maxed = lvl >= it.max, cost = shopCost(it.id);
     const can = !maxed && p.points >= cost;
@@ -671,6 +744,10 @@ function renderTop(r) {
     setAttr(b, 'tabindex', on ? 0 : -1);
   }
   els.prestigeDot.hidden = !canPrestige();
+  setText(els.castCount, fmtInt(state.prestige.count));
+  setText(els.castPoints, fmtInt(state.prestige.total));
+  const bonus = (prestigeMult() - 1) * 100;
+  setText(els.castBonus, `(+${bonus >= 100 ? fmtInt(bonus) : bonus.toFixed(1).replace('.', ',')} % Produktion)`);
   renderBadges();
   renderBuffs();
 }

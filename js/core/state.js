@@ -17,7 +17,7 @@ export function defaultState() {
     research: {},
     boosts: {},
     timers: Object.fromEntries(QUEUE_IDS.map(q => [q, []])),   // Warteschlangen: je [{ kind, id, total, left, cost }], die ersten `slots` Einträge laufen
-    prestige: { points: 0, total: 0, count: 0, shop: {} },
+    prestige: { points: 0, total: 0, count: 0, shop: {}, history: [] },   // history: letzte Neugüsse { gain, ore, time, at }, älteste zuerst
     autobuyers: Object.fromEntries(AUTOBUYERS.map(a => [a.id, false])),
     achievements: {},
     buffs: [],   // { id, left }  (Definition in data/golden.js)
@@ -27,7 +27,7 @@ export function defaultState() {
       run: Object.fromEntries(RES_IDS.map(k => [k, 0])),     // je Ressource in diesem Durchlauf produziert
       runTime: 0, playTime: 0,
       golden: 0, buys: 0, bestOreRate: 0, timersDone: 0,
-      bestPrestige: 0, startedAt: Date.now(),
+      bestPrestige: 0, fastestPrestige: 0, startedAt: Date.now(),
     },
     settings: { format: 'standard', autosave: true, autosaveSec: 10, particles: true, buyAmount: '1' },
     savedAt: 0,

@@ -309,7 +309,7 @@ describe('Save v3 / Migration', () => {
     assert.equal(state.stats.startedAt, 1_600_000_000_000);
     assert.equal(state.stats.bestOreRate, 12);
     assert.equal(state.res.ore, 500); assert.equal(state.gens.mine, 12);
-    assert.deepEqual(state.prestige, { points: 2, total: 6, count: 1, shop: { pp_eff: 1 } });
+    assert.deepEqual(state.prestige, { points: 2, total: 6, count: 1, shop: { pp_eff: 1 }, history: [] });
     assert.equal(state.settings.format, 'scientific'); assert.equal(state.settings.buyAmount, '10');
     assert.equal(state.settings.autosave, false);
     // nach dem Speichern liegt v4 vor und laedt gleich

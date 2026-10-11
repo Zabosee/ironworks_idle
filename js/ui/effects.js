@@ -23,11 +23,23 @@ export function floatText(parent, text, color, x = '50%', y = '30%', cls = '', m
   parent.append(p);
 }
 
+const ONESHOT_MAX_MS = 1600;
+
 export function restartAnim(el, cls = 'pop') {
   if (reducedQuery.matches) return;
   el.classList.remove(cls);
   void el.offsetWidth;
   el.classList.add(cls);
+  // Einmal-Animation: Klasse danach entfernen, sonst spielt sie beim Wieder-Einblenden des Tabs erneut ab
+  const done = () => { el.classList.remove(cls); el.removeEventListener('animationend', onEnd); clearTimeout(t); };
+  const onEnd = e => { if (e.target === el) done(); };
+  const t = setTimeout(done, ONESHOT_MAX_MS);   // Fallback: in verborgenen Elementen feuert animationend nie
+  el.addEventListener('animationend', onEnd);
+}
+
+/** Entfernt übrig gebliebene Einmal-Klassen (beim Tab-Wechsel). */
+export function clearOneShots() {
+  for (const el of document.querySelectorAll('.bought, .done-flash, .flash-go, .just, .pop')) el.classList.remove('bought', 'done-flash', 'flash-go', 'just', 'pop');
 }
 
 /** Funkenstoß an Position (px relativ zu zone). Begrenzt und räumt sich selbst auf. */

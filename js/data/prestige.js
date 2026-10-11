@@ -47,3 +47,4 @@ export const MILESTONES = [
   { at: 10000,  mult: 5,    desc: 'Produktion ×5' },
   { at: 250000, mult: 10,   desc: 'Produktion ×10' },
 ];
+export const HISTORY_MAX = 10;   // Einträge der Neuguss-Chronik

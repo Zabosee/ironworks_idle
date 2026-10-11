@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { state, reset, collect, zeroRes } from './helpers.mjs';
 import { doPrestige, canPrestige, buyShop } from '../js/systems/prestige.js';
 import { prestigeGain } from '../js/core/formulas.js';
-import { SHOP, PRESTIGE } from '../js/data/prestige.js';
+import { SHOP, PRESTIGE, HISTORY_MAX } from '../js/data/prestige.js';
 
 /** Erz im Durchlauf, das (knapp) genau n Gussformen ergibt. */
 const oreFor = n => PRESTIGE.divisor * PRESTIGE.growth ** (n - 1) * 1.0001;
@@ -121,5 +121,38 @@ describe('Prestige-Shop', () => {
     state.prestige.points = 3;
     assert.equal(buyShop('pp_eff'), true);
     assert.equal(state.prestige.points, 0);
+  });
+});
+
+describe('Neuguss-Chronik', () => {
+  test('Eintrag wird mit Ertrag, Erz und Dauer gefuellt; schnellster Durchlauf gemerkt', () => {
+    state.stats.run.ore = oreFor(3); state.stats.runTime = 120;
+    doPrestige();
+    assert.equal(state.prestige.history.length, 1);
+    const e = state.prestige.history[0];
+    assert.equal(e.gain, 3); assert.equal(e.time, 120); assert.ok(e.ore >= PRESTIGE.divisor);
+    assert.ok(e.at > 0);
+    assert.equal(state.stats.fastestPrestige, 120);
+    state.stats.run.ore = 1e8; state.stats.runTime = 300; doPrestige();
+    assert.equal(state.stats.fastestPrestige, 120, 'langsamerer Lauf ersetzt nicht');
+    state.stats.run.ore = 1e8; state.stats.runTime = 60; doPrestige();
+    assert.equal(state.stats.fastestPrestige, 60);
+  });
+  test('auf 10 Eintraege begrenzt, aelteste fallen weg', () => {
+    for (let i = 1; i <= 13; i++) { state.stats.run.ore = 1e8; state.stats.runTime = i; doPrestige(); }
+    assert.equal(state.prestige.history.length, HISTORY_MAX);
+    assert.equal(state.prestige.history[0].time, 4);
+    assert.equal(state.prestige.history.at(-1).time, 13);
+    assert.equal(state.prestige.count, 13);
+  });
+  test('Fehlgeschlagener Neuguss schreibt keinen Eintrag', () => {
+    state.stats.run.ore = 1;
+    doPrestige();
+    assert.deepEqual(state.prestige.history, []);
+  });
+  test('Spielstand ohne history (alt) funktioniert beim naechsten Neuguss', () => {
+    delete state.prestige.history; state.stats.run.ore = 1e8;
+    assert.equal(doPrestige(), true);
+    assert.equal(state.prestige.history.length, 1);
   });
 });
