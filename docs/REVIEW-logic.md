@@ -75,3 +75,4 @@ Details und Zahlen: docs/GAME-DESIGN.md. Tests: tests/phase2b.test.mjs (56 Tests
 
 # Erledigt in Release-Runde
 - Befund 7 (Konverter-Stahl ohne Stahl-Multiplikatoren): Rezept-Flag `boosted` (Standard true), Ausgaben × `researchMult(Ausgaberessource)`; Prestige/Erfolge/Buffs stecken schon in den Eingängen (kein Doppelzählen). Balance in docs/GAME-DESIGN.md geprüft, keine Zahlenänderung. -> js/core/formulas.js (rates), js/data/recipes.js; Tests tests/release.test.mjs
+- Befund 8 (Autobuyer ohne Priorität): Reihenfolge Klick > Forschung > Boosts > Generatoren; Generatoren dürfen keine Ressource unter die Reserve drücken, die ein in Reichweite liegendes Ziel (>= 25 % aller Kosten vorhanden) mit aktivem Autobuyer braucht; Durchläufe pro Takt skalieren (5 % des größten Bestands, 5..50, Round-Robin über alle Generatoren). -> js/systems/autobuyers.js; Tests tests/release.test.mjs
