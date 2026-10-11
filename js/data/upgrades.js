@@ -1,10 +1,16 @@
-// Wiederholbares Klick-Upgrade und einmalige Elite-Boosts.
-export const CLICK = {
-  id: 'click', icon: '⛏️', name: 'Verstärkte Spitzhacke',
-  oreBase: 25, oreGrowth: 1.5,
-  steelFrom: 2, steelBase: 2, steelGrowth: 1.45,   // ab Stufe 2 zusätzlich Stahl
-  eliteFrom: 10, eliteBase: 3,                      // ab Stufe 10 zusätzlich Titan
-};
+// Wiederholbare Klick-Upgrades (Liste) und einmalige Elite-Boosts.
+// Klickwert-Beitrag eines Upgrades auf Stufe n: (base + perLevel * n) * milestone(n).
+// Die Beiträge aller Upgrades werden addiert (core/formulas.js: clickBaseTotal).
+export const CLICKS = [
+  {
+    id: 'click', icon: '⛏️', name: 'Verstärkte Spitzhacke',
+    base: 1, perLevel: 2,
+    oreBase: 25, oreGrowth: 1.5,
+    steelFrom: 2, steelBase: 2, steelGrowth: 1.45,   // ab Stufe 2 zusätzlich Stahl
+    eliteFrom: 10, eliteBase: 3,                      // ab Stufe 10 zusätzlich Titan
+  },
+];
+export const CLICK_MAP = Object.fromEntries(CLICKS.map(c => [c.id, c]));
 
 export const BOOSTS = [
   { id: 'diamond',   icon: '💠', name: 'Diamantbohrer',   desc: 'Erzproduktion ×2.',       cost: { steel: 150, titan: 5 },     mult: { ore: 2 } },

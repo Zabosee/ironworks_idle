@@ -13,8 +13,8 @@ describe('Tick', () => {
     state.gens.mine = 10;
     tick(1);
     assert.equal(state.res.ore, 20);
-    assert.equal(state.stats.totalOre, 20);
-    assert.equal(state.stats.runOre, 20);
+    assert.equal(state.stats.total.ore, 20);
+    assert.equal(state.stats.run.ore, 20);
     assert.equal(state.stats.bestOreRate, 20);
   });
   test('skaliert linear mit dt und zaehlt Spielzeit', () => {
@@ -145,7 +145,7 @@ describe('Kaufen', () => {
     assert.equal(buy('click', 'click', '1'), false);
     give({ steel: 100 });
     assert.equal(buy('click', 'click', '1'), true);
-    assert.equal(state.click, 3);
+    assert.equal(state.clicks.click, 3);
   });
   test('unbekannte Kategorie/ID wirft nicht und kauft nichts', () => {
     give({ ore: 1e9 });
@@ -169,7 +169,7 @@ describe('Kaufen', () => {
   test('addResource ignoriert NaN, negative und Infinity', () => {
     for (const v of [NaN, -5, Infinity, 0]) addResource('ore', v);
     assert.equal(state.res.ore, 0);
-    assert.equal(state.stats.totalOre, 0);
+    assert.equal(state.stats.total.ore, 0);
   });
 });
 

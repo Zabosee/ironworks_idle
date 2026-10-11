@@ -8,7 +8,8 @@ import {
 } from '../core/formulas.js';
 import { RES, RES_IDS } from '../data/resources.js';
 import { GENS, ELITE_FROM, EXTRA_MILESTONES, MILESTONE_STEP } from '../data/generators.js';
-import { CLICK, BOOSTS } from '../data/upgrades.js';
+import { CLICKS, BOOSTS } from '../data/upgrades.js';
+import { RECIPE_MAP } from '../data/recipes.js';
 import { RESEARCH } from '../data/research.js';
 import { PRESTIGE, SHOP, MILESTONES, AUTOBUYERS } from '../data/prestige.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
@@ -25,7 +26,7 @@ const cards = [];          // { kind, id, el, t, b, d, n, c }
 const meters = {};         // pro Ressource: { amt, rps, delta, canvas }
 const shopCards = {};
 const achItems = {};
-let lastRates = rates();
+let lastRates = null;
 let els = {};
 
 // ---------- Aufbau ----------
@@ -46,12 +47,12 @@ export function initRender() {
     if (e.silent) return;
     const card = cards.find(c => c.kind === e.kind && c.id === e.id);
     if (card) restartAnim(card.el);
-    showDelta(lastRates, rates());
+    if (lastRates) showDelta(lastRates, rates());
     refresh();
   });
   on('shop', refresh);
-  on('prestige', () => { forceRefresh(); });
-  on('loaded', forceRefresh);
+  on('prestige', refresh);
+  on('loaded', refresh);
   on('tab', refresh);
   on('buffs', () => renderBuffs(true));
   on('saved', t => setText(els.saved, 'Gespeichert ' + new Date(t).toLocaleTimeString('de-DE')));
@@ -99,7 +100,7 @@ function buildCards() {
   };
   const gens = $('#list-gens'), ups = $('#list-upgrades'), boosts = $('#list-boosts'), rs = $('#list-research');
   for (const g of GENS) add(gens, 'gen', g);
-  add(ups, 'click', CLICK);
+  for (const c of CLICKS) add(ups, 'click', c);
   for (const b of BOOSTS) add(boosts, 'boost', b);
 
   const depths = new Map();
@@ -119,8 +120,9 @@ function bindActions() {
   const onCard = e => {
     const el = e.target.closest('.card[data-kind]');
     if (!el || el.getAttribute('aria-disabled') === 'true') return;
-    buy(el.dataset.kind, el.dataset.id);
-    refresh();
+    // Kaufmenge gilt nur für Generatoren; alle anderen Karten kaufen genau 1 Stufe. Das 'buy'-Event löst den Refresh aus.
+    const kind = el.dataset.kind;
+    buy(kind, el.dataset.id, kind === 'gen' ? state.settings.buyAmount : 1);
   };
   for (const id of ['#list-gens', '#list-upgrades', '#list-boosts', '#list-research']) $(id).addEventListener('click', onCard);
 
@@ -201,7 +203,7 @@ function describe(c) {
   const { kind, def } = c;
   const lvl = levelOf(kind, def.id);
   const lock = lockReason(kind, def.id);
-  const plan = bulkPlan(kind, def.id, state.settings.buyAmount);
+  const plan = bulkPlan(kind, def.id, kind === 'gen' ? state.settings.buyAmount : 1);
   const k = Math.max(plan.count, 1);
   const o = { title: def.img ? def.name : `${def.icon} ${def.name}`, badge: '', desc: '', note: '', plan, status: 'ok' };
 
@@ -212,8 +214,8 @@ function describe(c) {
     o.note = lock ? '🔒 ' + lock : `×2 bei Stufe ${nextMilestone(lvl)} (jetzt ×${fmt(milestone(lvl))})${lvl >= ELITE_FROM - 1 ? ' · ⭐ Elite: kostet Titan' : ''}`;
   } else if (kind === 'click') {
     o.badge = `Stufe ${fmtInt(lvl)}`;
-    o.desc = `Basis-Klick: ${fmt(clickBaseAt(lvl))} → ${fmt(clickBaseAt(lvl + k))} Erz`;
-    o.note = lvl >= CLICK.eliteFrom - 1 ? '⭐ Elite: kostet Titan' : lvl >= CLICK.steelFrom - 1 ? 'Ab Stufe 2 kostet es Stahl' : '';
+    o.desc = `Basis-Klick: ${fmt(clickBaseAt(lvl, undefined, def))} → ${fmt(clickBaseAt(lvl + k, undefined, def))} Erz`;
+    o.note = lvl >= def.eliteFrom - 1 ? '⭐ Elite: kostet Titan' : lvl >= def.steelFrom - 1 ? `Ab Stufe ${def.steelFrom} kostet es Stahl` : '';
   } else {
     const done = lvl > 0;
     o.badge = done ? (kind === 'research' ? '✓ Erforscht' : '✓ Aktiv') : '';
@@ -225,8 +227,6 @@ function describe(c) {
   return o;
 }
 
-const kind0 = c => c.kind;
-
 function renderCards(kinds) {
   for (const c of cards) {
     if (!kinds.includes(c.kind)) continue;
@@ -235,7 +235,7 @@ function renderCards(kinds) {
     setText(c.t, o.title); setText(c.b, o.badge); setText(c.d, o.desc); setText(c.n, o.note);
     setCost(c.c, o.status === 'done' ? [] : costEntries(o.plan));
     if (c.msFill) {
-      const lv = levelOf(kind0(c), c.def.id), a = prevMilestone(lv), b = nextMilestone(lv);
+      const lv = levelOf(c.kind, c.def.id), a = prevMilestone(lv), b = nextMilestone(lv);
       const f = ((lv - a) / Math.max(b - a, 1)).toFixed(3);
       if (c.msFill._f !== f) { c.msFill._f = f; c.msFill.style.transform = `scaleX(${f})`; }
     }
@@ -263,7 +263,7 @@ function buildPrestige() {
         message: `Du setzt Ressourcen, Generatoren, Klick-Upgrades und Boosts${shopLevel('keep') ? '' : ' sowie Forschung'} zurück und erhältst ${gain} ${PRESTIGE.currency}. Shop-Käufe, Erfolge und Auto-Buyer bleiben erhalten.`,
         confirmLabel: 'Neuguss durchführen',
       });
-      if (ok && doPrestige()) refresh();
+      if (ok) doPrestige();
     },
   });
   pv.msList = h('ul', { class: 'milestones' });
@@ -283,7 +283,7 @@ function buildPrestige() {
   }
   shopGrid.addEventListener('click', e => {
     const el = e.target.closest('[data-shop]');
-    if (el && el.getAttribute('aria-disabled') !== 'true' && buyShop(el.dataset.shop)) refresh();
+    if (el && el.getAttribute('aria-disabled') !== 'true') buyShop(el.dataset.shop);
   });
 
   root.append(
@@ -306,7 +306,7 @@ function renderPrestige() {
   setText(pv.total, fmtInt(p.total));
   setText(pv.mult, '×' + fmt(prestigeMult()));
   setText(pv.gain, '+' + fmtInt(gain));
-  const run = state.stats.runOre, target = oreForGain(gain), prev = gain >= 1 ? oreForGain(gain - 1) : 0;
+  const run = state.stats.run.ore, target = oreForGain(gain), prev = gain >= 1 ? oreForGain(gain - 1) : 0;
   const frac = Math.min(1, Math.max(0, (run - prev) / Math.max(target - prev, 1)));
   pv.fill.style.transform = `scaleX(${frac.toFixed(3)})`;
   setAttr(pv.bar, 'aria-valuenow', Math.round(frac * 100));
@@ -372,10 +372,8 @@ function buildStats() {
     ['Spielstart', () => new Date(state.stats.startedAt).toLocaleDateString('de-DE')],
     ['Klicks gesamt', () => fmtInt(state.stats.clicks)],
     ['Klicks in diesem Durchlauf', () => fmtInt(state.stats.runClicks)],
-    ['Erz produziert (gesamt)', () => fmt(state.stats.totalOre)],
-    ['Erz produziert (Durchlauf)', () => fmt(state.stats.runOre)],
-    ['Stahl produziert (gesamt)', () => fmt(state.stats.totalSteel)],
-    ['Titan produziert (gesamt)', () => fmt(state.stats.totalTitan)],
+    ...RES_IDS.map(k => [`${RES[k].name} produziert (gesamt)`, () => fmt(state.stats.total[k])]),
+    ['Erz produziert (Durchlauf)', () => fmt(state.stats.run.ore)],
     ['Höchste Erzproduktion', () => fmt(state.stats.bestOreRate) + '/s'],
     ['Gekaufte Stufen/Upgrades', () => fmtInt(state.stats.buys)],
     ['Goldene Barren gefangen', () => fmtInt(state.stats.golden)],
@@ -391,9 +389,7 @@ function buildStats() {
   }
 
   const stack = [
-    ['Forschung & Boosts (Erz)', () => researchMult('ore')],
-    ['Forschung & Boosts (Stahl)', () => researchMult('steel')],
-    ['Forschung & Boosts (Titan)', () => researchMult('titan')],
+    ...RES_IDS.map(k => [`Forschung & Boosts (${RES[k].name})`, () => researchMult(k)]),
     [`${PRESTIGE.currency} & Meilensteine`, () => prestigeMult()],
     ['Erfolge', () => 1 + achievementBonus()],
     ['Aktive Effekte', () => buffMult('prod')],
@@ -454,7 +450,10 @@ function renderTop(r) {
     setText(meters[k].rps, fmt(r[k]));
   }
   setText(els.clickVal, `+${fmt(r.click)} Erz pro Klick`);
-  setText(els.conv, state.research.converter ? `♻️ Auto-Konverter: ${fmt(r.conv)} 🪨/s → ${fmt(r.conv / 25)} 🔩/s` : '');
+  setText(els.conv, (r.flows || []).map(f => {
+    const rc = RECIPE_MAP[f.id], part = o => Object.entries(o).map(([k, v]) => `${fmt(v)} ${RES[k].icon}/s`).join(' + ');
+    return `${rc.icon} ${rc.name}: ${part(f.inputs)} → ${part(f.outputs)}`;
+  }).join('\n'));
   for (const b of els.buyAmount.querySelectorAll('button[data-amount]')) setAttr(b, 'aria-pressed', b.dataset.amount === state.settings.buyAmount);
   els.prestigeDot.hidden = !canPrestige();
   renderBuffs();
@@ -477,10 +476,6 @@ export function refresh() {
   lastRates = rates();
   renderTop(lastRates);
   renderActive();
-}
-
-export function forceRefresh() {
-  refresh();
 }
 
 let acc = 0, sparkAcc = 0;

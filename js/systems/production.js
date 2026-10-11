@@ -35,15 +35,17 @@ export function click() {
 /**
  * Kauft kind/id in der gewünschten Menge. Gibt true bei Erfolg zurück.
  * kind: 'gen' | 'click' | 'boost' | 'research'
+ * Ohne explizite Menge gilt die Kaufmenge aus den Einstellungen nur für Generatoren; alles andere kauft 1 Stufe.
  */
-export function buy(kind, id, amount = state.settings.buyAmount, { silent = false } = {}) {
+export function buy(kind, id, amount, { silent = false } = {}) {
   if (!defOf(kind, id) || lockReason(kind, id)) return false;
+  if (amount === undefined) amount = kind === 'gen' ? state.settings.buyAmount : 1;
   const plan = bulkPlan(kind, id, amount);
   if (!plan.count || !plan.affordable) return false;
   for (const k in plan.cost) state.res[k] -= plan.cost[k];
   for (const k of RES_IDS) if (state.res[k] < 0) state.res[k] = 0; // Rundungsschutz
   if (kind === 'gen') state.gens[id] += plan.count;
-  else if (kind === 'click') state.click += plan.count;
+  else if (kind === 'click') state.clicks[id] = (state.clicks[id] || 0) + plan.count;
   else if (kind === 'boost') state.boosts[id] = 1;
   else if (kind === 'research') state.research[id] = 1;
   state.stats.buys += plan.count;

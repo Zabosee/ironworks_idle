@@ -46,9 +46,9 @@ describe('Achievements', () => {
     ev.stop(); t.stop();
   });
   test('Schwellen: knapp darunter nein, genau darauf ja', () => {
-    state.stats.totalOre = 999.999; A.check(0, true);
+    state.stats.total.ore = 999.999; A.check(0, true);
     assert.equal(state.achievements.ore_1000, undefined);
-    state.stats.totalOre = 1000; A.check(0, true);
+    state.stats.total.ore = 1000; A.check(0, true);
     assert.ok(state.achievements.ore_1000);
   });
   test('Generator-Stufen und hoechste Stufe', () => {
@@ -69,11 +69,11 @@ describe('Achievements', () => {
   test('Erfolge erhoehen die Produktion', () => {
     state.gens.mine = 9;
     const before = rates().ore;
-    state.stats.totalOre = 1e3; A.check(0, true);
+    state.stats.total.ore = 1e3; A.check(0, true);
     assert.ok(rates().ore > before);
   });
   test('NaN-Statistik vergibt nichts und wirft nicht', () => {
-    state.stats.clicks = NaN; state.stats.totalOre = NaN;
+    state.stats.clicks = NaN; state.stats.total.ore = NaN;
     assert.doesNotThrow(() => A.check(0, true));
     assert.equal(state.achievements.click_1, undefined);
   });
@@ -233,7 +233,7 @@ describe('Auto-Buyer', () => {
     state.prestige.shop.ab_click = 1; give({ ore: 25 });
     AB.setEnabled('click', true);
     AB.tick(2);
-    assert.equal(state.click, 1);
+    assert.equal(state.clicks.click, 1);
   });
   test('nie negative Ressourcen', () => {
     state.prestige.shop.ab_gens = 1; state.prestige.shop.ab_click = 1; give({ ore: 77 });
@@ -245,6 +245,6 @@ describe('Auto-Buyer', () => {
     state.prestige.shop.ab_click = 1; give({ ore: 1e12, steel: 1e12, titan: 1e12 });
     AB.setEnabled('click', true);
     AB.tick(1e6);
-    assert.equal(state.click, 1);
+    assert.equal(state.clicks.click, 1);
   });
 });

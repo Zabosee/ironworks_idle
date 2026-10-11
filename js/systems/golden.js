@@ -11,7 +11,11 @@ let seq = 0;
 const rand = (a, b) => a + Math.random() * (b - a);
 const schedule = first => { const [a, b] = first ? GOLDEN.firstDelay : GOLDEN.interval; timer = rand(a, b) / goldenFreq(); };
 
-export function init() { current = null; schedule(true); }
+/** (Neu-)Start: verwirft einen offenen Barren (UI bekommt golden:expire) und plant das erste Event neu. */
+export function init() {
+  if (current) { const id = current.id; current = null; emit('golden:expire', { id }); }
+  schedule(true);
+}
 export const getCurrent = () => current;
 
 function spawn() {

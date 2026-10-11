@@ -2,6 +2,7 @@
 import { state, defaultState } from '../core/state.js';
 import { prestigeGain, shopCost, shopLevel, startOre } from '../core/formulas.js';
 import { emit, toast } from '../core/events.js';
+import { autoSave } from '../core/save.js';
 import { SHOP_MAP, MILESTONES, PRESTIGE } from '../data/prestige.js';
 
 export const canPrestige = () => prestigeGain() >= 1;
@@ -15,12 +16,12 @@ export function doPrestige() {
   state.res = fresh.res;
   state.res.ore = startOre();
   state.gens = fresh.gens;
-  state.click = 0;
+  state.clicks = fresh.clicks;
   state.boosts = {};
   if (shopLevel('keep') < 1) state.research = {};
   state.buffs = [];
 
-  state.stats.runOre = 0;
+  state.stats.run = fresh.stats.run;
   state.stats.runTime = 0;
   state.stats.runClicks = 0;
   state.stats.bestPrestige = Math.max(state.stats.bestPrestige, gain);
@@ -33,6 +34,7 @@ export function doPrestige() {
   emit('prestige', { gain });
   toast(`${PRESTIGE.name}! +${gain} ${PRESTIGE.currency}`, 'gold');
   for (const m of MILESTONES) if (oldTotal < m.at && p.total >= m.at) toast(`Meilenstein ${m.at} ${PRESTIGE.currency}: ${m.desc}`, 'gold');
+  autoSave();
   return true;
 }
 
@@ -46,5 +48,6 @@ export function buyShop(id) {
   state.prestige.points -= cost;
   state.prestige.shop[id] = lvl + 1;
   emit('shop', { id });
+  autoSave();
   return true;
 }

@@ -31,3 +31,32 @@
 - CSP-Meta einführen (Inline-Script → js/boot-check.js, Ember-Inline-Styles → CSS nth-child): `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'`.
 - legacy/ (Tailwind-CDN, innerHTML, gleicher localStorage) nicht ausliefern → entfernen.
 - Stats auf 1e300 klemmen; Import-Limit 2.000.000 → ~200.000 Zeichen.
+
+# Erledigt in Phase 2a
+Punkt -> Datei (Tests: tests/phase2a.test.mjs, angepasst: formulas/production/prestige/save/smoke/systems)
+1. Ladefehler überschreiben Spielstand nicht mehr (Backup `…-backup`, Speichern gesperrt bis Import/Reset, Toast) -> js/core/save.js (load, save, isSaveLocked), js/main.js, js/ui/settings.js (Meldung)
+2. Toasts vor load() initialisiert -> js/main.js (initToasts als erster Schritt in boot)
+3. Hintergrund-Tab löscht Buffs nicht mehr (applyOffline(dt, { runtime: true }) kürzt Restzeit) -> js/core/save.js, js/main.js
+4. Kaufmenge nur für Generatoren (buy ohne Menge: 1 für alle anderen; UI übergibt 1) -> js/systems/production.js, js/ui/render.js
+5. Doppelter Refresh entfernt, forceRefresh-Alias gelöscht -> js/ui/render.js
+6. Hammerwut nur auf manuelle Klicks (Autoklick nutzt den ungebufften Klickwert) -> js/core/formulas.js (rates)
+9. Speichern nach Neuguss/Shop-Kauf (bei Autosave an) -> js/systems/prestige.js, js/core/save.js (autoSave)
+10. bulkPlan Max: gecachte Summenreihe + Galopp/Binärsuche (Ergebnis identisch zur alten Schleife, per Referenztest belegt) -> js/core/formulas.js; updateOrbs cached Elemente -> js/ui/effects.js
+11. Stats auf 1e300 geklemmt -> js/core/state.js; pagehide/visibilitychange speichern nur bei Autosave an -> js/main.js. Offen: kein Mehr-Tab-Schutz.
+12. Erfolge "alle Forschungen/Boosts" aus Datenlänge -> js/data/achievements.js
+13. Tooltip `1·10^3` -> js/data/achievements.js; kind0 entfernt, lastRates-Seiteneffekt beim Modulladen entfernt -> js/ui/render.js; safe(-Infinity) -> js/core/formulas.js; acc/Golden-Reset bei loaded/prestige -> js/systems/{autobuyers,achievements,golden}.js + js/main.js; legacy/ gelöscht -> README.md
+
+Fundament (Punkt 2 der Aufgabe)
+- rates(): Objekt mit Eintrag je RES_IDS + `click` + `flows` -> js/core/formulas.js
+- Stats je Ressource `stats.total{}` / `stats.run{}`, generisches addResource -> js/core/state.js
+- Rezepte (inputs/outputs/share/req, Kettenreihenfolge) -> js/data/recipes.js, js/core/formulas.js; ersetzt hart codierten Konverter (`rates().conv` entfällt)
+- Klick-Upgrades als Liste `CLICKS`/`CLICK_MAP`, State `clicks{id:Stufe}` -> js/data/upgrades.js, js/core/state.js
+- GEN.req als Array (String weiter akzeptiert, `reqList`) -> js/data/generators.js, js/core/formulas.js
+- renderTop/Stats/Konverter-Text generisch aus RES/RECIPES -> js/ui/render.js
+- Save v3 + Migration v2->v3 (`migrateV2toV3`); Key bleibt `eisenwerk-idle-save-v2` -> js/core/save.js
+
+Härtung
+- CSP-Meta, Inline-Script -> js/boot-check.js, Ember-Inline-Styles -> CSS nth-child -> index.html, css/styles.css
+- `style` in dom.h über CSSOM (vereinbar mit style-src 'self') -> js/ui/dom.js
+- Import-Limit 200000 Zeichen -> js/core/save.js
+- legacy/ entfernt, README angepasst

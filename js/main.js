@@ -2,7 +2,7 @@
 import { state } from './core/state.js';
 import { on, toast } from './core/events.js';
 import { fmt, fmtTime } from './core/format.js';
-import { load, save, applyOffline } from './core/save.js';
+import { load, save, autoSave, applyOffline } from './core/save.js';
 import { RES, RES_IDS } from './data/resources.js';
 import { tick } from './systems/production.js';
 import * as autobuyers from './systems/autobuyers.js';
@@ -25,14 +25,18 @@ function announceOffline(info) {
 }
 
 function boot() {
+  initToasts($('#toasts'));   // zuerst, damit Toasts aus load()/applyOffline() nicht verloren gehen
   const loaded = load();
   applySettings();
   if (loaded.loaded) {
     if (state.savedAt > 0) announceOffline(applyOffline((Date.now() - state.savedAt) / 1000));
     if (loaded.migrated) { toast('Spielstand der alten Version wurde übernommen.', 'good'); save(); }
+  } else if (loaded.error) {
+    toast(loaded.backedUp
+      ? 'Der Spielstand ist unlesbar oder stammt aus einer neueren Version. Eine Kopie liegt im Browser-Speicher (…-backup). Speichern ist gesperrt, bis du einen Spielstand importierst oder zurücksetzt.'
+      : 'Der Spielstand ist unlesbar oder stammt aus einer neueren Version. Speichern ist gesperrt, bis du einen Spielstand importierst oder zurücksetzt.', 'warn');
   }
 
-  initToasts($('#toasts'));
   initRender();
   initTabs($('#tabs'));
   initSettings();
@@ -41,7 +45,10 @@ function boot() {
   initFlash();
   golden.init();
   achievements.check(0, true);
-  on('loaded', () => { golden.init(); resetHistory(); });
+  // Zeitgeber beim Laden/Import/Reset und beim Neuguss zurücksetzen
+  const resetTimers = () => { golden.init(); autobuyers.reset(); achievements.reset(); };
+  on('loaded', () => { resetTimers(); resetHistory(); });
+  on('prestige', resetTimers);
   refresh();
 
   let last = performance.now(), sinceSave = 0;
@@ -49,7 +56,7 @@ function boot() {
     let dt = (now - last) / 1000;
     last = now;
     if (!(dt > 0)) dt = 0;
-    if (dt > OFFLINE_MIN_SECONDS) { announceOffline(applyOffline(dt)); dt = 0; }
+    if (dt > OFFLINE_MIN_SECONDS) { announceOffline(applyOffline(dt, { runtime: true })); dt = 0; }
     const r = tick(dt);
     autobuyers.tick(dt);
     golden.tick(dt);
@@ -60,8 +67,9 @@ function boot() {
   };
   requestAnimationFrame(loop);
 
-  document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
-  addEventListener('pagehide', save);
+  // Beim Verlassen nur speichern, wenn der Nutzer Autosave eingeschaltet hat (und nie bei gesperrtem Speichern).
+  document.addEventListener('visibilitychange', () => { if (document.hidden) autoSave(); });
+  addEventListener('pagehide', autoSave);
   window.__eisenwerk = true;
 }
 

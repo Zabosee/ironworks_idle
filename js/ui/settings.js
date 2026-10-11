@@ -1,7 +1,7 @@
 // Einstellungen-Tab: Zahlenformat, Autosave, Export/Import, Reset.
 import { state, AUTOSAVE_OPTIONS } from '../core/state.js';
 import { FORMATS, setFormat } from '../core/format.js';
-import { save, exportSave, importSave, resetGame } from '../core/save.js';
+import { save, exportSave, importSave, resetGame, isSaveLocked } from '../core/save.js';
 import { on } from '../core/events.js';
 import { h, $, confirmDialog } from './dom.js';
 import { refresh } from './render.js';
@@ -48,7 +48,7 @@ export function initSettings() {
       h('h2', { text: 'Speichern' }),
       h('label', { class: 'check' }, autosave, ' Automatisch speichern'),
       h('div', { class: 'field' }, h('label', { htmlFor: 'set-interval', text: 'Intervall' }), interval),
-      h('button', { class: 'btn', type: 'button', text: 'Jetzt speichern', onclick: () => { const ok = save(); say(ok ? 'Spielstand gespeichert.' : 'Speichern nicht möglich (Browser-Speicher gesperrt?).', !ok); } })),
+      h('button', { class: 'btn', type: 'button', text: 'Jetzt speichern', onclick: () => { const ok = save(); say(ok ? 'Spielstand gespeichert.' : isSaveLocked() ? 'Speichern gesperrt: Der gespeicherte Spielstand war unlesbar (Kopie liegt im Browser-Speicher). Importiere einen Spielstand oder setze zurück.' : 'Speichern nicht möglich (Browser-Speicher gesperrt?).', !ok); } })),
     h('div', { class: 'panel-box wide' },
       h('h2', { text: 'Export / Import' }),
       h('p', { class: 'hint', text: 'Der Export ist ein Base64-Text. Bewahre ihn als Sicherung auf oder übertrage ihn auf ein anderes Gerät.' }),

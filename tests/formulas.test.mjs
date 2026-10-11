@@ -95,10 +95,10 @@ describe('Multiplikatoren', () => {
   });
   test('rates() sind bei Maximalstufen endlich', () => {
     for (const k in state.gens) state.gens[k] = MAX_LEVEL;
-    state.click = MAX_LEVEL;
+    state.clicks.click = MAX_LEVEL;
     state.prestige.total = 1e300;
     Object.assign(state.research, { geology: 1, converter: 1, resonance: 1, autoclick: 1, precision: 1 });
-    for (const [k, v] of Object.entries(F.rates())) assert.ok(Number.isFinite(v) && v >= 0, `${k}=${v}`);
+    for (const [k, v] of Object.entries(F.rates())) if (k !== 'flows') assert.ok(Number.isFinite(v) && v >= 0, `${k}=${v}`);
   });
 });
 

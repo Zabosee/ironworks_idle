@@ -13,7 +13,7 @@ const wrap = st => b64({ v: 2, t: 1_700_000_000_000, state: st });
 
 describe('Export / Import', () => {
   test('Roundtrip erhaelt den Spielstand', () => {
-    state.res.ore = 1234.5; state.gens.mine = 42; state.click = 7;
+    state.res.ore = 1234.5; state.gens.mine = 42; state.clicks.click = 7;
     state.research.geology = 1; state.boosts.diamond = 1;
     state.prestige = { points: 3, total: 9, count: 2, shop: { pp_eff: 2 } };
     state.achievements.click_1 = 12345;
@@ -105,7 +105,7 @@ describe('Validierung (sanitize) – negative / NaN / Muell-Werte', () => {
     assert.equal(state.gens.smelter, 2);
     assert.equal(state.gens.plant, 0);
     assert.equal(state.gens.forge, 0);
-    assert.equal(state.click, 0);
+    assert.equal(state.clicks.click, 0);
     assert.equal(state.prestige.points, 0);
     assert.equal(state.prestige.total, 0);
     assert.equal(state.prestige.count, 0);
@@ -144,10 +144,10 @@ describe('Validierung (sanitize) – negative / NaN / Muell-Werte', () => {
     assert.ok(state.buffs.length <= 10);
   });
   test('savedAt und Statistik werden geklemmt', () => {
-    S.importSave(b64({ v: 2, t: 1e300, state: { stats: { clicks: -9, totalOre: 'x', playTime: 5 } } }));
+    S.importSave(b64({ v: 2, t: 1e300, state: { stats: { clicks: -9, totalOre: 'x', playTime: 5 } } }));   // v2-Feldnamen werden migriert
     assert.ok(state.savedAt <= 8.64e15);
     assert.equal(state.stats.clicks, 0);
-    assert.equal(state.stats.totalOre, 0);
+    assert.equal(state.stats.total.ore, 0);
     assert.equal(state.stats.playTime, 5);
   });
   test('Erfolge: nur bekannte IDs', () => {
@@ -175,7 +175,7 @@ describe('Migration alter Saves (eisenwerk-idle-save)', () => {
     const r = S.load();
     assert.deepEqual(r, { loaded: true, migrated: true });
     assert.equal(state.res.ore, 5000); assert.equal(state.res.steel, 20); assert.equal(state.res.titan, 3);
-    assert.equal(state.click, 4);
+    assert.equal(state.clicks.click, 4);
     assert.equal(state.gens.mine, 12); assert.equal(state.gens.forge, 1); assert.equal(state.gens.plant, 0);
     assert.deepEqual(state.research, { geology: 1, converter: 1 });
     assert.deepEqual(state.boosts, { diamond: 1 });
@@ -198,8 +198,9 @@ describe('Migration alter Saves (eisenwerk-idle-save)', () => {
     assert.ok(state.savedAt > 0, 'Fallback-Zeitstempel statt NaN');
   });
   test('migrate: v2 passt durch, falsche Versionen werfen', () => {
-    assert.equal(S.migrate({ v: 2, t: 5, state: {} }).v, 2);
-    assert.throws(() => S.migrate({ v: 3, state: {} }), /neueren/);
+    assert.equal(S.migrate({ v: 2, t: 5, state: {} }).v, 3);
+    assert.equal(S.migrate({ v: 3, t: 5, state: {} }).v, 3);
+    assert.throws(() => S.migrate({ v: 4, state: {} }), /neueren/);
     assert.throws(() => S.migrate({ state: {} }), /Version/);
     assert.throws(() => S.migrate(null), /Format/);
   });
@@ -228,7 +229,7 @@ describe('save / load', () => {
     const restore = quietConsole();
     state.gens.mine = 4;
     ls.setItem(S.SAVE_KEY, '{kaputt');
-    assert.deepEqual(S.load(), { loaded: false, error: true });
+    assert.deepEqual(S.load(), { loaded: false, error: true, backedUp: true });
     assert.equal(state.gens.mine, 4);
     restore();
   });
@@ -246,7 +247,7 @@ describe('save / load', () => {
     assert.equal(JSON.parse(ls.getItem(S.SAVE_KEY)).state.gens.mine, 0);
   });
   test('Speichern/Laden-Roundtrip aendert Zustand nicht (Idempotenz ueber 3 Zyklen)', () => {
-    state.gens.mine = 3; state.stats.totalOre = 1e20;
+    state.gens.mine = 3; state.stats.total.ore = 1e20;
     let prev;
     for (let i = 0; i < 3; i++) {
       S.save(); const snap = JSON.stringify({ ...state, savedAt: 0 });

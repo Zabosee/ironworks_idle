@@ -67,12 +67,23 @@ export function initCollect(btn, zone, onAfter) {
 }
 
 const acc = Object.fromEntries(RES_IDS.map(k => [k, 0]));
+const orbEls = {};   // k -> { orb, ring } (gecacht; wird neu gesucht, falls das Element aus dem DOM verschwand)
+function orbOf(k) {
+  let e = orbEls[k];
+  if (!e || !e.orb.isConnected) {
+    const orb = document.getElementById('orb-' + k);
+    e = orb ? { orb, ring: orb.querySelector('.ring') } : null;
+    orbEls[k] = e;
+  }
+  return e;
+}
 /** Pulsierende Ringe und aufsteigende Partikel an den Ressourcen-Orbs; r = Raten, dt in Sekunden. */
 export function updateOrbs(r, dt) {
   for (const k of RES_IDS) {
-    const orb = document.getElementById('orb-' + k);
-    if (!orb) continue;
-    const rps = Math.max(r[k], 0), ring = orb.querySelector('.ring');
+    const el = orbOf(k);
+    if (!el) continue;
+    const { orb, ring } = el;
+    const rps = Math.max(r[k], 0);
     const dur = Math.max(0.25, 2.5 / (1 + Math.log10(1 + rps * 10))).toFixed(2) + 's';
     if (ring._d !== dur) { ring._d = dur; ring.style.setProperty('--dur', dur); }
     const active = rps > 0;

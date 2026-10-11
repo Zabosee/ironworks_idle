@@ -5,16 +5,18 @@ import { rates, offlineCapSeconds, safe } from './formulas.js';
 import { emit } from './events.js';
 import { RES_IDS } from '../data/resources.js';
 import { GENS, MAX_LEVEL } from '../data/generators.js';
-import { BOOSTS } from '../data/upgrades.js';
+import { CLICKS, BOOSTS } from '../data/upgrades.js';
 import { RESEARCH } from '../data/research.js';
 import { SHOP, AUTOBUYERS } from '../data/prestige.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { BUFFS } from '../data/golden.js';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
+// Der Schlüssel bleibt bewusst 'v2': die Formatversion steckt im Spielstand selbst (Feld v), so lädt der alte Spielstand ohne Umkopieren.
 export const SAVE_KEY = 'eisenwerk-idle-save-v2';
+export const BACKUP_KEY = SAVE_KEY + '-backup';
 export const LEGACY_KEY = 'eisenwerk-idle-save';
-const MAX_IMPORT_CHARS = 2_000_000;
+const MAX_IMPORT_CHARS = 200_000;
 
 // ---------- Validierung ----------
 const isObj = x => x !== null && typeof x === 'object' && !Array.isArray(x);
@@ -33,7 +35,8 @@ export function sanitize(d) {
   for (const k of RES_IDS) s.res[k] = num(res[k]);
   const gens = isObj(d.gens) ? d.gens : {};
   for (const g of GENS) s.gens[g.id] = int(gens[g.id], MAX_LEVEL);
-  s.click = int(d.click, MAX_LEVEL);
+  const cl = isObj(d.clicks) ? d.clicks : {};
+  for (const c of CLICKS) s.clicks[c.id] = int(cl[c.id], MAX_LEVEL);
   const rs = isObj(d.research) ? d.research : {}, bs = isObj(d.boosts) ? d.boosts : {};
   for (const r of RESEARCH) if (rs[r.id]) s.research[r.id] = 1;
   for (const b of BOOSTS) if (bs[b.id]) s.boosts[b.id] = 1;
@@ -58,7 +61,11 @@ export function sanitize(d) {
   }
 
   const st = isObj(d.stats) ? d.stats : {};
-  for (const k of Object.keys(s.stats)) s.stats[k] = num(st[k], s.stats[k]);
+  for (const k of Object.keys(s.stats)) if (typeof s.stats[k] === 'number') s.stats[k] = num(st[k], s.stats[k]);
+  for (const grp of ['total', 'run']) {
+    const src = isObj(st[grp]) ? st[grp] : {};
+    for (const k of RES_IDS) s.stats[grp][k] = num(src[k]);
+  }
 
   const se = isObj(d.settings) ? d.settings : {};
   s.settings.format = FORMAT_IDS.includes(se.format) ? se.format : 'standard';
@@ -72,6 +79,21 @@ export function sanitize(d) {
 }
 
 // ---------- Migration ----------
+/**
+ * v2 -> v3: click (Zahl) -> clicks { click }, stats.totalOre/Steel/Titan + runOre -> stats.total / stats.run (je Ressource).
+ * Gibt eine Kopie zurück; die Eingabe bleibt unverändert.
+ */
+export function migrateV2toV3(old) {
+  const out = { ...old };
+  out.clicks = { click: old.click };
+  delete out.click;
+  if (isObj(old.stats)) {
+    const { totalOre, totalSteel, totalTitan, runOre, ...rest } = old.stats;
+    out.stats = { ...rest, total: { ore: totalOre, steel: totalSteel, titan: totalTitan }, run: { ore: runOre } };
+  }
+  return out;
+}
+
 /** Bringt beliebige bekannte Formate auf die aktuelle Version: { v, t, state }. */
 export function migrate(data) {
   if (!isObj(data)) throw new Error('Spielstand hat kein gültiges Format.');
@@ -80,15 +102,16 @@ export function migrate(data) {
     const o = data.S;
     return {
       v: SAVE_VERSION, t: num(data.t, Date.now(), 0, 8.64e15),
-      state: { res: { ore: o.ore, steel: o.steel, titan: o.titan }, gens: o.gens, click: o.click, research: o.research, boosts: o.boosts },
+      state: { res: { ore: o.ore, steel: o.steel, titan: o.titan }, gens: o.gens, clicks: { click: o.click }, research: o.research, boosts: o.boosts },
     };
   }
   const v = Number(data.v);
   if (!Number.isInteger(v) || v < 1) throw new Error('Unbekannte Spielstand-Version.');
   if (v > SAVE_VERSION) throw new Error('Der Spielstand stammt aus einer neueren Spielversion.');
-  // Platz für künftige Migrationen: if (v < 3) { ... }
   if (!isObj(data.state)) throw new Error('Spielstand enthält keine Daten.');
-  return { v: SAVE_VERSION, t: num(data.t, Date.now(), 0, 8.64e15), state: data.state };
+  let st = data.state;
+  if (v < 3) st = migrateV2toV3(st);
+  return { v: SAVE_VERSION, t: num(data.t, Date.now(), 0, 8.64e15), state: st };
 }
 
 function parseSave(json) {
@@ -98,11 +121,16 @@ function parseSave(json) {
 }
 
 // ---------- Speichern / Laden ----------
+let saveLocked = false;
+/** true, wenn ein unlesbarer Spielstand gefunden wurde: Speichern ist gesperrt, bis Import oder Reset den Zustand ersetzt. */
+export const isSaveLocked = () => saveLocked;
+
 const store = () => { try { return globalThis.localStorage ?? null; } catch { return null; } };
 
 export const serialize = () => JSON.stringify({ v: SAVE_VERSION, t: Date.now(), state });
 
 export function save() {
+  if (saveLocked) { emit('save-failed'); return false; }
   try {
     state.savedAt = Date.now();
     store().setItem(SAVE_KEY, serialize());
@@ -114,23 +142,39 @@ export function save() {
   }
 }
 
-/** Lädt Spielstand (neuer Key, sonst Legacy). Gibt { loaded, migrated } zurück. */
+/**
+ * Lädt Spielstand (neuer Key, sonst Legacy). Gibt { loaded, migrated } zurück.
+ * Bei unlesbarem/zu neuem Spielstand: { loaded:false, error:true, backedUp }, der Rohtext wird nach BACKUP_KEY
+ * kopiert und das Speichern gesperrt, damit der Spielstand nicht überschrieben wird.
+ */
 export function load() {
+  saveLocked = false;
   const ls = store();
   if (!ls) return { loaded: false };
+  let raw = null;
   try {
-    let raw = ls.getItem(SAVE_KEY), migrated = false;
+    let migrated = false;
+    raw = ls.getItem(SAVE_KEY);
     if (!raw) { raw = ls.getItem(LEGACY_KEY); migrated = !!raw; }
     if (!raw) return { loaded: false };
     replaceState(parseSave(raw));
     return { loaded: true, migrated };
   } catch (err) {
     console.error('Laden fehlgeschlagen', err);
-    return { loaded: false, error: true };
+    saveLocked = true;
+    let backedUp = false;
+    try { if (raw) { ls.setItem(BACKUP_KEY, raw); backedUp = true; } } catch { /* Speicher voll/gesperrt */ }
+    return { loaded: false, error: true, backedUp };
   }
 }
 
+/** Speichert nur bei aktiviertem Autosave (Seitenwechsel, Prestige, Shop). */
+export function autoSave() {
+  return state.settings.autosave ? save() : false;
+}
+
 export function resetGame() {
+  saveLocked = false;
   replaceState(defaultState());
   save();
   emit('loaded');
@@ -165,19 +209,29 @@ export function importSave(text) {
     if (err instanceof Error && /Version|Format|Daten|Spielversion/.test(err.message)) throw err;
     throw new Error('Spielstand ist beschädigt oder kein gültiger Export.');
   }
+  saveLocked = false;
   replaceState(next);
   save();
   emit('loaded');
 }
 
 // ---------- Offline-Fortschritt ----------
-/** Schreibt Offline-Erträge gut. Gibt { seconds, capped, gains } zurück oder null. */
-export function applyOffline(seconds) {
+/**
+ * Schreibt Offline-Erträge gut. Gibt { seconds, capped, gains } zurück oder null.
+ * Beim Laden (Standard) verfallen Buffs; im Laufzeitpfad (Tab war im Hintergrund, runtime:true) wird ihre
+ * Restzeit um die vergangene Zeit gekürzt. Die Erträge werden in beiden Fällen ohne Buffs berechnet.
+ */
+export function applyOffline(seconds, { runtime = false } = {}) {
   if (!Number.isFinite(seconds) || seconds < 10) return null;
   const cap = offlineCapSeconds();
   const sec = Math.min(seconds, cap);
-  state.buffs = [];                    // Buffs gelten nicht offline
+  const buffs = state.buffs;
+  state.buffs = [];
   const r = rates();
+  if (runtime) {
+    state.buffs = buffs.map(b => ({ ...b, left: b.left - seconds })).filter(b => b.left > 0);
+    if (state.buffs.length !== buffs.length) emit('buffs');
+  }
   const gains = {};
   for (const k of RES_IDS) { gains[k] = safe(r[k] * sec); addResource(k, gains[k]); }
   state.stats.playTime += sec;

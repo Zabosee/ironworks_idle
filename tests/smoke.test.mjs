@@ -22,7 +22,7 @@ test('Daten-Konsistenz: Forschung-Voraussetzungen, Generator-req, Shop-Freischal
   const { GENS } = await import('../js/data/generators.js');
   const { SHOP_MAP, AUTOBUYERS } = await import('../js/data/prestige.js');
   for (const r of RESEARCH) for (const q of r.req || []) assert.ok(RESEARCH_MAP[q], `${r.id} -> ${q}`);
-  for (const g of GENS) if (g.req) assert.ok(RESEARCH_MAP[g.req], g.id);
+  for (const g of GENS) for (const q of [].concat(g.req || [])) assert.ok(RESEARCH_MAP[q], g.id);
   for (const a of AUTOBUYERS) assert.ok(SHOP_MAP[a.unlock], a.id);
   const { researchDepth } = await import('../js/core/formulas.js');
   for (const r of RESEARCH) assert.ok(Number.isInteger(researchDepth(r.id)), r.id + ' (Zyklus?)');

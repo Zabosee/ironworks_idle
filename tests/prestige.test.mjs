@@ -9,16 +9,17 @@ beforeEach(reset);
 
 describe('Hochofen-Neuguss', () => {
   test('unter der Schwelle: false, Zustand unveraendert', () => {
-    state.stats.runOre = 9.99e6; state.gens.mine = 7; state.res.ore = 123;
+    state.stats.run.ore = 9.99e6; state.gens.mine = 7; state.res.ore = 123;
     const before = JSON.stringify(state);
     assert.equal(canPrestige(), false);
     assert.equal(doPrestige(), false);
     assert.equal(JSON.stringify(state), before);
   });
   test('Gussformen werden gutgeschrieben, Durchlauf wird zurueckgesetzt', () => {
-    Object.assign(state.stats, { runOre: 4e7, runClicks: 9, runTime: 99, totalOre: 5e7 });
+    Object.assign(state.stats, { runClicks: 9, runTime: 99 });
+    state.stats.run.ore = 4e7; state.stats.total.ore = 5e7;
     state.res = { ore: 1e5, steel: 50, titan: 3 };
-    state.gens.mine = 12; state.click = 4;
+    state.gens.mine = 12; state.clicks.click = 4;
     state.boosts.diamond = 1; state.research.geology = 1;
     state.buffs = [{ id: 'frenzy', left: 10 }];
     const ev = collect('prestige');
@@ -28,18 +29,18 @@ describe('Hochofen-Neuguss', () => {
     assert.equal(state.prestige.count, 1);
     assert.deepEqual(state.res, { ore: 0, steel: 0, titan: 0 });
     assert.equal(state.gens.mine, 0);
-    assert.equal(state.click, 0);
+    assert.equal(state.clicks.click, 0);
     assert.deepEqual(state.boosts, {});
     assert.deepEqual(state.research, {});
     assert.deepEqual(state.buffs, []);
-    assert.equal(state.stats.runOre, 0); assert.equal(state.stats.runTime, 0); assert.equal(state.stats.runClicks, 0);
-    assert.equal(state.stats.totalOre, 5e7, 'Lebenszeit-Statistik bleibt');
+    assert.equal(state.stats.run.ore, 0); assert.equal(state.stats.runTime, 0); assert.equal(state.stats.runClicks, 0);
+    assert.equal(state.stats.total.ore, 5e7, 'Lebenszeit-Statistik bleibt');
     assert.equal(state.stats.bestPrestige, 2);
     assert.deepEqual(ev.got, [{ gain: 2 }]);
     ev.stop();
   });
   test('direkt danach kein weiterer Neuguss moeglich', () => {
-    state.stats.runOre = 1e8;
+    state.stats.run.ore = 1e8;
     assert.equal(doPrestige(), true);
     assert.equal(canPrestige(), false);
     assert.equal(doPrestige(), false);
@@ -47,33 +48,33 @@ describe('Hochofen-Neuguss', () => {
   });
   test('Wissensarchiv behaelt Forschung, Boosts nicht', () => {
     state.prestige.shop.keep = 1; state.research.geology = 1; state.boosts.diamond = 1;
-    state.stats.runOre = 1e8;
+    state.stats.run.ore = 1e8;
     doPrestige();
     assert.equal(state.research.geology, 1);
     assert.deepEqual(state.boosts, {});
   });
   test('Erzvorrat-Upgrade: Startkapital', () => {
-    state.prestige.shop.start = 2; state.stats.runOre = 1e8;
+    state.prestige.shop.start = 2; state.stats.run.ore = 1e8;
     doPrestige();
     assert.equal(state.res.ore, 1500);
   });
   test('Gussformen summieren sich ueber mehrere Neugussvorgaenge', () => {
-    state.stats.runOre = 4e7; doPrestige();
-    state.stats.runOre = 9e7; doPrestige();
+    state.stats.run.ore = 4e7; doPrestige();
+    state.stats.run.ore = 9e7; doPrestige();
     assert.equal(state.prestige.total, 2 + 3);
     assert.equal(state.prestige.count, 2);
     assert.equal(state.stats.bestPrestige, 3);
   });
   test('Meilenstein-Toast bei Ueberschreiten von 5 Gussformen', () => {
     const t = collect('toast');
-    state.stats.runOre = 25e7; // 5 Punkte
+    state.stats.run.ore = 25e7; // 5 Punkte
     assert.equal(prestigeGain(), 5);
     doPrestige();
     assert.ok(t.got.some(x => /Meilenstein 5/.test(x.msg)));
     t.stop();
   });
   test('Auto-Buyer-Einstellungen und Shop bleiben nach Neuguss erhalten', () => {
-    state.prestige.shop.ab_gens = 1; state.autobuyers.gens = true; state.stats.runOre = 1e8;
+    state.prestige.shop.ab_gens = 1; state.autobuyers.gens = true; state.stats.run.ore = 1e8;
     doPrestige();
     assert.equal(state.prestige.shop.ab_gens, 1);
     assert.equal(state.autobuyers.gens, true);

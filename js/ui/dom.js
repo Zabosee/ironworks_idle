@@ -8,6 +8,7 @@ export function h(tag, props, ...kids) {
     if (k === 'class') el.className = v;
     else if (k === 'dataset') Object.assign(el.dataset, v);
     else if (k === 'text') el.textContent = v;
+    else if (k === 'style') el.style.cssText = String(v);   // CSSOM statt Attribut: vereinbar mit CSP style-src 'self'
     else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);
     else if (PROPS.has(k)) el[k] = v;
     else el.setAttribute(k, v === true ? '' : String(v));

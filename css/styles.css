@@ -109,6 +109,7 @@ button { cursor: pointer; }
 .buff-time { font-family: ui-monospace, monospace; color: var(--gold); }
 .note { font-size: .75rem; color: var(--muted); }
 .note:empty { display: none; }
+#conv { white-space: pre-line; }
 .side-foot { margin-top: auto; font-size: .75rem; color: #64748b; }
 
 /* ---------- Tabs ---------- */
@@ -258,6 +259,21 @@ body { background: linear-gradient(180deg, var(--steel-900), var(--steel-800) 60
 .bg-gear.g2 { width: 15rem; right: -4rem; top: 40vh; animation-direction: reverse; animation-duration: 45s; }
 .bg-gear.g3 { width: 10rem; left: 38%; bottom: 18vh; animation-duration: 36s; opacity: .045; }
 .embers span { position: absolute; bottom: -10px; left: var(--x); width: var(--s); height: var(--s); border-radius: 50%; background: var(--ember-hot); box-shadow: 0 0 6px 1px var(--ember); opacity: 0; animation: ember var(--d) linear var(--delay) infinite; }
+/* Positionen/Dauer der Funken (früher Inline-Styles; CSP style-src 'self') */
+.embers span:nth-child(1) { --x:11%;--d:7s;--delay:-0.0s;--s:2px; }
+.embers span:nth-child(2) { --x:48%;--d:10s;--delay:-2.3s;--s:3px; }
+.embers span:nth-child(3) { --x:85%;--d:7s;--delay:-4.6s;--s:4px; }
+.embers span:nth-child(4) { --x:22%;--d:10s;--delay:-6.9s;--s:2px; }
+.embers span:nth-child(5) { --x:59%;--d:7s;--delay:-0.2s;--s:3px; }
+.embers span:nth-child(6) { --x:96%;--d:10s;--delay:-2.5s;--s:4px; }
+.embers span:nth-child(7) { --x:33%;--d:7s;--delay:-4.8s;--s:2px; }
+.embers span:nth-child(8) { --x:70%;--d:10s;--delay:-7.1s;--s:3px; }
+.embers span:nth-child(9) { --x:7%;--d:7s;--delay:-0.4s;--s:4px; }
+.embers span:nth-child(10) { --x:44%;--d:10s;--delay:-2.7s;--s:2px; }
+.embers span:nth-child(11) { --x:81%;--d:7s;--delay:-5.0s;--s:3px; }
+.embers span:nth-child(12) { --x:18%;--d:10s;--delay:-7.3s;--s:4px; }
+.embers span:nth-child(13) { --x:55%;--d:7s;--delay:-0.6s;--s:2px; }
+.embers span:nth-child(14) { --x:92%;--d:10s;--delay:-2.9s;--s:3px; }
 
 /* ---------- Logo ---------- */
 .logo { display: flex; align-items: center; gap: var(--space-2); }

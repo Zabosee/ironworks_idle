@@ -2,15 +2,16 @@
 import { state } from './state.js';
 import { RES_IDS } from '../data/resources.js';
 import { GENS, GEN_MAP, MILESTONE_STEP, ELITE_FROM, ELITE_GROWTH, MAX_LEVEL, EXTRA_MILESTONES } from '../data/generators.js';
-import { CLICK, BOOSTS, BOOST_MAP } from '../data/upgrades.js';
+import { CLICKS, CLICK_MAP, BOOSTS, BOOST_MAP } from '../data/upgrades.js';
 import { RESEARCH, RESEARCH_MAP } from '../data/research.js';
+import { RECIPES } from '../data/recipes.js';
 import { PRESTIGE, SHOP_MAP, MILESTONES, AUTOBUYERS, AUTOBUYER_INTERVAL } from '../data/prestige.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { BUFFS } from '../data/golden.js';
 
 const CAP = 1e300;
-/** Schützt vor NaN/Infinity. */
-export const safe = x => (Number.isNaN(x) ? 0 : Math.min(x, CAP));
+/** Schützt vor NaN/Infinity: NaN -> 0, Werte auf [-CAP, CAP] begrenzt. */
+export const safe = x => (Number.isNaN(x) ? 0 : Math.max(-CAP, Math.min(x, CAP)));
 
 // ---------- Hilfen für Kosten-Objekte ----------
 export const canAfford = cost => Object.entries(cost).every(([k, v]) => state.res[k] >= v);
@@ -72,25 +73,53 @@ export const mult = res => safe(researchMult(res) * globalMult());
 export const genLevel = id => state.gens[id] || 0;
 export const genOutputAt = (g, n, gm = globalMult()) => safe(g.base * n * milestone(n) * researchMult(g.res) * gm);
 
-export function clickBaseAt(n, gm = globalMult()) {
-  return safe((1 + 2 * n) * milestone(n) * researchMult('ore') * gm * (1 + 0.5 * shopLevel('click')));
+export const clickLevel = id => state.clicks[id] || 0;
+
+/** Klickwert-Beitrag eines Klick-Upgrades auf Stufe n (ohne Resonanz/Buffs). */
+export function clickBaseAt(n, gm = globalMult(), def = CLICKS[0]) {
+  return safe((def.base + def.perLevel * n) * milestone(n) * researchMult('ore') * gm * (1 + 0.5 * shopLevel('click')));
 }
 
-/** Gesamte Produktionsraten pro Sekunde plus Klickwert. */
+/** Summe der Beiträge aller Klick-Upgrades auf den aktuellen Stufen. */
+export function clickBaseTotal(gm = globalMult()) {
+  let sum = 0;
+  for (const c of CLICKS) sum += clickBaseAt(clickLevel(c.id), gm, c);
+  return safe(sum);
+}
+
+/** Zyklen/s eines Rezepts bei gegebener Brutto-Produktion (Map res -> Rate). */
+export function recipeCycles(rc, gross) {
+  let cycles = Infinity;
+  for (const k in rc.inputs) cycles = Math.min(cycles, (rc.share * (gross[k] || 0)) / rc.inputs[k]);
+  return Number.isFinite(cycles) && cycles > 0 ? cycles : 0;
+}
+
+export const recipeActive = rc => (rc.req || []).every(q => state.research[q]);
+
+/**
+ * Gesamte Produktionsraten pro Sekunde.
+ * Ergebnis: { <jede Ressource aus RES_IDS>: Nettorate, click: Wert eines manuellen Klicks (inkl. Klick-Buff),
+ *             flows: [{ id, cycles, inputs, outputs }] je aktivem Rezept }.
+ * Der Klick-Buff (Hammerwut) wirkt nur auf manuelle Klicks, nicht auf Autoklick.
+ */
 export function rates() {
   const gm = globalMult();
-  const r = { ore: 0, steel: 0, titan: 0, conv: 0, click: 0 };
+  const r = Object.fromEntries(RES_IDS.map(k => [k, 0]));
   for (const g of GENS) {
     const n = genLevel(g.id);
     if (n > 0) r[g.res] += genOutputAt(g, n, gm);
   }
-  const cm = buffMult('click');
-  r.click = safe((clickBaseAt(state.click, gm) + (state.research.resonance ? 0.05 * r.ore : 0)) * cm);
-  if (state.research.autoclick) r.ore += 5 * r.click;
-  if (state.research.converter) {
-    r.conv = r.ore * 0.2;
-    r.ore -= r.conv;
-    r.steel += r.conv / 25;
+  const clickRaw = safe(clickBaseTotal(gm) + (state.research.resonance ? 0.05 * r.ore : 0));
+  r.click = safe(clickRaw * buffMult('click'));
+  if (state.research.autoclick) r.ore += 5 * clickRaw;
+  r.flows = [];
+  for (const rc of RECIPES) {
+    if (!recipeActive(rc)) continue;
+    const cycles = recipeCycles(rc, r);
+    const flow = { id: rc.id, cycles, inputs: {}, outputs: {} };
+    for (const k in rc.inputs) { flow.inputs[k] = cycles * rc.inputs[k]; r[k] -= flow.inputs[k]; }
+    for (const k in rc.outputs) { flow.outputs[k] = cycles * rc.outputs[k]; r[k] += flow.outputs[k]; }
+    r.flows.push(flow);
   }
   for (const k of RES_IDS) r[k] = safe(r[k]);
   return r;
@@ -99,7 +128,7 @@ export function rates() {
 // ---------- Kosten ----------
 export const eliteCost = (n, base) => (n >= ELITE_FROM ? Math.ceil(safe(base * ELITE_GROWTH ** (n - ELITE_FROM))) : 0);
 
-/** Kosten für Kauf der Stufe (lvl+1) von kind ('gen' | 'click'). */
+/** Kosten für Kauf der Stufe (lvl+1) von kind ('gen' | 'click'); rein, hängt nur von kind/id/lvl ab. */
 export function unitCost(kind, id, lvl) {
   if (kind === 'gen') {
     const g = GEN_MAP[id], c = {};
@@ -107,29 +136,33 @@ export function unitCost(kind, id, lvl) {
     if (lvl >= ELITE_FROM) c.titan = (c.titan || 0) + eliteCost(lvl, g.elite);
     return c;
   }
-  const c = { ore: Math.ceil(safe(CLICK.oreBase * CLICK.oreGrowth ** lvl)) };
-  if (lvl >= CLICK.steelFrom) c.steel = Math.ceil(safe(CLICK.steelBase * CLICK.steelGrowth ** (lvl - CLICK.steelFrom)));
-  if (lvl >= CLICK.eliteFrom) c.titan = eliteCost(lvl, CLICK.eliteBase);
+  const d = CLICK_MAP[id];
+  const c = { ore: Math.ceil(safe(d.oreBase * d.oreGrowth ** lvl)) };
+  if (lvl >= d.steelFrom) c.steel = Math.ceil(safe(d.steelBase * d.steelGrowth ** (lvl - d.steelFrom)));
+  if (lvl >= d.eliteFrom) c.titan = eliteCost(lvl, d.eliteBase);
   return c;
 }
 
 export function levelOf(kind, id) {
   if (kind === 'gen') return genLevel(id);
-  if (kind === 'click') return state.click;
+  if (kind === 'click') return clickLevel(id);
   if (kind === 'boost') return state.boosts[id] ? 1 : 0;
   if (kind === 'research') return state.research[id] ? 1 : 0;
   return 0;
 }
 
 export function defOf(kind, id) {
-  return kind === 'gen' ? GEN_MAP[id] : kind === 'boost' ? BOOST_MAP[id] : kind === 'research' ? RESEARCH_MAP[id] : CLICK;
+  return kind === 'gen' ? GEN_MAP[id] : kind === 'boost' ? BOOST_MAP[id] : kind === 'research' ? RESEARCH_MAP[id] : kind === 'click' ? CLICK_MAP[id] : undefined;
 }
+
+/** GEN.req darf String oder Array sein. */
+export const reqList = req => (req == null ? [] : Array.isArray(req) ? req : [req]);
 
 /** Liefert null, wenn kaufbar, sonst Begründung. */
 export function lockReason(kind, id) {
   if (kind === 'gen') {
-    const req = GEN_MAP[id].req;
-    return req && !state.research[req] ? `Benötigt Forschung: ${RESEARCH_MAP[req].name}` : null;
+    const miss = reqList(GEN_MAP[id].req).filter(q => !state.research[q]);
+    return miss.length ? 'Benötigt Forschung: ' + miss.map(q => RESEARCH_MAP[q].name).join(', ') : null;
   }
   if (kind === 'research') {
     const miss = (RESEARCH_MAP[id].req || []).filter(q => !state.research[q]);
@@ -139,9 +172,24 @@ export function lockReason(kind, id) {
 }
 
 const MAX_BULK = 1000;
+
+// Kumulierte Kosten: prefix[i] = Gesamtkosten der nächsten i Stufen ab Stufe lvl. Die Stückkosten sind rein
+// (nur kind/id/lvl), daher wird je kind:id genau eine Reihe für das aktuelle lvl gecacht und bei Bedarf
+// in derselben Summationsreihenfolge verlängert wie die frühere Schleife (identische Zahlen).
+const prefixCache = new Map();
+function prefixOf(kind, id, lvl, n) {
+  const key = kind + ':' + id;
+  let e = prefixCache.get(key);
+  if (!e || e.lvl !== lvl) { e = { lvl, prefix: [{}] }; prefixCache.set(key, e); }
+  const pre = e.prefix;
+  while (pre.length <= n) pre.push(addCost(pre[pre.length - 1], unitCost(kind, id, lvl + pre.length - 1)));
+  return pre;
+}
+
 /**
  * Kaufplan: { count, cost, affordable }.
  * amount: Zahl/String '1' | '10' | '100' | 'max'. Einmalkäufe (boost/research) ignorieren amount.
+ * 'max' sucht die größte bezahlbare Menge (max. MAX_BULK) per Galopp + Binärsuche über die gecachten Summen.
  */
 export function bulkPlan(kind, id, amount = '1') {
   const lvl = levelOf(kind, id);
@@ -150,23 +198,29 @@ export function bulkPlan(kind, id, amount = '1') {
     const cost = defOf(kind, id).cost;
     return { count: 1, cost, affordable: canAfford(cost) };
   }
-  const isMax = amount === 'max';
-  const want = isMax ? MAX_BULK : Math.max(1, Number(amount) || 1);
-  let total = {}, count = 0;
-  for (let i = 0; i < want && lvl + i < MAX_LEVEL; i++) {
-    const next = addCost(total, unitCost(kind, id, lvl + i));
-    if (isMax && !canAfford(next)) break;
-    total = next; count++;
+  const limit = Math.max(0, Math.min(amount === 'max' ? MAX_BULK : Math.max(1, Number(amount) || 1), MAX_LEVEL - lvl));
+  let count = limit;
+  if (amount === 'max') {
+    // größtes n <= limit mit canAfford(prefix[n]); die Kosten wachsen monoton in n
+    let lo = 0, hi = 1;
+    while (hi <= limit && canAfford(prefixOf(kind, id, lvl, hi)[hi])) { lo = hi; hi *= 2; }
+    hi = Math.min(hi, limit + 1);          // hi: erste nicht bezahlbare Menge (oder limit+1)
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (canAfford(prefixOf(kind, id, lvl, mid)[mid])) lo = mid; else hi = mid;
+    }
+    count = lo;
   }
   if (count === 0) {
     // Max: nicht einmal 1 Stufe bezahlbar -> Preis der nächsten Stufe zeigen
     return { count: 0, cost: lvl < MAX_LEVEL ? unitCost(kind, id, lvl) : {}, affordable: false };
   }
+  const total = prefixOf(kind, id, lvl, count)[count];
   return { count, cost: total, affordable: canAfford(total) };
 }
 
 // ---------- Prestige ----------
-export function prestigeGain(runOre = state.stats.runOre) {
+export function prestigeGain(runOre = state.stats.run.ore) {
   if (runOre < PRESTIGE.minRun) return 0;
   const base = Math.floor(Math.pow(runOre / PRESTIGE.divisor, PRESTIGE.exponent));
   return Math.floor(safe(base * (1 + 0.1 * shopLevel('pp_gain'))));

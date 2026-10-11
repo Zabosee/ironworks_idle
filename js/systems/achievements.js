@@ -5,6 +5,9 @@ import { ACHIEVEMENTS } from '../data/achievements.js';
 
 let acc = 0;
 
+/** Setzt den Prüf-Zähler zurück (nach Laden/Neuguss). */
+export function reset() { acc = 0; }
+
 export function check(dt = 0, force = false) {
   acc += dt;
   if (!force && acc < 0.5) return;

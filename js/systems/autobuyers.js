@@ -3,7 +3,7 @@ import { state } from '../core/state.js';
 import { autobuyerUnlocked, autobuyerInterval, lockReason } from '../core/formulas.js';
 import { buy } from './production.js';
 import { GENS } from '../data/generators.js';
-import { BOOSTS } from '../data/upgrades.js';
+import { CLICKS, BOOSTS } from '../data/upgrades.js';
 import { RESEARCH } from '../data/research.js';
 import { AUTOBUYERS } from '../data/prestige.js';
 
@@ -12,10 +12,13 @@ const opt = { silent: true };
 
 const runners = {
   gens() { for (let pass = 0; pass < 5; pass++) for (const g of GENS) buy('gen', g.id, 1, opt); },
-  click() { buy('click', 'click', 1, opt); },
+  click() { for (const c of CLICKS) buy('click', c.id, 1, opt); },
   research() { for (const r of RESEARCH) if (!state.research[r.id] && !lockReason('research', r.id)) buy('research', r.id, 1, opt); },
   boosts() { for (const b of BOOSTS) if (!state.boosts[b.id]) buy('boost', b.id, 1, opt); },
 };
+
+/** Setzt den Takt-Zähler zurück (nach Laden/Neuguss). */
+export function reset() { acc = 0; }
 
 export const isEnabled = id => autobuyerUnlocked(id) && !!state.autobuyers[id];
 export function setEnabled(id, on) {

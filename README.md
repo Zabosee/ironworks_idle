@@ -21,20 +21,20 @@ Danach `http://localhost:8080` (bzw. die von `serve` angezeigte Adresse) öffnen
 - Hochofen-Neuguss (Prestige): Gussformen geben dauerhaft +% Produktion, Meilensteine und einen Shop (inkl. Auto-Buyer).
 - Erfolge mit Produktionsbonus, goldene Barren (zufällig, 15 s sichtbar, Taste G) mit Zeitbuffs.
 - Einstellungen: Zahlenformat (Standard / wissenschaftlich / Engineering), Autosave, Export/Import (Base64), Reset.
-- Alte Spielstände (`eisenwerk-idle-save`) werden automatisch übernommen. Die alte Version liegt unter `legacy/index.old.html`.
+- Alte Spielstände (`eisenwerk-idle-save`) werden automatisch übernommen.
 
 ## Struktur
 
 ```
 eisenwerk-idle/
-index.html              Markup-Gerüst, lädt js/main.js
+index.html              Markup-Gerüst (mit CSP-Meta), lädt js/main.js
 css/styles.css
 js/main.js              Bootstrap, Game-Loop, Autosave
-js/data/                reine Konfiguration (Ressourcen, Generatoren, Upgrades, Forschung, Erfolge, Prestige, Golden)
+js/boot-check.js        Fehlerhinweis bei file:// / Ladefehler (eigene Datei wegen CSP)
+js/data/                reine Konfiguration (Ressourcen, Generatoren, Upgrades, Rezepte, Forschung, Erfolge, Prestige, Golden)
 js/core/                state, formulas, format, save (Migration, Export/Import, Offline), events
 js/systems/             production, prestige, achievements, golden, autobuyers (kein DOM)
 js/ui/                  render, tabs, toast, effects, charts, settings, dom
-legacy/index.old.html   alte Version
 README.md
 ```
 
