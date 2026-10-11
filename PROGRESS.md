@@ -34,3 +34,4 @@ Jeder abgeschlossene Schritt wird als Git-Commit in diesem Ordner gesichert (`gi
 - Security-Review (fertig): keine ausnutzbare Lücke. To-do: CSP-Meta (Inline-Script nach js/boot-check.js, Ember-Inline-Styles in CSS), legacy/ nicht deployen, Stats auf 1e300 klemmen, Import-Limit ~200k.
 - Phase 3A erledigt: Kaufmenge als sticky radiogroup (.gens-toolbar) nur im Generatoren-Tab; Tabs mit ui.svg-Icons, Tab-Werk als Standard (HTML-Gerüst).
 - Phase 3B erledigt: js/ui/works.js (Werkshalle, Lanes, Rang-Paletten, Evolve-Glow/Toast, Pop, Idle-Anim), GEN_SPRITE-Mapping in js/ui/assets.js, tests/phase3.test.mjs.
+- Phase 3C erledigt: Labor-Look (js/ui/lab.js, .flask-card, Kolben nach cat, --p Füllstand, Wellen/Bläschen/Dampf, progressbar).

@@ -19,12 +19,21 @@ import { buy } from '../systems/production.js';
 import { doPrestige, buyShop, canPrestige } from '../systems/prestige.js';
 import { setEnabled } from '../systems/autobuyers.js';
 import { queueState, cancel } from '../systems/timers.js';
-import { QUEUES, QUEUE_IDS } from '../data/timers.js';
-import { imgFor } from './assets.js';
+import { QUEUES, QUEUE_IDS, REFUND } from '../data/timers.js';
+import { imgFor, UI_SPRITE } from './assets.js';
+import { buildFlask, ensureClipDefs } from './lab.js';
 import { h, $, clear, setText, setClass, setAttr, confirmDialog } from './dom.js';
 import { activeTab } from './tabs.js';
 import { restartAnim, updateOrbs } from './effects.js';
 import { sample, spark, drawSparkline, drawHistory } from './charts.js';
+
+/** Kleines ui.svg-Symbol (currentColor). */
+function svgUse(name, cls = '') {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'), u = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  svg.setAttribute('class', ('ico ' + cls).trim()); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
+  u.setAttribute('href', UI_SPRITE + '#' + name); svg.append(u);
+  return svg;
+}
 
 const cards = [];          // { kind, id, el, t, b, d, n, c }
 const meters = {};         // pro Ressource: { amt, rps, delta, canvas }
@@ -56,7 +65,13 @@ export function initRender() {
     refresh();
   });
   on('shop', refresh);
-  for (const ev of ['timer:queued', 'timer:done', 'timer:cancel']) on(ev, refresh);
+  for (const ev of ['timer:queued', 'timer:cancel']) on(ev, refresh);
+  on('timer:done', e => {
+    // Fertig: kurzes Aufblitzen der Karte (der Toast kommt aus dem Timer-System)
+    const card = cards.find(c => c.kind === e.kind && c.id === e.id);
+    refresh();
+    if (card) restartAnim(card.root, 'done-flash');
+  });
   on('prestige', refresh);
   on('loaded', refresh);
   on('tab', refresh);
@@ -93,9 +108,27 @@ function makeCard(kind, id, extra = {}) {
   const ico = extra.img ? h('img', { class: 'card-ico', src: extra.img, alt: '', draggable: 'false' }) : null;
   delete extra.img;
   if (kind === 'gen') { c.msFill = h('i'); c.ms = h('span', { class: 'ms-bar', 'aria-hidden': 'true' }, c.msFill); }
+  // Boosts/Klick-Upgrades: Ring um das Icon zeigt den Fortschritt des Auftrags (Variable --p)
+  if (kind === 'boost' || kind === 'click') c.ring = h('span', { class: 'timer-ring', 'aria-hidden': 'true' }, ico || h('span', { class: 'ring-dot' }));
   c.el = h('button', { class: 'card', type: 'button', dataset: { kind, id }, ...extra },
-    h('span', { class: 'card-head' }, ico, c.t, c.b), c.d, c.n, c.ms, c.c);
+    h('span', { class: 'card-head' }, c.ring || ico, c.t, c.b), c.d, c.n, c.ms, c.c);
+  c.root = c.el;
   return c;
+}
+
+/** Forschungskarte als Laborgefäß: Kolben links, Text/Knopf rechts, darunter Fortschritt (role=progressbar außerhalb des Buttons). */
+function wrapResearch(c) {
+  const def = c.def;
+  c.flask = buildFlask(def);
+  const mk = n => { const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'), u = document.createElementNS('http://www.w3.org/2000/svg', 'use'); svg.setAttribute('class', 'ico flask-mark ' + n); svg.setAttribute('aria-hidden', 'true'); u.setAttribute('href', UI_SPRITE + '#' + n); svg.append(u); return svg; };
+  c.markLock = mk('lock'); c.markDone = mk('check');
+  c.progText = h('span', { class: 'prog-text' });
+  c.progFill = h('i');
+  c.prog = h('div', { class: 'card-prog', role: 'progressbar', 'aria-label': 'Forschung ' + def.name, 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0' },
+    c.progText, h('span', { class: 'prog-bar', 'aria-hidden': 'true' }, c.progFill));
+  c.root = h('div', { class: 'flask-card', style: `--liquid:${def.liquid}` },
+    h('div', { class: 'flask-wrap', 'aria-hidden': 'true' }, c.flask, c.markLock, c.markDone),
+    h('div', { class: 'flask-body' }, c.el, c.prog));
 }
 
 function buildCards() {
@@ -103,8 +136,10 @@ function buildCards() {
     const c = makeCard(kind, def.id, imgFor(def) ? { img: imgFor(def) } : {});
     c.def = def;
     cards.push(c);
-    container.append(c.el);
+    if (kind === 'research') wrapResearch(c);
+    container.append(c.root);
   };
+  ensureClipDefs($('#lab'));
   const gens = $('#list-gens'), ups = $('#list-upgrades'), boosts = $('#list-boosts'), rs = $('#list-research');
   for (const g of GENS) add(gens, 'gen', g);
   for (const c of CLICKS) add(ups, 'click', c);
@@ -118,7 +153,7 @@ function buildCards() {
   }
   for (const d of [...depths.keys()].sort((a, b) => a - b)) {
     const grid = h('div', { class: 'grid' });
-    rs.append(h('section', { class: 'tier' }, h('h3', { text: `Ebene ${d + 1}` }), grid));
+    rs.append(h('section', { class: 'tier lab-shelf' }, h('h3', { text: `Ebene ${d + 1}` }), grid));
     for (const r of depths.get(d)) add(grid, 'research', r);
   }
 }
@@ -150,13 +185,13 @@ function bindActions() {
   });
 }
 
-// ---------- Warteschlangen (minimal; das Laborlook folgt in Phase 3) ----------
-const qv = {};   // queue -> { root, title, list, key, rows: [{ text, fill }] }
+// ---------- Warteschlangen (.queue-bar mit .slot-chip) ----------
+const qv = {};   // queue -> { root, title, list, key, chips: [{ chip, time, entry }] }
 function buildQueues() {
   for (const q of QUEUE_IDS) {
     const root = document.getElementById('queue-' + q);
     if (!root) continue;
-    qv[q] = { root, title: h('h3', { class: 'queue-title' }), list: h('ul', { class: 'queue-list' }), key: '', rows: [] };
+    qv[q] = { root, title: h('h3', { class: 'queue-title' }), list: h('ul', { class: 'queue-list' }), key: '', chips: [] };
     root.append(qv[q].title, qv[q].list);
     qv[q].list.addEventListener('click', e => {
       const b = e.target.closest('button[data-index]');
@@ -167,31 +202,61 @@ function buildQueues() {
   }
 }
 
+/** Text der Erstattung, z. B. "50 % zurück: 150 🪨 · 20 🔩". */
+function refundText(q, index, running) {
+  const e = state.timers[q][index];
+  const f = running ? REFUND.running : REFUND.waiting;
+  const parts = e ? RES_IDS.filter(k => e.cost[k] > 0).map(k => `${fmt(e.cost[k] * f)} ${RES[k].icon}`) : [];
+  return `${Math.round(f * 100)} % zurück${parts.length ? ': ' + parts.join(' · ') : ''}`;
+}
+
 function renderQueues(only) {
   for (const q of QUEUE_IDS) {
     const v = qv[q];
     if (!v || (only && !only.includes(q))) continue;
-    const st = queueState(q), slots = queueSlots(q);
-    setText(v.title, `${QUEUES[q].name}: ${Math.min(st.length, slots)}/${slots} aktiv · ${Math.max(0, st.length - slots)}/${queueCapacity(q) - slots} wartend`);
-    const key = st.map(e => e.kind + ':' + e.id + (e.running ? '*' : '')).join('|');
+    const st = queueState(q), slots = queueSlots(q), cap = queueCapacity(q);
+    const running = st.filter(e => e.running).length;
+    setText(v.title, `${QUEUES[q].name}: ${running}/${slots} aktiv · ${st.length - running}/${cap - slots} wartend`);
+    const key = slots + '|' + st.map(e => e.kind + ':' + e.id + (e.running ? '*' : '')).join('|');
     if (key !== v.key) {
       v.key = key;
       clear(v.list);
-      v.rows = st.map(e => {
-        const text = h('span', { class: 'queue-text' }), fill = h('i');
-        const refund = e.running ? '50 %' : '100 %';
-        const btn = h('button', { class: 'btn queue-cancel', type: 'button', dataset: { index: e.index }, 'aria-label': `${e.name} abbrechen (${refund} Erstattung)`, text: 'Abbrechen (' + refund + ')' });
-        v.list.append(h('li', { class: 'queue-item' + (e.running ? ' running' : '') }, text, h('span', { class: 'bar', 'aria-hidden': 'true' }, fill), btn));
-        return { text, fill };
+      v.chips = [];
+      st.forEach(e => {
+        const time = h('span', { class: 'chip-time', role: 'timer' }), fill = h('i');
+        const short = e.running ? '50 %' : '100 %';
+        const btn = h('button', { class: 'btn chip-cancel', type: 'button', dataset: { index: e.index }, title: refundText(q, e.index, e.running),
+          'aria-label': `${e.name} abbrechen (${refundText(q, e.index, e.running)})` }, svgUse('cancel'), h('span', { text: `Abbrechen (${short} zurück)` }));
+        const chip = h('li', { class: 'slot-chip ' + (e.running ? 'running' : 'waiting') },
+          h('span', { class: 'chip-name', text: e.name }), time, h('span', { class: 'chip-bar', 'aria-hidden': 'true' }, fill), btn);
+        v.list.append(chip);
+        v.chips.push({ chip, time });
       });
+      for (let i = running; i < slots; i++) v.list.append(h('li', { class: 'slot-chip free' }, h('span', { class: 'chip-name', text: 'Slot frei' })));
     }
     st.forEach((e, i) => {
-      const row = v.rows[i];
-      setText(row.text, e.running ? `${e.name} – noch ${fmtClock(e.left)}` : `${e.name} – wartet (${fmtClock(e.total)})`);
-      const f = e.running ? e.progress.toFixed(3) : '0';
-      if (row.fill._f !== f) { row.fill._f = f; row.fill.style.transform = `scaleX(${f})`; }
+      const c = v.chips[i];
+      if (!c) return;
+      setText(c.time, e.running ? fmtClock(e.left) : `wartet · ${fmtClock(e.total)}`);
+      const pv = e.running ? e.progress.toFixed(2) : '0';
+      if (c.chip._p !== pv) { c.chip._p = pv; c.chip.style.setProperty('--p', pv); }
     });
-    v.root.hidden = st.length === 0;
+  }
+}
+
+/** Tab-Abzeichen: laufende Aufträge als Restzeit des nächsten Abschlusses, zusätzlich Wartende. */
+const badgeEls = {};
+function renderBadges() {
+  for (const [q, tab] of [['lab', 'research'], ['workshop', 'upgrades']]) {
+    const el = badgeEls[tab] ??= document.getElementById('badge-' + tab);
+    if (!el) continue;
+    const st = queueState(q), run = st.filter(e => e.running);
+    el.hidden = st.length === 0;
+    if (!st.length) continue;
+    const left = run.length ? Math.min(...run.map(e => e.left)) : 0;
+    const wait = st.length - run.length;
+    setText(el, `${run.length}/${queueSlots(q)} · ${fmtClock(left)}${wait ? ' +' + wait : ''}`);
+    setAttr(el, 'title', `${QUEUES[q].name}: ${run.length} läuft, ${wait} wartet`);
   }
 }
 
@@ -266,7 +331,7 @@ function describe(c) {
   const lock = lockReason(kind, def.id);
   const plan = bulkPlan(kind, def.id, kind === 'gen' ? state.settings.buyAmount : 1);
   const k = Math.max(plan.count, 1);
-  const o = { title: imgFor(def) ? def.name : `${def.icon} ${def.name}`, badge: '', desc: '', note: '', plan, status: 'ok' };
+  const o = { title: imgFor(def) || kind === 'research' ? def.name : `${def.icon} ${def.name}`, badge: '', desc: '', note: '', plan, status: 'ok' };
 
   if (kind === 'gen') {
     const out = genOutputAt(def, lvl);
@@ -285,12 +350,19 @@ function describe(c) {
     if (done) o.status = 'done';
   }
   const p = kind === 'gen' ? null : pendingOf(kind, def.id);
+  o.prog = { value: o.status === 'done' ? 1 : 0, running: false, text: o.status === 'done' ? (kind === 'research' ? 'Erforscht' : 'Aktiv') : `Dauer ${fmtClock(kind === 'gen' ? 0 : duration(kind, def.id))}` };
+  if (p) {
+    const q = queueState(p.queue)[p.index];
+    o.prog = q.running
+      ? { value: q.progress, running: true, text: `Restzeit ${fmtClock(q.left)} · ${Math.round(q.progress * 100)} %` }
+      : { value: 0, running: false, text: `Wartet · Dauer ${fmtClock(q.total)}` };
+  }
   if (p) {
     // Auftrag läuft oder wartet: Restzeit als Text auf der Karte, kein Doppelkauf
     const e = queueState(p.queue)[p.index];
     o.status = 'pending';
-    o.note = e.running ? `⏳ Läuft: noch ${fmtClock(e.left)} (${Math.round(e.progress * 100)} %)` : `⏳ Wartet (Platz ${p.index - queueSlots(p.queue) + 1}) · ${fmtClock(e.total)}`;
-  } else if (kind !== 'gen' && o.status === 'ok' && !lock) {
+    o.note = kind === 'research' ? '' : e.running ? `⏳ Läuft: noch ${fmtClock(e.left)} (${Math.round(e.progress * 100)} %)` : `⏳ Wartet (Platz ${p.index - queueSlots(p.queue) + 1}) · ${fmtClock(e.total)}`;
+  } else if (kind !== 'gen' && kind !== 'research' && o.status === 'ok' && !lock) {
     o.note = (o.note ? o.note + ' · ' : '') + `⏱ Dauer ${fmtClock(duration(kind, def.id))}`;
   }
   if (lock && o.status === 'ok') o.status = 'locked';
@@ -298,12 +370,30 @@ function describe(c) {
   return o;
 }
 
+/** Fortschritt von Kolben (Forschung) bzw. Ring (Boost/Klick): nur --p und Text, keine DOM-Umbauten. */
+function renderProgress(c, o) {
+  const v = o.prog.value, pv = v.toFixed(2);
+  const target = c.flask ? c.root : c.ring;
+  if (target._p !== pv) { target._p = pv; target.style.setProperty('--p', pv); }
+  setClass(c.root, 'running', o.prog.running);
+  setClass(c.root, 'waiting', o.status === 'pending' && !o.prog.running);
+  setClass(c.root, 'empty', v === 0);
+  setClass(c.root, 'is-done', o.status === 'done');
+  setClass(c.root, 'is-locked', o.status === 'locked');
+  if (c.ring) { setClass(c.ring, 'on', o.status === 'pending'); return; }
+  setText(c.progText, o.prog.text);
+  const pct = Math.round(v * 100);
+  setAttr(c.prog, 'aria-valuenow', pct);
+  setAttr(c.prog, 'aria-valuetext', o.prog.text);
+  if (c.progFill._f !== pv) { c.progFill._f = pv; c.progFill.style.transform = `scaleX(${pv})`; }
+}
+
 function renderCards(kinds) {
   for (const c of cards) {
     if (!kinds.includes(c.kind)) continue;
     const o = describe(c);
     const can = o.status === 'ok' && o.plan.count > 0 && o.plan.affordable;
-    if (c.el.hidden !== o.hidden) c.el.hidden = o.hidden;
+    if (c.root.hidden !== o.hidden) c.root.hidden = o.hidden;
     setText(c.t, o.title); setText(c.b, o.badge); setText(c.d, o.desc); setText(c.n, o.note);
     setCost(c.c, o.status === 'done' || o.status === 'pending' ? [] : costEntries(o.plan));
     if (c.msFill) {
@@ -316,6 +406,8 @@ function renderCards(kinds) {
     setClass(c.el, 'done', o.status === 'done');
     setClass(c.el, 'pending', o.status === 'pending');
     setClass(c.el, 'locked', o.status === 'locked');
+    if (c.flask || c.ring) renderProgress(c, o);
+    if (c.flask) setClass(c.root, 'can', can);
   }
 }
 
@@ -535,6 +627,7 @@ function renderTop(r) {
     setAttr(b, 'tabindex', on ? 0 : -1);
   }
   els.prestigeDot.hidden = !canPrestige();
+  renderBadges();
   renderBuffs();
 }
 
