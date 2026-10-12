@@ -1,0 +1,14 @@
+import { simulate } from '../../tools/balance-sim.mjs';
+import { state } from '../../js/core/state.js';
+import * as F from '../../js/core/formulas.js';
+import { RESEARCH } from '../../js/data/research.js';
+const h = +process.argv[2] || 100;
+const r = simulate({ hours: h, dt: 30, frac: 1, corpEvery: 40 });
+console.log('t', r.hours, 'era', F.eraIndex(), 'stage', F.corpStage());
+console.log('corp research owned', RESEARCH.filter(x => x.corp && state.research[x.id]).map(x => x.id).join(' '));
+console.log('queue lab', JSON.stringify(state.timers.lab.map(e => [e.id, Math.round(e.left)])));
+const rt = F.rates(); delete rt.flows;
+console.log('res', Object.entries(state.res).map(([k, v]) => k + ':' + v.toExponential(1)).join(' '));
+console.log('rate', Object.entries(rt).map(([k, v]) => k + ':' + (+v).toExponential(1)).join(' '));
+console.log('gens', JSON.stringify(state.gens));
+for (const x of RESEARCH.filter(x => x.corp && !state.research[x.id] && F.reqList(x.req).every(q => state.research[q]))) console.log('next', x.id, JSON.stringify(x.cost), F.lockReason('research', x.id));
