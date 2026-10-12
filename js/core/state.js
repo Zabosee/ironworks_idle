@@ -19,6 +19,8 @@ export function defaultState() {
     boosts: {},
     timers: Object.fromEntries(QUEUE_IDS.map(q => [q, []])),   // Warteschlangen: je [{ kind, id, total, left, cost }], die ersten `slots` Einträge laufen
     prestige: { points: 0, total: 0, count: 0, shop: {}, history: [] },   // history: letzte Neugüsse { gain, ore, time, at }, älteste zuerst
+    corp: { points: 0, total: 0, count: 0, shop: {}, history: [] },   // 2. Reset-Ebene (Patente); history: letzte Gründungen { gain, gussformen, time, at }
+    autoCast: { on: false, mode: 'gain', value: 0 },   // Auto-Neuguss (Konzern-Shop c_autocast); mode 'gain' | 'time', value 0 = Vorgabe
     autobuyers: Object.fromEntries(AUTOBUYERS.map(a => [a.id, false])),
     achievements: {},
     buffs: [],   // { id, left }  (Definition in data/golden.js)
@@ -27,7 +29,7 @@ export function defaultState() {
       clicks: 0, runClicks: 0,
       total: Object.fromEntries(RES_IDS.map(k => [k, 0])),   // je Ressource insgesamt produziert
       run: Object.fromEntries(RES_IDS.map(k => [k, 0])),     // je Ressource in diesem Durchlauf produziert
-      runTime: 0, playTime: 0,
+      runTime: 0, playTime: 0, corpRunTime: 0,   // corpRunTime: Sekunden seit der letzten Konzerngründung
       golden: 0, buys: 0, bestOreRate: 0, timersDone: 0,
       bestPrestige: 0, fastestPrestige: 0, startedAt: Date.now(),
     },

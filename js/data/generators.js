@@ -26,6 +26,14 @@ export const GENS = [
   g('nickelref',   '🛢️', 'Nickelraffinerie',  'nickel',    0.1,   { steel: 3e5, copper: 8000, alloy: 30 },         1.22, 6, ['chromium']),
   g('reactor',     '☢️', 'Wolframreaktor',    'tungsten',  0.02,  { titan: 3000, alloy: 300, chrome: 200, nickel: 200 }, 1.25, 8, ['tungsten']),
   g('crucible',    '👑', 'Edelmetall-Tiegel', 'gold',      0.004, { titan: 2e4, tungsten: 200, alloy: 1500 },      1.27, 10, ['goldsmith']),
+  // Konzern-Materialien (Ausbau 2, GAME-DESIGN-2.md 4.2); Freigabe über Konzernforschung
+  g('cobaltmine',      '🔵', 'Kobaltgrube',               'cobalt',     0.003,  { titan: 4e4, tungsten: 400, alloy: 3000 },                     1.28, 12, ['c_cobalt']),
+  g('molybdenumworks', '⚙️', 'Molybdänwerk',              'molybdenum', 0.0025, { titan: 6e4, cobalt: 300, alloy: 4000 },                       1.28, 14, ['c_moly']),
+  g('sinterworks',     '🔶', 'Sinterwerk',                'carbide',    0.002,  { titan: 1e5, tungsten: 2000, cobalt: 600, molybdenum: 300 },   1.29, 16, ['c_sinter']),
+  g('platinummine',    '⚪', 'Platinmine',                'platinum',   0.0012, { titan: 2e5, gold: 300, carbide: 400 },                        1.30, 18, ['c_platin']),
+  g('vanadiumworks',   '🟢', 'Vanadiumhütte',             'vanadium',   0.0015, { titan: 2.5e5, molybdenum: 800, carbide: 600 },                1.30, 20, ['c_vanadium']),
+  g('iridiumlab',      '💠', 'Iridiumlabor',              'iridium',    0.0006, { titan: 5e5, platinum: 800, molybdenum: 1500, gold: 800 },     1.31, 24, ['c_iridium']),
+  g('superfoundry',    '🔷', 'Superlegierungs-Gießerei',  'superalloy', 0.0003, { titan: 1e6, iridium: 500, vanadium: 2000, carbide: 3000 },    1.32, 30, ['c_super']),
 ];
 export const GEN_MAP = Object.fromEntries(GENS.map(x => [x.id, x]));
 

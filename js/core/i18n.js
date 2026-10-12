@@ -1,5 +1,5 @@
 // Mehrsprachigkeit: Deutsch (Standard, die Texte im Code sind der Schlüssel) und Englisch.
-// t('Deutscher Text {x}', { x }) schlägt bei 'en' in i18n/en-ui.js nach und fällt sonst auf den deutschen Text zurück.
+// Aufruf t mit deutschem Text und Platzhaltern schlägt bei 'en' in i18n/en-ui.js nach und fällt sonst auf den deutschen Text zurück.
 // Spieldaten (Name/Beschreibung) kommen über tName/tDesc aus i18n/en-data.js.
 import { state, setSetting, LANG_IDS } from './state.js';
 import { EN_UI } from '../i18n/en-ui.js';
@@ -68,7 +68,7 @@ export const tName = (kind, item) => pick(kind, item, 'name');
 export const tDesc = (kind, item) => pick(kind, item, 'desc');
 
 // Spiellogik-Arten (gen, click, ...) -> Schlüssel in EN (en-data.js)
-const KIND_KEY = { gen: 'generators', click: 'clicks', boost: 'boosts', research: 'research', shop: 'prestige', achievement: 'achievements', era: 'eras', buff: 'golden', queue: 'timers', recipe: 'recipes', resource: 'resources' };
+const KIND_KEY = { gen: 'generators', click: 'clicks', boost: 'boosts', research: 'research', shop: 'prestige', corpshop: 'corpShop', achievement: 'achievements', era: 'eras', buff: 'golden', queue: 'timers', recipe: 'recipes', resource: 'resources' };
 /** Wie tName, aber mit der Kaufart der Spiellogik ('gen', 'click', 'boost', 'research', 'shop', ...). */
 export const tDefName = (kind, item) => tName(KIND_KEY[kind] ?? kind, item);
 export const tDefDesc = (kind, item) => tDesc(KIND_KEY[kind] ?? kind, item);

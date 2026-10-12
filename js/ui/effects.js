@@ -148,7 +148,7 @@ export function initFlash() {
     const el = document.querySelector(`.card[data-kind="${e.kind}"][data-id="${e.id}"]`);
     if (el) restartAnim(el, 'bought');
   });
-  on('prestige', () => {
+  for (const ev of ['prestige', 'corp']) on(ev, () => {   // Glut-Effekt bei Neuguss und Konzerngründung
     const f = $('#flash');
     if (f) restartAnim(f, 'flash-go');
   });

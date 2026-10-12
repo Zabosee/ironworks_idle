@@ -24,10 +24,11 @@ Sprache: Die Oberfläche gibt es auf Deutsch und Englisch. Wechsle sie in den Ei
 - **Materialien und Produktionsketten**: Neben Erz, Stahl und Titan gibt es Kohle, Koks, Kupfer, Mangan, Chrom, Nickel, Legierung, Wolfram und Gold. Rezepte laufen automatisch (z. B. Kohle zu Koks, Erz und Koks zu Stahl, Wolfram zu Gold). Ein Material erscheint in der Oberfläche, sobald seine Forschung abgeschlossen ist oder ein Vorrat existiert. Details: [docs/GAME-DESIGN.md](docs/GAME-DESIGN.md).
 - **Labor und Werkbank (Timer)**: Forschung läuft im Labor, Boosts und Klick-Upgrades auf der Werkbank. Der Kauf zieht die Kosten sofort ab, der Effekt greift erst nach Ablauf der Zeit. Jede Warteschlange hat einen aktiven Slot und drei Warteplätze (im Hochofen-Shop erweiterbar). Abbrechen erstattet wartende Aufträge zu 100 %, laufende zu 50 %.
 - **Hochofen-Neuguss (Prestige)**: Gussformen geben dauerhaft Produktionsbonus. Dazu kommen Meilensteine und ein Shop (u. a. Auto-Buyer, Zusatzplätze, Zeitraffer).
+- **Zeitalter und Industrie-Tab**: Ab dem 1. Neuguss gibt es sechs Zeitalter (Handwerk bis Digitalisierung), abgeleitet vom kumulierten Erz, mit globalem Bonus, neuen Forschungen und Generator-Ausbau (5 Stufen, Industrie-Tab). Details: [docs/GAME-DESIGN.md](docs/GAME-DESIGN.md), Abschnitt 3a/3b.
 - **Erfolge** mit Produktionsbonus und **goldene Barren** (zufällig sichtbar, per Klick oder Taste G einsammeln) mit Zeitbuffs.
 - **Offline-Fortschritt**: Beim Laden wird die Abwesenheit nachgerechnet, auch laufende Timer werden abgearbeitet.
 - **Mehr-Tab-Schutz**: Läuft das Spiel in einem zweiten Tab, pausiert dort das Speichern und eine Meldung erscheint. So überschreibt kein Tab den Fortschritt des anderen.
-- **Einstellungen**: Zahlenformat (Standard / wissenschaftlich / Engineering), Autosave, Export und Import (Base64), Reset. Alte Spielstände werden automatisch migriert (aktuelle Save-Version: 4).
+- **Einstellungen**: Zahlenformat (Standard / wissenschaftlich / Engineering), Autosave, Export und Import (Base64), Reset. Alte Spielstände werden automatisch migriert (aktuelle Save-Version: 5).
 
 ## Projektstruktur
 
@@ -37,13 +38,17 @@ css/styles.css
 js/main.js            Bootstrap, Game-Loop, Autosave, Mehr-Tab-Schutz
 js/boot-check.js      Fehlerhinweis bei file:// / Ladefehler (eigene Datei wegen CSP)
 js/data/              reine Konfiguration: resources, generators, upgrades, recipes,
-                      research, timers, achievements, prestige, golden
+                      research, research-layout, eras, timers, achievements, prestige, golden
 js/core/              state, formulas, format, save (Migration, Export/Import, Offline),
-                      events, multitab
-js/systems/           production, timers, prestige, achievements, golden, autobuyers (kein DOM)
-js/ui/                render, tabs, works (Werkshalle), lab (Labor), assets (Icon-/Sprite-Zuordnung),
-                      toast, effects, charts, settings, dom
-assets/sprites/       SVG-Sprites: gens, flasks, ui, items
+                      events, multitab, i18n
+js/i18n/              englische Texte (en-ui, en-data)
+js/systems/           production, timers, prestige, achievements, golden, autobuyers,
+                      eras, evolution (kein DOM)
+js/ui/                render (Frame-Schleife), sidebar, cards, queues, panels, industry,
+                      research-map, works (Werkshalle), lab (Labor), tabs,
+                      assets (Icon-/Sprite-Zuordnung, symSvg), toast, effects, charts,
+                      settings, static-i18n, dom
+assets/sprites/       SVG-Sprites: gens, flasks, ui, items (Symbole statt Emojis, Datenfeld `sym`)
 assets/icons/         einzelne res-* und gen-* Icons, Goldbarren
 assets/bg/            Hintergründe: lab, works-floor, skyline
 assets/preview.html   Vorschau aller Assets
@@ -59,10 +64,12 @@ Logik (`core/`, `systems/`, `data/`) berührt nie das DOM. Die UI spricht über 
 Unit-Tests (Node, keine Installation nötig):
 
 ```sh
-node --test
+node --test --test-timeout=900000
 ```
 
-Aktueller Stand: 419 Unit-Tests, E2E 87/87.
+`tests/balance.test.mjs` simuliert bis zu 336 h Spielzeit und braucht ca. 265 s. Mit einem kürzeren Zeitlimit (unter ca. 300 s) bricht der Lauf ab; setze es entsprechend hoch.
+
+Aktueller Stand: 423 Unit-Tests grün, E2E 87/87 (früherer Lauf).
 
 ### Live-E2E im sichtbaren Chrome
 
@@ -99,7 +106,7 @@ Wichtig:
 |---|---|
 | `eval "<js>"` | JS im Spiel ausführen, Ergebnis ausgeben |
 | `click "<selector>" [n]` | Element n-mal sichtbar anklicken |
-| `tab <name>` | Tab wechseln (works, gens, upgrades, research, prestige, achievements, stats, settings) |
+| `tab <name>` | Tab wechseln (works, gens, industry, upgrades, research, prestige, achievements, stats, settings) |
 | `say "<text>"` | Statuszeile im Browser anzeigen |
 | `reload` | Seite ohne Cache neu laden |
 | `shot <datei.png>` | Screenshot speichern |

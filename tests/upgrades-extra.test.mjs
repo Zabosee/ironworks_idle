@@ -52,15 +52,15 @@ describe('Upgrades: click/autoclick-Boosts, Synergie, Zeitalter-Staffelung', () 
       assert.ok(maxCost(x) <= ERAS[x.era].at * 1.0, `${label} teurer als die Schwelle von Zeitalter ${x.era}`);
       assert.ok(maxCost(x) >= ERAS[x.era].at * 1e-6, `${label} zu billig fuer Zeitalter ${x.era}`);
     };
-    for (const b of BOOSTS.filter(b => b.era)) band(b, b.id);
-    for (const r of RESEARCH.filter(r => r.era)) {
+    for (const b of BOOSTS.filter(b => b.era && !b.corp)) band(b, b.id);   // Konzern-Inhalte (corp) folgen der Formel aus GAME-DESIGN-2.md 5.2, siehe corp.test.mjs
+    for (const r of RESEARCH.filter(r => r.era && !r.corp)) {
       band(r, r.id);
       assert.ok(r.cost.ore === undefined || r.cost.ore <= ERAS[r.era].at, `${r.id}: Erzkosten ueber der Schwelle`);
     }
     for (const list of [BOOSTS, RESEARCH]) {
       let last = 0;
       for (const e of [1, 2, 3, 4, 5]) {
-        const m = Math.min(...list.filter(x => x.era === e).map(maxCost));
+        const m = Math.min(...list.filter(x => x.era === e && !x.corp).map(maxCost));
         assert.ok(m > last, 'Staffelung Zeitalter ' + e);
         last = m;
       }

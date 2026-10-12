@@ -212,4 +212,97 @@ describe('Bestätigungsdialog und Import-Vorabprüfung', () => {
     assert.deepEqual(errors, []);
   });
 });
+describe('Konzern-UI (Reiter, Sperrzustand, Gründen mit Bestätigung)', () => {
+  const tab = () => document.getElementById('tabbtn-corp');
+  const parts = () => { const root = document.getElementById('corp-root'); return { lock: root.children.at(-2), main: root.children.at(-1) }; };   // main.js baut die UI ein zweites Mal auf
+  const tick = () => { R.refresh(); R.frame({ rates: {}, gained: {} }, 0.1); };
+  class FakeDialog extends El { constructor() { super('dialog'); this.returnValue = ''; } showModal() { this.open = true; } }
+  const found = () => { let b = null; walk(body, c => { if (c.id === 'corp-found') b = c; }); return b; };
+  const goto = name => { const btn = document.getElementById('tabbtn-' + name); for (const f of document.getElementById('tabs').listeners.click ?? []) f({ target: { closest: () => btn } }); };
+
+  test('Reiter: versteckt bis Neuguss 25, danach gesperrt sichtbar (aria-disabled), ab 100 nutzbar', () => {
+    reset(); tick();
+    assert.equal(tab().hidden, true);
+    state.prestige.count = 24; tick();
+    assert.equal(tab().hidden, true);
+    state.prestige.count = 25; tick();
+    assert.equal(tab().hidden, false);
+    assert.equal(tab().getAttribute('aria-disabled'), 'true');
+    assert.equal(document.getElementById('corp-lock').hasAttribute('hidden'), false);
+    assert.match(document.getElementById('corp-tab-status').textContent, /25/);
+    state.prestige.count = 100; tick();
+    assert.equal(tab().getAttribute('aria-disabled'), 'false');
+    assert.equal(document.getElementById('corp-lock').hasAttribute('hidden'), true);
+    reset(); tick();
+  });
+
+  test('Sperrzustand zeigt nur die Box mit Fortschritt, freigeschaltet den vollen Aufbau', () => {
+    reset(); state.prestige.count = 42; goto('corp'); tick();
+    assert.equal(parts().lock.hidden, false); assert.equal(parts().main.hidden, true);
+    state.prestige.count = 100; tick();
+    assert.equal(parts().lock.hidden, true); assert.equal(parts().main.hidden, false);
+    assert.equal(found().getAttribute('aria-disabled'), 'true');   // noch keine Patente
+    state.prestige.total = 68000; tick();
+    assert.equal(found().getAttribute('aria-disabled'), 'false');
+    assert.deepEqual(errors, []);
+  });
+
+  test('foundCorp ruft doCorp erst nach Bestätigung auf', async () => {
+    reset(); state.prestige.count = 100; state.prestige.total = 68000;
+    const { foundCorp, foundPreview } = await import('../js/ui/corp.js');
+    assert.equal(foundPreview().gain, 2);
+    let asked = 0;
+    assert.equal(await foundCorp(async () => { asked++; return false; }), false);
+    assert.equal(asked, 1); assert.equal(state.corp.count, 0); assert.equal(state.prestige.total, 68000);
+    assert.equal(await foundCorp(async pv => { asked++; assert.equal(pv.gain, 2); return true; }), true);
+    assert.equal(state.corp.count, 1); assert.equal(state.corp.points, 2); assert.equal(state.prestige.total, 0);
+    asked = 0;   // ohne Patente: gar keine Rückfrage
+    assert.equal(await foundCorp(async () => { asked++; return true; }), false); assert.equal(asked, 0);
+  });
+
+  test('Gründen-Knopf: Dialog, Abbrechen ändert nichts, Bestätigen gründet', async () => {
+    reset(); state.prestige.count = 100; state.prestige.total = 68000; goto('corp'); tick();
+    const origCreate = document.createElement;
+    document.createElement = t => (t === 'dialog' ? new FakeDialog() : new El(t));
+    globalThis.HTMLDialogElement = FakeDialog;
+    try {
+      const dlgs = () => body.children.filter(c => c.tagName === 'DIALOG');
+      found().click();
+      assert.equal(dlgs().length, 1);
+      let dlg = dlgs()[0]; dlg.returnValue = 'cancel'; for (const f of dlg.listeners.close) f();
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+      assert.equal(state.corp.count, 0); assert.equal(dlgs().length, 0);
+      found().click();
+      dlg = dlgs()[0]; dlg.returnValue = 'ok'; for (const f of dlg.listeners.close) f();
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+      assert.equal(state.corp.count, 1);
+    } finally { document.createElement = origCreate; globalThis.HTMLDialogElement = undefined; }
+    assert.deepEqual(errors, []);
+  });
+
+  test('corpThreshold ist die Umkehrung von corpGain (auch mit Lizenzgebühren)', async () => {
+    reset();
+    const { corpThreshold } = await import('../js/ui/corp.js');
+    const { corpGain } = await import('../js/core/formulas.js');
+    for (const lvl of [0, 2, 4]) {
+      state.corp.shop.c_gain = lvl;
+      for (const g of [1, 2, 7, 30]) { const th = corpThreshold(g); assert.ok(corpGain(th) >= g && corpGain(th - 1) < g, 'lvl ' + lvl + ' gain ' + g); }
+    }
+    assert.equal(corpThreshold(0), 0);
+  });
+
+  test('Voller Konzernzustand rendert alle Reiter ohne Fehler (Shop, Auto-Neuguss, Zeitalter 8, Chronik)', () => {
+    reset(); setEra(8);
+    state.prestige.count = 150; state.prestige.total = 70000;
+    state.corp.points = 12; state.corp.total = 160; state.corp.count = 3; state.corp.shop = { c_autocast: 1, c_heir: 2, c_eff: 1 };
+    state.corp.history = [{ gain: 5, gussformen: 170000, time: 4000, at: Date.now() }, { gain: 7, gussformen: 240000, time: 7000, at: Date.now() }];
+    state.autoCast.on = true;
+    for (const k of RES_IDS) state.res[k] = 1e12;
+    for (const r of RESEARCH) state.research[r.id] = 1;
+    for (const n of [...document.querySelectorAll('[data-tab]')].map(b => b.dataset.tab)) { document.getElementById('tabbtn-' + n)?.click(); tick(); tick(); }
+    assert.equal(tab().hidden, false);
+    assert.deepEqual(errors, []);
+    reset(); tick();
+  });
+});
 process.on('exit', () => { console.error = origErr; });

@@ -1,4 +1,4 @@
-# Eisenwerk Idle – Spieldesign Phase 2b (Eisenhütten-Kette und Timer)
+# Eisenwerk Idle – Spieldesign (Eisenhütten-Kette, Timer, Zeitalter, Neuguss)
 
 Dieses Dokument beschreibt Inhalte, Zahlen und die Begründung der Balance. Die Tabellen unten sind aus den Daten (`js/data/*.js`) erzeugt; maßgeblich bleibt der Code.
 
@@ -35,7 +35,7 @@ Kauf von Forschung, Boosts und Klick-Upgrades: Kosten sofort abziehen, Auftrag e
 - Abbrechen: wartend 100 % Erstattung der Kosten, laufend 50 % (unabhängig vom Fortschritt).
 - Offline und Hintergrund: `applyOffline` rechnet abschnittsweise. Nach jedem Abschluss werden die Raten neu berechnet, mehrere Aufträge laufen nacheinander ab, Timer laufen auch über das Offline-Maximum hinaus weiter. Der Laufzeitpfad (Tab im Hintergrund) nutzt dieselbe Logik.
 - Neuguss: Werkbank wird immer geleert (Boosts und Klick-Upgrades werden ohnehin zurückgesetzt), das Labor nur ohne „Wissensarchiv“. Mit Wissensarchiv laufen Forschungsaufträge weiter. Es gibt keine Erstattung, weil alle Ressourcen beim Neuguss zurückgesetzt werden; der Bestätigungsdialog weist darauf hin.
-- Speicherstand: Version 4, Feld `timers { lab: [], workshop: [] }`, Einträge `{ kind, id, total, left, cost, silent }`. Beim Laden wird alles gegen die Daten geprüft (unbekannte IDs, falsche Queue, Bereits-Erforschtes, Duplikate, NaN, Länge). Migration v3 → v4 fügt nur leere Schlangen und `stats.timersDone` hinzu.
+- Speicherstand: Timer-Felder seit Version 4 (aktuell `SAVE_VERSION` 5), Feld `timers { lab: [], workshop: [] }`, Einträge `{ kind, id, total, left, cost, silent }`. Beim Laden wird alles gegen die Daten geprüft (unbekannte IDs, falsche Queue, Bereits-Erforschtes, Duplikate, NaN, Länge). Migration v3 → v4 fügt nur leere Schlangen und `stats.timersDone` hinzu.
 
 ### Dauern im Überblick
 - Früh (Minute 0 bis 10): Forschung 5 bis 40 s, Boosts 15 bis 45 s, Klick-Upgrades 5 bis 10 s Startdauer.
@@ -75,7 +75,7 @@ Ein Zeitalter ist erreicht, wenn das kumulierte Erz `state.stats.total.ore >= at
 - Erz-Schwellen sind streng steigend (Zeitalter 0: 0). Test `eras.test.mjs` prüft dies, die Neuguss-Bedingung und dass `eraMult()` kumulativ wirkt; `industry-tab.test.mjs` die Tab-Sichtbarkeit.
 - Fortschritt: `eraProgress()` = logarithmischer Erz-Fortschritt zur nächsten Schwelle (Seitenleiste: "Nächstes: X – ab Y Erz").
 - Event `era` bei Aufstieg (nicht beim Laden), Toast in Gold, je Zeitalter einzeln (auch bei Sprüngen über mehrere).
-- Kalibrierung (ALT, vor den neuen Forschungen und Schwellen; aktueller Stand siehe 3b) (Sim `balance-sim.mjs 175 4 1 30 rate`, 4 Klicks/s, Aktiv-Spiel ohne Offline, Stand vor den neuen Forschungen): 1. Neuguss bei 1,7 h; Zeitalter 1 bei 5,2 h (3,5 h nach dem 1. Neuguss), 2 bei 31 h, 3 bei 58 h, 4 bei 112 h, 5 bei 190 h (ca. 8 Tage). Das Wachstum flacht spät stark ab (ca. t^3), daher liegen die Schwellen eng beieinander; Feinkalibrierung nach Erweiterung der Forschung nötig (Forschung/Boosts beschleunigen die Zeitalter).
+- Kalibrierung und Sim-Werte: siehe Abschnitt 3b (die frühere Kalibrierung vor den Zeitalter-Forschungen und den neuen Schwellen ist entfallen).
 
 ### Generator-Ausbau (5 Stufen)
 Jeder Generator hat optional Stufen 1–5. Stufe k braucht (a) Zeitalter >= k, (b) Generatorstufe >= `EVO_AT[k-1]`:
@@ -182,78 +182,137 @@ Jeder Generator hat optional Stufen 1–5. Stufe k braucht (a) Zeitalter >= k, (
 
 ### Forschung (Labor)
 
-| Forschung | Ebene | Dauer | Kosten | Voraussetzung | Wirkung | Gefäß | Flüssigkeit |
+Spalte „Zeitalter“ = Feld `era` (Mindest-Zeitalter, ohne Feld 0). Zeilen in Reihenfolge der Daten, gruppiert nach Zeitalter.
+
+| Forschung | Zeitalter | Dauer | Kosten | Voraussetzung | Wirkung | Gefäß | Flüssigkeit |
 |---|---|---|---|---|---|---|---|
-| Geologie | 1 | 5 s | 300 Eisenerz | – | +25 % Erzproduktion. | mining | #f97316 |
-| Resonanzhammer | 2 | 8 s | 1500 Eisenerz, 15 Stahlbarren | Geologie | Jeder Klick gibt zusätzlich 5 % deiner Erz/s. | tech | #f97316 |
-| Auto-Konverter | 2 | 10 s | 3000 Eisenerz, 40 Stahlbarren | Geologie | Wandelt automatisch 20 % der Erzproduktion in Stahl um (25:1). | metal | #38bdf8 |
-| Tiefbau | 2 | 15 s | 6000 Eisenerz, 60 Stahlbarren | Geologie | +50 % Erzproduktion. | mining | #f97316 |
-| Metallurgie | 3 | 30 s | 8000 Eisenerz, 120 Stahlbarren | Auto-Konverter | +50 % Stahlproduktion. Schaltet das Walzwerk frei. | metal | #38bdf8 |
-| Titan-Extraktion | 4 | 1 min | 1.5e4 Eisenerz, 250 Stahlbarren | Metallurgie | Schaltet die Titan-Schmiede frei. | chem | #d946ef |
-| Titan-Raffination | 5 | 2 min | 4.0e4 Eisenerz, 800 Stahlbarren, 8 Titan-Legierung | Titan-Extraktion | +50 % Titanproduktion. | chem | #d946ef |
-| Globale Effizienz | 5 | 2 min | 800 Stahlbarren, 10 Titan-Legierung | Titan-Extraktion | +50 % Produktion aller Materialien. | tech | #fbbf24 |
-| Automatisierte Spitzhacken | 6 | 3 min | 2000 Stahlbarren, 30 Titan-Legierung | Resonanzhammer, Globale Effizienz | 5 automatische Klicks pro Sekunde. | tech | #fbbf24 |
-| Präzisionsfertigung | 6 | 4 min | 2.0e5 Eisenerz, 5000 Stahlbarren, 60 Titan-Legierung | Globale Effizienz | Zusätzliche Meilensteine (×2) bei Stufe 25, 50, 100, 150, 200 ... | tech | #fbbf24 |
-| Quantenmetallurgie | 7 | 12 min | 1.0e6 Eisenerz, 1.0e4 Stahlbarren, 250 Titan-Legierung | Automatisierte Spitzhacken, Präzisionsfertigung | +100 % Produktion aller Materialien. | chem | #fbbf24 |
-| Kohleflöz-Erkundung | 3 | 20 s | 1.5e4 Eisenerz, 150 Stahlbarren | Tiefbau | Schaltet die Zeche frei und macht Kohle abbaubar. | mining | #64748b |
-| Verkokung | 4 | 40 s | 4.0e4 Eisenerz, 600 Stahlbarren, 200 Kohle | Kohleflöz-Erkundung | Schaltet die Koksofenbatterie frei. Wandelt 40 % der Kohle in Koks um (5:1). | chem | #a8a29e |
-| Hochofenprozess | 5 | 1 min 30 s | 1.0e5 Eisenerz, 2000 Stahlbarren, 300 Koks | Verkokung, Metallurgie | +25 % Stahlproduktion. Erz und Koks werden zusätzlich zu Stahl verhüttet. | metal | #a8a29e |
-| Kupfermetallurgie | 4 | 1 min | 1.5e5 Eisenerz, 3000 Stahlbarren | Metallurgie | Schaltet die Kupferhütte frei. | metal | #ea8a52 |
-| Manganstahl | 5 | 2 min 30 s | 8000 Stahlbarren, 300 Kupfer, 300 Koks | Kupfermetallurgie, Verkokung | Schaltet das Manganbergwerk frei. | metal | #a78bfa |
-| Laborautomatisierung | 6 | 4 min | 2.0e5 Eisenerz, 1.0e4 Stahlbarren, 100 Titan-Legierung | Globale Effizienz | Alle Forschungs- und Werkbank-Zeiten dauern 25 % kürzer. | tech | #fbbf24 |
-| Legierungstechnik | 6 | 6 min | 3.0e4 Stahlbarren, 1500 Kupfer, 300 Mangan | Manganstahl | Schaltet den Legierungsmischer frei. Kupfer und Mangan werden zu Legierung gemischt (3:1). | chem | #38bdf8 |
-| Katalyse | 7 | 10 min | 1.5e5 Stahlbarren, 3000 Kupfer, 100 Legierung | Legierungstechnik | +50 % Produktion aller Materialien. | chem | #38bdf8 |
-| Chrom & Nickel | 7 | 8 min | 2.0e5 Stahlbarren, 5000 Kupfer, 1000 Mangan, 50 Legierung | Legierungstechnik | Schaltet Chromwerk und Nickelraffinerie frei. | metal | #5eead4 |
-| Wolfram-Gewinnung | 8 | 15 min | 2000 Titan-Legierung, 400 Legierung, 300 Chrom, 300 Nickel | Chrom & Nickel, Titan-Raffination | Schaltet den Wolframreaktor frei. Legierung, Chrom und Nickel werden zu Wolfram veredelt (8:2:2). | chem | #f472b6 |
-| Supraleiter | 9 | 20 min | 1.0e4 Titan-Legierung, 100 Wolfram, 800 Legierung | Wolfram-Gewinnung | +100 % Produktion aller Materialien. | tech | #f472b6 |
-| Goldschmiedekunst | 10 | 30 min | 3.0e4 Titan-Legierung, 300 Wolfram, 3000 Legierung | Supraleiter | Schaltet den Edelmetall-Tiegel frei. Wolfram wird teilweise zu Gold umgeschmolzen (20:1). | chem | #fbbf24 |
-| **Energiehauptast (Ostarm, Phase 3)** | | | | | | | |
-| Energiefundamente | 8 | 2 min | 6.0e4 Eisenerz, 1500 Stahlbarren, 500 Kohle | Resonanzhammer | +25 % Erz- und Stahlproduktion. | tech | #64748b |
-| Wasserkraft | 9 | 2 min 30 s | 1.0e5 Eisenerz, 3000 Stahlbarren, 1000 Kohle | Energiefundamente | +25 % Erzproduktion. | mining | #f97316 |
-| Dampfmaschine | 9 | 3 min | 1.5e5 Eisenerz, 5000 Stahlbarren, 500 Koks | Wasserkraft | +25 % Produktion aller Materialien. | tech | #a8a29e |
-| Dynamo | 9 | 4 min | 8000 Stahlbarren, 1500 Kupfer, 300 Koks | Dampfmaschine | +50 % Stahlproduktion. | tech | #ea8a52 |
-| Stromversorgung | 10 | 5 min | 2.0e5 Eisenerz, 1.0e4 Stahlbarren, 3000 Kupfer | Dynamo | +25 % Produktion aller Materialien. | tech | #fbbf24 |
-| Elektrifizierung | 10 | 6 min | 1.5e4 Stahlbarren, 5000 Kupfer, 500 Legierung | Stromversorgung | +50 % Produktion aller Materialien. | tech | #fbbf24 |
-| Fließbandproduktion | 10 | 7 min | 3.0e5 Eisenerz, 2.0e4 Stahlbarren, 1000 Legierung | Elektrifizierung | +50 % Erz- und Stahlproduktion. | tech | #f97316 |
-| Robotik | 10 | 8 min | 2.5e4 Stahlbarren, 2000 Titan-Legierung, 1500 Legierung | Fließbandproduktion | +50 % Produktion aller Materialien. | tech | #fbbf24 |
-| Massenproduktion | 10 | 9 min | 4.0e5 Eisenerz, 3.0e4 Stahlbarren, 3000 Legierung | Robotik | +50 % Produktion aller Materialien. | tech | #fbbf24 |
-| Halbleitertechnik | 11 | 10 min | 4.0e4 Stahlbarren, 1.0e4 Kupfer, 500 Wolfram | Massenproduktion | +25 % Produktion aller Materialien. | chem | #fbbf24 |
-| Nanotechnologie | 11 | 12 min | 5000 Titan-Legierung, 2000 Wolfram, 5000 Legierung | Halbleitertechnik | +100 % Produktion aller Materialien. | chem | #fbbf24 |
-| Synthetische Materialien | 11 | 15 min | 8000 Titan-Legierung, 3000 Wolfram, 500 Gold, 8000 Legierung | Nanotechnologie | +50 % Produktion aller Materialien. | chem | #fbbf24 |
-| **Verbesserungen in bestehenden Ästen** | | | | | | | |
-| Tiefenkohlebergbau | 3 | 1 min 30 s | 8.0e4 Eisenerz, 2000 Stahlbarren, 1000 Kohle | Kohleflöz-Erkundung | +50 % Kohleproduktion. | mining | #64748b |
-| Kupfererz-Konzentration | 4 | 3 min | 2.0e5 Eisenerz, 5000 Stahlbarren, 500 Kupfer | Kupfermetallurgie | +50 % Kupferproduktion. | metal | #ea8a52 |
-| Quantenoptik | 7 | 20 min | 1.5e6 Eisenerz, 2.0e4 Stahlbarren, 500 Titan-Legierung, 5000 Legierung | Quantenmetallurgie | +25 % Produktion aller Materialien. | tech | #fbbf24 |
+| Geologie | 0 | 5 s | 300 Eisenerz | – | +25 % Erzproduktion. | mining | #f97316 |
+| Resonanzhammer | 0 | 8 s | 1500 Eisenerz, 15 Stahlbarren | Geologie | Jeder Klick gibt zusätzlich 5 % deiner Erz/s. | tech | #f97316 |
+| Auto-Konverter | 0 | 10 s | 3000 Eisenerz, 40 Stahlbarren | Geologie | Wandelt automatisch 20 % der Erzproduktion in Stahl um (25:1). | metal | #38bdf8 |
+| Tiefbau | 0 | 15 s | 6000 Eisenerz, 60 Stahlbarren | Geologie | +50 % Erzproduktion. | mining | #f97316 |
+| Metallurgie | 0 | 30 s | 8000 Eisenerz, 120 Stahlbarren | Auto-Konverter | +50 % Stahlproduktion. Schaltet das Walzwerk frei. | metal | #38bdf8 |
+| Titan-Extraktion | 0 | 1 min | 1.5e4 Eisenerz, 250 Stahlbarren | Metallurgie | Schaltet die Titan-Schmiede frei. | chem | #d946ef |
+| Titan-Raffination | 0 | 2 min | 4.0e4 Eisenerz, 800 Stahlbarren, 8 Titan-Legierung | Titan-Extraktion | +50 % Titanproduktion. | chem | #d946ef |
+| Globale Effizienz | 0 | 2 min | 800 Stahlbarren, 10 Titan-Legierung | Titan-Extraktion | +50 % Produktion aller Materialien. | tech | #fbbf24 |
+| Automatisierte Spitzhacken | 0 | 3 min | 2000 Stahlbarren, 30 Titan-Legierung | Resonanzhammer, Globale Effizienz | 5 automatische Klicks pro Sekunde. | tech | #fbbf24 |
+| Präzisionsfertigung | 0 | 4 min | 2.0e5 Eisenerz, 5000 Stahlbarren, 60 Titan-Legierung | Globale Effizienz | Zusätzliche Meilensteine (×2) bei Stufe 25, 50, 100, 150, 200 ... | tech | #fbbf24 |
+| Quantenmetallurgie | 0 | 12 min | 1.0e6 Eisenerz, 1.0e4 Stahlbarren, 250 Titan-Legierung | Automatisierte Spitzhacken, Präzisionsfertigung | +100 % Produktion aller Materialien. | chem | #fbbf24 |
+| Kohleflöz-Erkundung | 0 | 20 s | 1.5e4 Eisenerz, 150 Stahlbarren | Tiefbau | Schaltet die Zeche frei und macht Kohle abbaubar. | mining | #64748b |
+| Verkokung | 0 | 40 s | 4.0e4 Eisenerz, 600 Stahlbarren, 200 Kohle | Kohleflöz-Erkundung | Schaltet die Koksofenbatterie frei. Wandelt 40 % der Kohle in Koks um (5:1). | chem | #a8a29e |
+| Hochofenprozess | 0 | 1 min 30 s | 1.0e5 Eisenerz, 2000 Stahlbarren, 300 Koks | Verkokung, Metallurgie | +25 % Stahlproduktion. Erz und Koks werden zusätzlich zu Stahl verhüttet. | metal | #a8a29e |
+| Kupfermetallurgie | 0 | 1 min | 1.5e5 Eisenerz, 3000 Stahlbarren | Metallurgie | Schaltet die Kupferhütte frei. | metal | #ea8a52 |
+| Manganstahl | 0 | 2 min 30 s | 8000 Stahlbarren, 300 Kupfer, 300 Koks | Kupfermetallurgie, Verkokung | Schaltet das Manganbergwerk frei. | metal | #a78bfa |
+| Laborautomatisierung | 0 | 4 min | 2.0e5 Eisenerz, 1.0e4 Stahlbarren, 100 Titan-Legierung | Globale Effizienz | Alle Forschungs- und Werkbank-Zeiten dauern 25 % kürzer. | tech | #fbbf24 |
+| Legierungstechnik | 0 | 6 min | 3.0e4 Stahlbarren, 1500 Kupfer, 300 Mangan | Manganstahl | Schaltet den Legierungsmischer frei. Kupfer und Mangan werden zu Legierung gemischt (3:1). | chem | #38bdf8 |
+| Katalyse | 0 | 10 min | 1.5e5 Stahlbarren, 3000 Kupfer, 100 Legierung | Legierungstechnik | +50 % Produktion aller Materialien. | chem | #38bdf8 |
+| Chrom & Nickel | 0 | 8 min | 2.0e5 Stahlbarren, 5000 Kupfer, 1000 Mangan, 50 Legierung | Legierungstechnik | Schaltet Chromwerk und Nickelraffinerie frei. | metal | #5eead4 |
+| Wolfram-Gewinnung | 0 | 15 min | 2000 Titan-Legierung, 400 Legierung, 300 Chrom, 300 Nickel | Chrom & Nickel, Titan-Raffination | Schaltet den Wolframreaktor frei. Legierung, Chrom und Nickel werden zu Wolfram veredelt (8:2:2). | chem | #f472b6 |
+| Supraleiter | 0 | 20 min | 1.0e4 Titan-Legierung, 100 Wolfram, 800 Legierung | Wolfram-Gewinnung | +100 % Produktion aller Materialien. | tech | #f472b6 |
+| Goldschmiedekunst | 0 | 30 min | 3.0e4 Titan-Legierung, 300 Wolfram, 3000 Legierung | Supraleiter | Schaltet den Edelmetall-Tiegel frei. Wolfram wird teilweise zu Gold umgeschmolzen (20:1). | chem | #fbbf24 |
+| Erzabbau I | 0 | 40 s | 4.0e4 Eisenerz, 500 Stahlbarren | Tiefbau | +10 % Erzproduktion. | mining | #f97316 |
+| Erzabbau II | 0 | 1 min 30 s | 2.5e5 Eisenerz, 4000 Stahlbarren | Erzabbau I | +10 % Erzproduktion. | mining | #f97316 |
+| Stahlerzeugung I | 0 | 1 min 40 s | 3.0e5 Eisenerz, 8000 Stahlbarren, 400 Koks | Hochofenprozess | +10 % Stahlproduktion. | metal | #38bdf8 |
+| Flözausbau I | 0 | 1 min 10 s | 3.0e5 Eisenerz, 5000 Stahlbarren, 2500 Kohle | Tiefenkohlebergbau | +12 % Kohleproduktion. | mining | #64748b |
+| Titan-Schmelzverfahren I | 0 | 3 min 20 s | 5.0e5 Eisenerz, 1.5e4 Stahlbarren, 150 Titan-Legierung | Titan-Raffination | +12 % Titanproduktion. | chem | #d946ef |
+| Tiefenkohlebergbau | 0 | 1 min 30 s | 8.0e4 Eisenerz, 2000 Stahlbarren, 1000 Kohle | Kohleflöz-Erkundung | +50 % Kohleproduktion. Moderne Tiefbautechniken erschließen neue Vorkommen. | mining | #64748b |
+| Kupfererz-Konzentration | 0 | 3 min | 2.0e5 Eisenerz, 5000 Stahlbarren, 500 Kupfer | Kupfermetallurgie | +50 % Kupferproduktion durch fortgeschrittene Aufbereitungstechnik. | metal | #ea8a52 |
+| Erzabbau III | 1 | 3 min | 1.1e16 Eisenerz, 3.2e16 Stahlbarren | Erzabbau II | +10 % Erzproduktion. | mining | #f97316 |
+| Stahlerzeugung II | 1 | 3 min 20 s | 1.4e16 Eisenerz, 4.0e16 Stahlbarren, 5.5e13 Koks | Stahlerzeugung I | +10 % Stahlproduktion. | metal | #38bdf8 |
+| Koksofen-Optimierung I | 1 | 3 min 40 s | 1.7e16 Eisenerz, 5.0e16 Stahlbarren, 6.9e13 Koks | Verkokung | +12 % Koksproduktion. | chem | #a8a29e |
+| Kupferwalzen | 1 | 4 min | 2.1e16 Eisenerz, 6.3e16 Stahlbarren, 1.2e12 Kupfer | Kupfererz-Konzentration | +12 % Kupferproduktion. | metal | #ea8a52 |
+| Legierungsveredelung I | 1 | 4 min 20 s | 2.7e16 Eisenerz, 7.9e16 Stahlbarren, 1.5e12 Kupfer, 2.2e11 Legierung | Legierungstechnik | +12 % Legierungsproduktion. | chem | #38bdf8 |
+| Prozessoptimierung I | 1 | 5 min | 3.4e16 Eisenerz, 1.0e17 Stahlbarren, 3.0e11 Titan-Legierung | Energiefundamente | +5 % aller Materialien. | tech | #fbbf24 |
+| Energiefundamente | 1 | 2 min | 6.8e15 Eisenerz, 2.0e16 Stahlbarren, 9.2e12 Kohle | Resonanzhammer | +25 % Erz- und Stahlproduktion. Grundlagen der modernen Energiewirtschaft. | tech | #64748b |
+| Wasserkraft | 1 | 2 min 30 s | 8.6e15 Eisenerz, 2.5e16 Stahlbarren, 1.2e13 Kohle | Energiefundamente | +25 % Erzproduktion durch Wasserkraftwerke. | mining | #f97316 |
+| Erzabbau IV | 2 | 6 min 40 s | 9.8e18 Eisenerz, 2.4e19 Stahlbarren | Erzabbau III | +10 % Erzproduktion. | mining | #f97316 |
+| Stahlerzeugung III | 2 | 7 min 30 s | 1.2e19 Eisenerz, 3.0e19 Stahlbarren, 3.8e15 Koks | Stahlerzeugung II | +10 % Stahlproduktion. | metal | #38bdf8 |
+| Flözausbau II | 2 | 7 min | 1.5e19 Eisenerz, 3.7e19 Stahlbarren, 1.3e15 Kohle | Flözausbau I | +12 % Kohleproduktion. | mining | #64748b |
+| Titan-Schmelzverfahren II | 2 | 8 min 40 s | 1.8e19 Eisenerz, 4.5e19 Stahlbarren, 8.8e12 Titan-Legierung | Titan-Schmelzverfahren I | +12 % Titanproduktion. | chem | #d946ef |
+| Mangan-Tiefbau | 2 | 9 min 20 s | 2.2e19 Eisenerz, 5.5e19 Stahlbarren, 3.0e11 Mangan | Manganstahl | +12 % Manganproduktion. | metal | #a78bfa |
+| Chrom- und Nickelhütte | 2 | 10 min | 2.7e19 Eisenerz, 6.7e19 Stahlbarren, 8.6e9 Chrom, 6.7e9 Nickel | Chrom & Nickel | +10 % Chrom- und Nickelproduktion. | metal | #5eead4 |
+| Hochdruckkessel | 2 | 10 min 40 s | 3.3e19 Eisenerz, 8.2e19 Stahlbarren, 1.1e16 Koks | Dampfmaschine | +5 % aller Materialien. | tech | #a8a29e |
+| Prozessoptimierung II | 2 | 11 min 40 s | 4.0e19 Eisenerz, 1.0e20 Stahlbarren, 2.0e13 Titan-Legierung | Prozessoptimierung I | +5 % aller Materialien. | tech | #fbbf24 |
+| Dampfmaschine | 2 | 3 min | 8.1e18 Eisenerz, 2.0e19 Stahlbarren, 2.6e15 Koks | Wasserkraft | +25 % aller Materialien. Die Kraft des Dampfes revolutioniert die Fertigung. | tech | #a8a29e |
+| Erzabbau V | 3 | 13 min 20 s | 1.7e21 Eisenerz, 3.4e21 Stahlbarren | Erzabbau IV | +10 % Erzproduktion. | mining | #f97316 |
+| Stahlerzeugung IV | 3 | 14 min 10 s | 2.1e21 Eisenerz, 4.1e21 Stahlbarren, 1.1e18 Koks | Stahlerzeugung III | +10 % Stahlproduktion. | metal | #38bdf8 |
+| Koksofen-Optimierung II | 3 | 14 min 40 s | 2.5e21 Eisenerz, 4.9e21 Stahlbarren, 1.3e18 Koks | Koksofen-Optimierung I | +12 % Koksproduktion. | chem | #a8a29e |
+| Kupfer-Feinzug | 3 | 15 min | 3.0e21 Eisenerz, 5.8e21 Stahlbarren, 7.0e15 Kupfer | Kupferwalzen | +12 % Kupferproduktion. | metal | #ea8a52 |
+| Legierungsveredelung II | 3 | 15 min 50 s | 3.5e21 Eisenerz, 7.0e21 Stahlbarren, 7.1e13 Legierung | Legierungsveredelung I | +12 % Legierungsproduktion. | chem | #38bdf8 |
+| Hochspannungsnetz | 3 | 16 min 40 s | 4.2e21 Eisenerz, 8.4e21 Stahlbarren, 1.0e16 Kupfer | Elektrifizierung | +5 % aller Materialien. | tech | #ea8a52 |
+| Prozessoptimierung III | 3 | 17 min 30 s | 5.1e21 Eisenerz, 1.0e22 Stahlbarren, 2.1e15 Titan-Legierung | Prozessoptimierung II | +5 % aller Materialien. | tech | #fbbf24 |
+| Dynamo | 3 | 4 min | 1.0e21 Eisenerz, 2.0e21 Stahlbarren, 2.4e15 Kupfer | Dampfmaschine | +50 % Stahlproduktion durch elektrische Generierung. | tech | #ea8a52 |
+| Stromversorgung | 3 | 5 min | 1.2e21 Eisenerz, 2.4e21 Stahlbarren, 2.9e15 Kupfer | Dynamo | +25 % aller Materialien. Flächendeckende elektrische Netze. | tech | #fbbf24 |
+| Elektrifizierung | 3 | 6 min | 1.4e21 Eisenerz, 2.9e21 Stahlbarren, 3.4e15 Kupfer, 2.9e13 Legierung | Stromversorgung | +50 % aller Materialien. Alle Prozesse laufen elektrisch. | tech | #fbbf24 |
+| Erzabbau VI | 4 | 18 min 20 s | 1.3e22 Eisenerz, 4.1e22 Stahlbarren | Erzabbau V | +10 % Erzproduktion. | mining | #f97316 |
+| Stahlerzeugung V | 4 | 19 min 10 s | 1.5e22 Eisenerz, 4.9e22 Stahlbarren, 2.7e19 Koks | Stahlerzeugung IV | +10 % Stahlproduktion. | metal | #38bdf8 |
+| Titan-Schmelzverfahren III | 4 | 20 min | 1.8e22 Eisenerz, 5.8e22 Stahlbarren, 2.5e16 Titan-Legierung | Titan-Schmelzverfahren II | +12 % Titanproduktion. | chem | #d946ef |
+| Wolfram-Zentrifugen | 4 | 20 min 50 s | 2.1e22 Eisenerz, 7.0e22 Stahlbarren, 5.0e13 Wolfram | Wolfram-Gewinnung | +12 % Wolframproduktion. | chem | #f472b6 |
+| Kraftwerksverbund | 4 | 21 min 40 s | 2.6e22 Eisenerz, 8.4e22 Stahlbarren, 2.0e17 Kupfer, 2.0e15 Legierung | Fließbandproduktion | +5 % aller Materialien. | tech | #fbbf24 |
+| Prozessoptimierung IV | 4 | 22 min 30 s | 3.1e22 Eisenerz, 1.0e23 Stahlbarren, 4.3e16 Titan-Legierung | Prozessoptimierung III | +5 % aller Materialien. | tech | #fbbf24 |
+| Fließbandproduktion | 4 | 7 min | 6.1e21 Eisenerz, 2.0e22 Stahlbarren, 4.7e14 Legierung | Elektrifizierung | +50 % Erz- und Stahlproduktion durch automatisierte Fertigungslinien. | tech | #f97316 |
+| Robotik | 4 | 8 min | 7.3e21 Eisenerz, 2.4e22 Stahlbarren, 1.0e16 Titan-Legierung, 5.6e14 Legierung | Fließbandproduktion | +50 % aller Materialien. Intelligente Roboter übernehmen die Fertigung. | tech | #fbbf24 |
+| Massenproduktion | 4 | 9 min | 8.8e21 Eisenerz, 2.9e22 Stahlbarren, 6.7e14 Legierung | Robotik | +50 % aller Materialien. Unbegrenzte Skalierung der Fertigungskapazität. | tech | #fbbf24 |
+| Quantenoptik | 4 | 20 min | 1.0e22 Eisenerz, 3.4e22 Stahlbarren, 1.5e16 Titan-Legierung, 8.0e14 Legierung | Quantenmetallurgie | +25 % aller Materialien. Licht und Quantenmechanik in der Messtechnik. | tech | #fbbf24 |
+| Erzabbau VII | 5 | 24 min 10 s | 3.8e22 Eisenerz, 1.1e23 Stahlbarren | Erzabbau VI | +10 % Erzproduktion. | mining | #f97316 |
+| Stahlerzeugung VI | 5 | 25 min | 4.7e22 Eisenerz, 1.3e23 Stahlbarren, 6.0e19 Koks | Stahlerzeugung V | +10 % Stahlproduktion. | metal | #38bdf8 |
+| Legierungsveredelung III | 5 | 25 min 50 s | 5.7e22 Eisenerz, 1.6e23 Stahlbarren, 3.8e15 Legierung | Legierungsveredelung II | +12 % Legierungsproduktion. | chem | #38bdf8 |
+| Edelmetall-Raffination | 5 | 26 min 40 s | 7.0e22 Eisenerz, 2.0e23 Stahlbarren, 4.5e13 Gold | Goldschmiedekunst | +12 % Goldproduktion. | chem | #fbbf24 |
+| Kernfusion | 5 | 28 min 20 s | 8.6e22 Eisenerz, 2.5e23 Stahlbarren, 1.6e14 Wolfram | Synthetische Materialien | +7 % aller Materialien. | tech | #fbbf24 |
+| Prozessoptimierung V | 5 | 30 min | 1.0e23 Eisenerz, 3.0e23 Stahlbarren, 1.5e17 Titan-Legierung | Prozessoptimierung IV | +5 % aller Materialien. | tech | #fbbf24 |
+| Halbleitertechnik | 5 | 10 min | 2.1e22 Eisenerz, 6.0e22 Stahlbarren, 1.2e17 Kupfer, 4.0e13 Wolfram | Massenproduktion | +25 % aller Materialien. Mikroelektronische Revolution der Industrie. | chem | #fbbf24 |
+| Nanotechnologie | 5 | 12 min | 2.6e22 Eisenerz, 7.3e22 Stahlbarren, 4.9e13 Wolfram, 1.7e15 Legierung | Halbleitertechnik | +100 % aller Materialien. Manipulation auf atomarer Ebene. | chem | #fbbf24 |
+| Synthetische Materialien | 5 | 15 min | 3.1e22 Eisenerz, 9.0e22 Stahlbarren, 2.0e13 Gold, 6.0e13 Wolfram, 2.1e15 Legierung | Nanotechnologie | +50 % aller Materialien. Künstlich erzeugte Stoffe übertreffen Natur. | chem | #fbbf24 |
+
+Insgesamt 76 Forschungen.
 
 ### Boosts (Werkbank)
 
-| Boost | Dauer | Kosten | Freigabe | Wirkung |
-|---|---|---|---|---|
-| Diamantbohrer | 15 s | 150 Stahlbarren, 5 Titan-Legierung | – | Erzproduktion ×2. |
-| Hochofen-Turbo | 25 s | 500 Stahlbarren, 20 Titan-Legierung | – | Stahlproduktion ×2. |
-| Quantenpresse | 45 s | 2000 Stahlbarren, 60 Titan-Legierung | – | Titanproduktion ×2. |
-| Overclocking | 1 min 30 s | 5.0e5 Eisenerz, 150 Titan-Legierung | – | Alle Materialien ×1,5. |
-| Magnetscheider | 2 min 30 s | 5.0e4 Stahlbarren, 800 Titan-Legierung | – | Erzproduktion ×2. |
-| Kryo-Veredelung | 4 min | 2.0e5 Stahlbarren, 2500 Titan-Legierung | – | Titanproduktion ×2. |
-| Zechen-Förderband | 20 s | 2000 Stahlbarren, 500 Kohle | Kohleflöz-Erkundung | Kohleproduktion ×2. |
-| Koks-Löschanlage | 35 s | 8000 Stahlbarren, 300 Koks | Verkokung | Koksproduktion ×2. |
-| Sinteranlage | 1 min 20 s | 1.0e5 Stahlbarren, 2000 Koks | Hochofenprozess | Erzproduktion ×2. |
-| Kupferelektrolyse | 1 min | 5.0e4 Stahlbarren, 800 Kupfer | Kupfermetallurgie | Kupferproduktion ×2. |
-| Mangan-Härtung | 2 min | 1.0e5 Stahlbarren, 500 Mangan | Manganstahl | Stahlproduktion ×1,5, Manganproduktion ×2. |
-| Mischer-Katalysator | 3 min 20 s | 5000 Kupfer, 2000 Mangan, 100 Legierung | Legierungstechnik | Legierungsproduktion ×2. |
-| Verchromung | 5 min | 5.0e5 Stahlbarren, 1000 Chrom, 500 Nickel | Chrom & Nickel | Alle Materialien ×1,25. |
-| Nickel-Superlegierung | 7 min | 5000 Titan-Legierung, 1000 Nickel, 300 Legierung | Chrom & Nickel | Titanproduktion ×2. |
-| Wolframkarbid-Bohrer | 10 min | 2.0e4 Titan-Legierung, 200 Wolfram | Wolfram-Gewinnung | Erzproduktion ×3. |
-| Goldveredelung | 15 min | 500 Wolfram, 50 Gold | Goldschmiedekunst | Alle Materialien ×2. |
+| Boost | Zeitalter | Dauer | Kosten | Freigabe | Wirkung |
+|---|---|---|---|---|---|
+| Diamantbohrer | 0 | 15 s | 150 Stahlbarren, 5 Titan-Legierung | – | Erzproduktion ×2. |
+| Hochofen-Turbo | 0 | 25 s | 500 Stahlbarren, 20 Titan-Legierung | – | Stahlproduktion ×2. |
+| Quantenpresse | 0 | 45 s | 2000 Stahlbarren, 60 Titan-Legierung | – | Titanproduktion ×2. |
+| Overclocking | 0 | 1 min 30 s | 5.0e5 Eisenerz, 150 Titan-Legierung | – | Alle Materialien ×1,5. |
+| Magnetscheider | 0 | 2 min 30 s | 5.0e4 Stahlbarren, 800 Titan-Legierung | – | Erzproduktion ×2. |
+| Kryo-Veredelung | 0 | 4 min | 2.0e5 Stahlbarren, 2500 Titan-Legierung | – | Titanproduktion ×2. |
+| Zechen-Förderband | 0 | 20 s | 2000 Stahlbarren, 500 Kohle | Kohleflöz-Erkundung | Kohleproduktion ×2. |
+| Koks-Löschanlage | 0 | 35 s | 8000 Stahlbarren, 300 Koks | Verkokung | Koksproduktion ×2. |
+| Sinteranlage | 0 | 1 min 20 s | 1.0e5 Stahlbarren, 2000 Koks | Hochofenprozess | Erzproduktion ×2. |
+| Kupferelektrolyse | 0 | 1 min | 5.0e4 Stahlbarren, 800 Kupfer | Kupfermetallurgie | Kupferproduktion ×2. |
+| Mangan-Härtung | 0 | 2 min | 1.0e5 Stahlbarren, 500 Mangan | Manganstahl | Stahlproduktion ×1,5, Manganproduktion ×2. |
+| Mischer-Katalysator | 0 | 3 min 20 s | 5000 Kupfer, 2000 Mangan, 100 Legierung | Legierungstechnik | Legierungsproduktion ×2. |
+| Verchromung | 0 | 5 min | 5.0e5 Stahlbarren, 1000 Chrom, 500 Nickel | Chrom & Nickel | Alle Materialien ×1,25. |
+| Nickel-Superlegierung | 0 | 7 min | 5000 Titan-Legierung, 1000 Nickel, 300 Legierung | Chrom & Nickel | Titanproduktion ×2. |
+| Wolframkarbid-Bohrer | 0 | 10 min | 2.0e4 Titan-Legierung, 200 Wolfram | Wolfram-Gewinnung | Erzproduktion ×3. |
+| Goldveredelung | 0 | 15 min | 500 Wolfram, 50 Gold | Goldschmiedekunst | Alle Materialien ×2. |
+| Erzprobenanalyse | 0 | 2 min 30 s | 3.0e6 Stahlbarren, 2.0e4 Titan-Legierung | Erzabbau I | Erzproduktion ×1,25. |
+| Schlackenverwertung | 0 | 3 min 20 s | 2.0e6 Stahlbarren, 5.0e4 Koks | Stahlerzeugung I | Stahlproduktion ×1,25. |
+| Wasserrad-Antrieb | 1 | 5 min | 2.0e16 Stahlbarren, 6.0e10 Titan-Legierung | Erzabbau III | Erzproduktion ×1,5. |
+| Walzstraße | 1 | 6 min | 1.0e17 Stahlbarren, 1.4e14 Koks | Stahlerzeugung II | Stahlproduktion ×1,5. |
+| Schmiedeautomat | 1 | 7 min | 4.5e16 Stahlbarren, 8.2e11 Kupfer | Erzabbau III | Klickwert ×2. |
+| Dampfbohrer | 2 | 9 min | 3.4e19 Stahlbarren, 4.4e15 Koks | Erzabbau IV | Erzproduktion ×1,5. |
+| Bessemer-Konverter | 2 | 10 min | 5.8e19 Stahlbarren, 7.5e15 Koks, 3.2e11 Mangan | Stahlerzeugung III | Stahlproduktion ×2. |
+| Servo-Klopfer | 2 | 8 min | 2.0e19 Stahlbarren, 2.4e13 Kupfer | Automatisierte Spitzhacken | Autoklick-Ertrag ×2. |
+| Überdruckventile | 2 | 12 min | 1.0e20 Stahlbarren, 1.2e14 Kupfer, 1.3e16 Koks | Hochdruckkessel | Alle Materialien ×1,25. |
+| Lichtbogenofen | 3 | 14 min | 2.0e21 Stahlbarren, 2.4e15 Kupfer, 2.7e11 Chrom | Stahlerzeugung IV | Stahlproduktion ×2. |
+| Kupfersammelschiene | 3 | 16 min | 1.0e22 Stahlbarren, 1.2e16 Kupfer | Hochspannungsnetz | Alle Materialien ×1,25. |
+| Taktstraßen-Optimierung | 4 | 20 min | 2.0e22 Stahlbarren, 4.7e14 Legierung | Prozessoptimierung IV | Alle Materialien ×1,5. |
+| Roboterarm-Kalibrierung | 4 | 21 min 40 s | 1.0e23 Stahlbarren, 2.3e15 Legierung, 7.2e13 Wolfram | Kraftwerksverbund | Klickwert ×2, Autoklick-Ertrag ×1,5. |
+| Nano-Beschichtung | 5 | 23 min 20 s | 6.0e22 Stahlbarren, 3.0e16 Titan-Legierung | Prozessoptimierung V | Erzproduktion ×2. |
+| Fusions-Katalysator | 5 | 26 min 40 s | 3.0e23 Stahlbarren, 2.0e14 Wolfram, 6.8e13 Gold | Kernfusion | Alle Materialien ×1,5. |
+
+Insgesamt 31 Boosts.
 
 ### Klick-Upgrades (Werkbank, wiederholbar)
 
-| Upgrade | Klickwert/Stufe | Kosten Stufe 1 → 10 | Dauer Stufe 1 / 10 / Max | Freigabe |
-|---|---|---|---|---|
-| Verstärkte Spitzhacke | +2 (×Meilenstein) | 25 Eisenerz → 962 Eisenerz, 27 Stahlbarren | 5 s / 14 s / 4 min | – |
-| Vorschlaghammer | +10 (×Meilenstein) | 300 Stahlbarren → 1.5e4 Stahlbarren, 26 Titan-Legierung | 10 s / 35 s / 7 min | Metallurgie |
-| Koks-Presslufthammer | +150 (×Meilenstein) | 5.0e4 Stahlbarren, 300 Koks → 3.4e6 Stahlbarren, 1.2e4 Koks | 40 s / 2 min 21 s / 15 min | Hochofenprozess |
-| Wolfram-Spitze | +6000 (×Meilenstein) | 2.0e4 Titan-Legierung, 100 Wolfram → 1.4e6 Titan-Legierung, 3845 Wolfram | 2 min / 7 min 2 s / 25 min | Wolfram-Gewinnung |
+| Upgrade | Zeitalter | Klickwert/Stufe | Kosten Stufe 1 → 10 | Dauer Stufe 1 / 10 / Max | Freigabe |
+|---|---|---|---|---|---|
+| Verstärkte Spitzhacke | 0 | +2 (×Meilenstein) | 25 Eisenerz → 962 Eisenerz, 27 Stahlbarren | 5 s / 13 s / 4 min | – |
+| Vorschlaghammer | 0 | +10 (×Meilenstein) | 300 Stahlbarren → 1.55e4 Stahlbarren, 26 Titan-Legierung | 10 s / 35 s / 7 min | Metallurgie |
+| Koks-Presslufthammer | 0 | +150 (×Meilenstein) | 5.0e4 Stahlbarren, 300 Koks → 3.44e6 Stahlbarren, 1.15e4 Koks | 40 s / 2 min 20 s / 15 min | Hochofenprozess |
+| Wolfram-Spitze | 0 | +6000 (×Meilenstein) | 2.0e4 Titan-Legierung, 100 Wolfram → 1.37e6 Titan-Legierung, 3845 Wolfram | 2 min / 7 min 2 s / 25 min | Wolfram-Gewinnung |
+| Hydraulikramme | 1 | +2.0e5 (×Meilenstein) | 5.0e15 Stahlbarren → 3.44e17 Stahlbarren, 5.70e16 Titan-Legierung | 3 min 20 s / 11 min 43 s / 25 min | Erzabbau III |
+| Plasmalanze | 3 | +5.0e8 (×Meilenstein) | 5.0e20 Stahlbarren, 5.0e20 Wolfram → 5.93e22 Stahlbarren, 2.58e22 Wolfram | 6 min 40 s / 23 min 27 s / 30 min | Prozessoptimierung III |
 
 ### Rezepte
 
@@ -283,7 +342,7 @@ Timer-API (`js/systems/timers.js`): `enqueue(kind, id)`, `cancel(queue, index)`,
 
 Events: `timer:queued`, `timer:done`, `timer:cancel` (`{ queue, kind, id }`, bei Abbruch zusätzlich `refund`, `running`), `gen:evolve` (`{ id, tier }`), `buy` mit `queued: true` bei Aufträgen.
 
-Datenfelder: `img` je Material und Generator (`assets/icons/res-<id>.svg`, `gen-<id>.svg`; vorhandene Dateien stehen in `js/ui/assets.js`, für alle anderen zeigt die UI das Emoji `icon`), `liquid` (Farbe) und `cat` (`mining` Erlenmeyer, `metal` Reagenzglas, `chem` Rundkolben, `tech` Retorte) je Forschung, `time` je Forschung/Boost/Klick-Upgrade.
+Datenfelder: `img` je Material und Generator (`assets/icons/res-<id>.svg`, `gen-<id>.svg`; vorhandene Dateien stehen in `js/ui/assets.js`, für alle anderen zeigt die UI das Emoji `icon` als Textfallback), `sym` (Symbolname in `assets/sprites/items.svg`, id `sym-<name>`; die UI zeigt das SVG per `symSvg`, bei Forschung wird `sym` über die Tabelle `SYM` in `data/research.js` aus dem Emoji abgeleitet), `liquid` (Farbe) und `cat` (`mining` Erlenmeyer, `metal` Reagenzglas, `chem` Rundkolben, `tech` Retorte) je Forschung, `time` je Forschung/Boost/Klick-Upgrade.
 
 ## 8. Offene Punkte
 

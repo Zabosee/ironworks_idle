@@ -2,7 +2,7 @@
 import { state } from './state.js';
 import { t, tName } from './i18n.js';
 import { RES, RES_IDS } from '../data/resources.js';
-import { QUEUES, queueIdOf, SPEED_SHOP, SPEED_PER_LEVEL, AUTOMATION_RESEARCH, AUTOMATION_MULT, MIN_DURATION } from '../data/timers.js';
+import { QUEUES, queueIdOf, SPEED_SHOP, SPEED_PER_LEVEL, AUTOMATION_RESEARCH, AUTOMATION_MULT, LAB2_RESEARCH, LAB2_MULT, MIN_DURATION } from '../data/timers.js';
 import { GENS, GEN_MAP, genTier, tierName, tierPips, MILESTONE_STEP, ELITE_FROM, ELITE_GROWTH, MAX_LEVEL, EXTRA_MILESTONES } from '../data/generators.js';
 import { CLICKS, CLICK_MAP, BOOSTS, BOOST_MAP } from '../data/upgrades.js';
 import { RESEARCH, RESEARCH_MAP } from '../data/research.js';
@@ -11,6 +11,8 @@ import { PRESTIGE, SHOP_MAP, MILESTONES, AUTOBUYERS, AUTOBUYER_INTERVAL } from '
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { BUFFS } from '../data/golden.js';
 import { ERAS, EVO_MAX, EVO_AT, EVO_MULT, EVO_COST } from '../data/eras.js';
+import { INDUSTRY_TRACKS } from '../data/industry.js';
+import { CORP, CORP_SHOP_MAP, CORP_MILESTONES, HEIR_FLOOR } from '../data/corp.js';
 
 export { genTier, tierName, tierPips };
 
@@ -95,6 +97,31 @@ export const shopCost = id => {
   return Math.ceil(safe(it.cost * it.growth ** shopLevel(id)));
 };
 
+// ---------- Konzern (2. Reset-Ebene, GAME-DESIGN-2.md 3) ----------
+export const corpLevel = id => state.corp?.shop[id] || 0;
+export const corpCost = id => {
+  const it = CORP_SHOP_MAP[id], lvl = corpLevel(id);
+  if (it.costs) return it.costs[Math.min(lvl, it.costs.length - 1)];
+  return Math.ceil(safe(it.cost * it.growth ** lvl));
+};
+/** Konzern-Reiter nutzbar: ab CORP.unlockCount Neugüssen (prestige.count bleibt über die Gründung erhalten). */
+export const corpUnlocked = () => (state.prestige?.count || 0) >= CORP.unlockCount;
+/** Patente bei einer Gründung jetzt: floor(Gussformen im Konzernlauf / divisor × (1 + 0,1 × c_gain)). */
+export const corpGain = (gc = state.prestige.total) => Math.floor(safe(gc / CORP.divisor * (1 + 0.1 * corpLevel('c_gain'))) + 1e-9);
+/** Konzernstufe 0..7 (erreichte Schwellen in corp.total). */
+export const corpStage = (total = state.corp?.total || 0) => CORP_MILESTONES.filter(m => total >= m.at).length;
+export function corpMult(total = state.corp?.total || 0) {
+  let m = 1 + total * CORP.perPoint * (1 + 0.2 * corpLevel('c_eff'));
+  for (const ms of CORP_MILESTONES) if (total >= ms.at) m *= ms.mult;
+  return m;
+}
+/** Hochofen-Erbe: Mindest-Gussformenstand für Multiplikator und Meilensteine. */
+export const heirFloor = () => HEIR_FLOOR[Math.min(corpLevel('c_heir'), HEIR_FLOOR.length - 1)];
+/** Wirksamer Gussformenstand (Erbe als Untergrenze). */
+export const effectivePrestigeTotal = () => Math.max(state.prestige.total, heirFloor());
+/** Bleibt normale Forschung beim Neuguss erhalten: Wissensarchiv (Hochofen-Shop) oder Konzernarchiv. */
+export const keepsResearch = () => shopLevel('keep') >= 1 || corpLevel('c_archive') >= 1;
+
 // ---------- Multiplikator-Stapel ----------
 export function milestone(n) {
   let m = 2 ** Math.floor(n / MILESTONE_STEP);
@@ -134,7 +161,7 @@ export function achievementBonus() {
 }
 export const achievementMult = () => 1 + achievementBonus();
 
-export function prestigeMult(total = state.prestige.total) {
+export function prestigeMult(total = effectivePrestigeTotal()) {
   const eff = 1 + 0.2 * shopLevel('pp_eff');
   let m = 1 + total * PRESTIGE.perPoint * eff;
   for (const ms of MILESTONES) if (total >= ms.at) m *= ms.mult;
@@ -150,8 +177,27 @@ export function buffMult(kind) {
   return m;
 }
 
+// ---------- Industrie-Meilensteine (abgeleitet aus stats.total, bleiben über Neuguss erhalten) ----------
+/** Je Leiste: { id, value, next (nächste Schwelle oder null), progress (0..1 zur nächsten Stufe), reached (Anzahl Stufen), total, mult (Produkt der erreichten Stufen) }. */
+export function industryProgress() {
+  const lg = v => Math.log10(Math.max(1, v));
+  return INDUSTRY_TRACKS.map(tr => {
+    const value = tr.value(state);
+    const reached = tr.steps.filter(st => value >= st.at).length;
+    const nextStep = tr.steps[reached] || null, prev = reached ? tr.steps[reached - 1].at : 0;
+    let progress = 1;
+    if (nextStep) {
+      const f = tr.log ? lg : v => v;
+      const lo = tr.log && !prev ? 0 : f(prev);
+      progress = Math.max(0, Math.min(1, (f(value) - lo) / (f(nextStep.at) - lo)));
+    }
+    return { id: tr.id, value, next: nextStep ? nextStep.at : null, progress, reached, total: tr.steps.length, mult: tr.steps.slice(0, reached).reduce((m, st) => m * st.mult, 1) };
+  });
+}
+export const industryMult = () => industryProgress().reduce((m, tr) => m * tr.mult, 1);
+
 /** Alles, was auf jede Produktion wirkt (außer Forschung/Boosts). */
-export const globalMult = () => prestigeMult() * achievementMult() * buffMult('prod') * eraMult() * synergyMult();
+export const globalMult = () => prestigeMult() * corpMult() * achievementMult() * buffMult('prod') * eraMult() * synergyMult() * industryMult();
 export const mult = res => safe(researchMult(res) * globalMult());
 
 // ---------- Produktion ----------
@@ -162,7 +208,7 @@ export const clickLevel = id => state.clicks[id] || 0;
 
 /** Klickwert-Beitrag eines Klick-Upgrades auf Stufe n (ohne Resonanz/Buffs). */
 export function clickBaseAt(n, gm = globalMult(), def = CLICKS[0]) {
-  return safe((def.base + def.perLevel * n) * milestone(n) * researchMult('ore') * keyMult('click') * gm * (1 + 0.5 * shopLevel('click')));
+  return safe((def.base + def.perLevel * n) * milestone(n) * researchMult('ore') * keyMult('click') * gm * (1 + 0.5 * shopLevel('click')) * (1 + 0.5 * corpLevel('c_click')));
 }
 
 /** Summe der Beiträge aller Klick-Upgrades auf den aktuellen Stufen. */
@@ -257,8 +303,8 @@ export const reqList = req => (req == null ? [] : Array.isArray(req) ? req : [re
 // ---------- Warteschlangen (Zustand lesen; Änderungen in systems/timers.js) ----------
 export const queueSlots = q => QUEUES[q].slots + shopLevel(QUEUES[q].slotShop);
 export const queueCapacity = q => queueSlots(q) + QUEUES[q].waiting;
-/** Faktor auf alle Dauern: Shop 'Zeitraffer' und Forschung 'Laborautomatisierung'. */
-export const timeMult = () => SPEED_PER_LEVEL ** shopLevel(SPEED_SHOP) * (state.research[AUTOMATION_RESEARCH] ? AUTOMATION_MULT : 1);
+/** Faktor auf alle Dauern: Shop 'Zeitraffer', Forschung 'Laborautomatisierung' (und II, Konzern). */
+export const timeMult = () => SPEED_PER_LEVEL ** shopLevel(SPEED_SHOP) * (state.research[AUTOMATION_RESEARCH] ? AUTOMATION_MULT : 1) * (state.research[LAB2_RESEARCH] ? LAB2_MULT : 1);
 
 /** Dauer in Sekunden vor Zeitverkürzung; Klick-Upgrades wachsen mit ihrer Stufe. */
 export function baseTime(kind, id, lvl = levelOf(kind, id)) {
@@ -287,6 +333,7 @@ export function lockReason(kind, id) {
   const d = defOf(kind, id);
   if (d?.era > eraIndex() && !industryUnlocked()) return t('Benötigt den ersten Neuguss');
   if (d?.era > eraIndex()) return t('Benötigt Zeitalter: {name}', { name: tName('eras', ERAS[d.era]) });
+  if (d?.corp > corpStage()) return t('Benötigt Konzernstufe: K{n}', { n: d.corp });
   const q = queueIdOf(kind);
   if (q) {
     const p = pendingOf(kind, id);
@@ -299,6 +346,7 @@ export function lockReason(kind, id) {
 /** Gestaffelte Anzeige: sichtbar ist, was schon erforscht/gekauft ist oder dessen fehlende Voraussetzungen direkt freischaltbar sind. */
 export function isRevealed(kind, id) {
   if (levelOf(kind, id) > 0) return true;
+  if (defOf(kind, id)?.corp > corpStage() + 1) return false;   // Konzernforschung erst eine Stufe vor der Freischaltung zeigen (sonst Platzhalter)
   return missingReqs(defOf(kind, id)).every(q => missingReqs(RESEARCH_MAP[q]).length === 0);
 }
 /** Material erscheint im aktuellen Lauf: Forschung fertig, Bestand oder Produktion dieses Laufs (nicht Gesamtstatistik). */
@@ -371,13 +419,16 @@ function baseGain(runOre) {
   return n;
 }
 
+/** Faktor auf die Gussformen je Neuguss: Hochofen-Kapazität (pp_gain) und Gussformen-Fabrik (c_cast, Konzern). */
+const castMult = () => (1 + 0.1 * shopLevel('pp_gain')) * (1 + 0.15 * corpLevel('c_cast'));
+
 export function prestigeGain(runOre = state.stats.run.ore) {
-  return Math.floor(safe(baseGain(runOre) * (1 + 0.1 * shopLevel('pp_gain'))));
+  return Math.floor(safe(baseGain(runOre) * castMult()));
 }
 
 /** Erz (in diesem Durchlauf), ab dem es mindestens gain+1 Gussformen gibt. */
 export function oreForGain(gain) {
-  const mult = 1 + 0.1 * shopLevel('pp_gain');
+  const mult = castMult();
   // Kleinste Basis b mit floor(b * mult) >= gain + 1; Erzbedarf exakt wie in baseGain.
   const ok = b => Math.floor(safe(b * mult)) >= gain + 1;
   let need = Math.max(1, Math.ceil((gain + 1) / mult - 1e-9));
@@ -386,14 +437,55 @@ export function oreForGain(gain) {
   return oreForBase(need);
 }
 
+/**
+ * Neuguss-Vorschau (rein). prevGain: Gewinn vor ca. 2 min (optional, vom Aufrufer gemerkt) für die Lohnt-sich-Regel der Sim-Policy 'rate':
+ * worthIt = Gewinnzuwachs/s der letzten 2 min liegt unter dem Durchlauf-Schnitt (gain/runTime); null, wenn prevGain fehlt.
+ * Ergebnis: { gain, perHour, nextAt (Erz für gain+1), milestone: { at, missing, reached } | null, worthIt }.
+ */
+export function castPreview(prevGain = null, windowSec = 120) {
+  const gain = prestigeGain(), runTime = state.stats.runTime || 0;
+  const total = effectivePrestigeTotal(), ms = MILESTONES.find(m => m.at > total) || null;
+  const rate = runTime > 0 ? gain / runTime : 0;
+  return {
+    gain,
+    perHour: rate * 3600,
+    nextAt: oreForGain(gain),
+    milestone: ms ? { at: ms.at, missing: Math.max(0, ms.at - total), reached: total + gain >= ms.at } : null,
+    worthIt: prevGain == null || runTime <= 0 || gain < 1 ? null : (gain - prevGain) / windowSec < rate,
+  };
+}
+
+/**
+ * Zielleiste (rein): Kandidaten für "Nächstes Ziel", absteigend nach Fortschritt (0..1). Einträge: { kind: 'firstcast'|'milestone'|'era'|'industry'|'corpunlock'|'corp', id, progress, at }.
+ */
+export function nextGoals() {
+  const lg = v => Math.log10(Math.max(1, v));
+  const goals = [];
+  if (!industryUnlocked()) goals.push({ kind: 'firstcast', id: 'firstcast', at: PRESTIGE.divisor, progress: Math.min(1, lg(state.stats.run.ore) / lg(PRESTIGE.divisor)) });
+  else {
+    const total = effectivePrestigeTotal(), ms = MILESTONES.find(m => m.at > total);
+    if (ms) goals.push({ kind: 'milestone', id: String(ms.at), at: ms.at, progress: Math.min(1, total / ms.at) });
+    const ne = nextEra();
+    if (ne) goals.push({ kind: 'era', id: ne.id, at: ne.at, progress: eraProgress() });
+  }
+  if (industryUnlocked() && !corpUnlocked() && state.prestige.count >= 25) goals.push({ kind: 'corpunlock', id: 'corpunlock', at: CORP.unlockCount, progress: Math.min(1, state.prestige.count / CORP.unlockCount) });
+  if (corpUnlocked()) {
+    const ms = CORP_MILESTONES.find(m => m.at > state.corp.total);
+    if (ms) goals.push({ kind: 'corp', id: 'K' + (CORP_MILESTONES.indexOf(ms) + 1), at: ms.at, progress: Math.min(1, (state.corp.total + corpGain()) / ms.at) });
+  }
+  for (const tr of industryProgress()) if (tr.next != null) goals.push({ kind: 'industry', id: tr.id, at: tr.next, progress: tr.progress });
+  return goals.sort((a, b) => b.progress - a.progress);
+}
+
 export const startOre = () => {
   const l = shopLevel('start');
   return l > 0 ? 500 * 3 ** (l - 1) : 0;
 };
-export const offlineCapSeconds = () => (8 + 2 * shopLevel('offline')) * 3600;
+export const offlineCapSeconds = () => (8 + 2 * shopLevel('offline') + 4 * corpLevel('c_offline')) * 3600;
 
 // ---------- Auto-Buyer ----------
-export const autobuyerUnlocked = id => shopLevel(AUTOBUYERS.find(a => a.id === id).unlock) > 0;
+/** Hochofen-Shop-Kauf oder Konzern-Automatisierung (c_auto: Stufe n schaltet die ersten n Auto-Buyer in Listenreihenfolge frei). */
+export const autobuyerUnlocked = id => shopLevel(AUTOBUYERS.find(a => a.id === id).unlock) > 0 || AUTOBUYERS.findIndex(a => a.id === id) < corpLevel('c_auto');
 export const autobuyerInterval = () => AUTOBUYER_INTERVAL / (1 + 0.5 * shopLevel('ab_speed'));
 
 // ---------- Golden ----------

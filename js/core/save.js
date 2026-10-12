@@ -9,13 +9,14 @@ import { GENS, MAX_LEVEL } from '../data/generators.js';
 import { CLICKS, BOOSTS } from '../data/upgrades.js';
 import { RESEARCH } from '../data/research.js';
 import { SHOP, AUTOBUYERS } from '../data/prestige.js';
+import { CORP_SHOP, CORP_HISTORY_MAX, AUTOCAST } from '../data/corp.js';
 import { HISTORY_MAX } from '../data/prestige.js';
 import { EVO_MAX } from '../data/eras.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { BUFFS } from '../data/golden.js';
 import { QUEUES, QUEUE_IDS, MAX_ENTRIES } from '../data/timers.js';
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 // Der Schlüssel bleibt bewusst 'v2': die Formatversion steckt im Spielstand selbst (Feld v), so lädt der alte Spielstand ohne Umkopieren.
 export const SAVE_KEY = 'eisenwerk-idle-save-v2';
 export const BACKUP_KEY = SAVE_KEY + '-backup';
@@ -83,6 +84,24 @@ export function sanitize(d) {
     }
   }
 
+  // Konzern (2. Reset-Ebene): nur bekannte Shop-IDs mit Stufe <= max, höchstens CORP_HISTORY_MAX gültige Chronik-Einträge
+  const c = isObj(d.corp) ? d.corp : {};
+  s.corp.points = num(c.points); s.corp.total = num(c.total); s.corp.count = int(c.count, 1e9);
+  const cshop = isObj(c.shop) ? c.shop : {};
+  for (const it of CORP_SHOP) { const l = int(cshop[it.id], it.max); if (l > 0) s.corp.shop[it.id] = l; }
+  if (Array.isArray(c.history)) {
+    for (const e of c.history.slice(-CORP_HISTORY_MAX)) {
+      if (!isObj(e)) continue;
+      const gain = int(e.gain, 1e12);
+      if (gain < 1) continue;
+      s.corp.history.push({ gain, gussformen: num(e.gussformen), time: num(e.time, 0, 0, 1e10), at: num(e.at, 0, 0, 8.64e15) });
+    }
+  }
+  const ac = isObj(d.autoCast) ? d.autoCast : {};
+  s.autoCast.on = bool(ac.on, false);
+  s.autoCast.mode = AUTOCAST.modes.includes(ac.mode) ? ac.mode : 'gain';
+  s.autoCast.value = num(ac.value, 0, 0, 1e12);
+
   const ab = isObj(d.autobuyers) ? d.autobuyers : {};
   for (const a of AUTOBUYERS) s.autobuyers[a.id] = bool(ab[a.id], false);
 
@@ -144,6 +163,11 @@ export function migrateV4toV5(old) {
   return { ...old, evo: {} };
 }
 
+/** v5 -> v6: zweite Reset-Ebene (corp, autoCast) kommt neu hinzu, leere Vorgaben; neue Ressourcen/Generatoren ergänzt sanitize mit 0. */
+export function migrateV5toV6(old) {
+  return { ...old, corp: { points: 0, total: 0, count: 0, shop: {}, history: [] }, autoCast: { on: false, mode: 'gain', value: 0 } };
+}
+
 /** Bringt beliebige bekannte Formate auf die aktuelle Version: { v, t, state }. */
 export function migrate(data) {
   if (!isObj(data)) throw new Error('Spielstand hat kein gültiges Format.');
@@ -163,6 +187,7 @@ export function migrate(data) {
   if (v < 3) st = migrateV2toV3(st);
   if (v < 4) st = migrateV3toV4(st);
   if (v < 5) st = migrateV4toV5(st);
+  if (v < 6) st = migrateV5toV6(st);
   return { v: SAVE_VERSION, t: num(data.t, Date.now(), 0, 8.64e15), state: st };
 }
 
@@ -309,5 +334,6 @@ export function applyOffline(seconds, { runtime = false } = {}) {
   }
   state.stats.playTime += sec;
   state.stats.runTime += sec;
+  state.stats.corpRunTime += sec;
   return { seconds: sec, capped: seconds > cap, gains };
 }

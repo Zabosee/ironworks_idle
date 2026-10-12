@@ -273,8 +273,8 @@ describe('Timer: Offline und Hintergrund', () => {
 });
 
 describe('Save v4: Timer, Sanitize, Migration', () => {
-  test('SAVE_VERSION 4; Roundtrip behaelt Auftraege (Rest, Kosten, Reihenfolge)', () => {
-    assert.equal(S.SAVE_VERSION, 5);
+  test('SAVE_VERSION 6; Roundtrip behaelt Auftraege (Rest, Kosten, Reihenfolge)', () => {
+    assert.equal(S.SAVE_VERSION, 6);
     rich();
     state.research.geology = 1;
     buy('research', 'converter'); buy('research', 'deepmines'); buy('boost', 'diamond');
@@ -362,7 +362,7 @@ describe('Save v4: Timer, Sanitize, Migration', () => {
     assert.equal(state.settings.buyAmount, '10');
     assert.deepEqual(state.timers, { lab: [], workshop: [] });
     S.save();
-    assert.equal(JSON.parse(ls.getItem(S.SAVE_KEY)).v, 5);
+    assert.equal(JSON.parse(ls.getItem(S.SAVE_KEY)).v, S.SAVE_VERSION);
   });
 
   test('migrateV3toV4 veraendert die Eingabe nicht; v2 -> v4 laeuft ueber beide Schritte', () => {
@@ -374,7 +374,7 @@ describe('Save v4: Timer, Sanitize, Migration', () => {
     assert.equal(out.stats.total.ore, 1e6);
     const v2 = { v: 2, t: 5, state: { res: { ore: 9 }, click: 3, gens: { mine: 1 }, stats: { totalOre: 100, totalSteel: 1, totalTitan: 2, runOre: 50 } } };
     const m = S.migrate(v2);
-    assert.equal(m.v, 5);
+    assert.equal(m.v, S.SAVE_VERSION);
     assert.equal(m.state.clicks.click, 3);
     assert.deepEqual(m.state.timers, { lab: [], workshop: [] });
     ls.setItem(S.SAVE_KEY, JSON.stringify(v2));
@@ -382,8 +382,8 @@ describe('Save v4: Timer, Sanitize, Migration', () => {
     assert.equal(state.stats.total.ore, 100); assert.equal(state.stats.run.ore, 50); assert.equal(state.clicks.click, 3);
   });
 
-  test('v6 wird abgelehnt (zu neu)', () => {
-    assert.throws(() => S.migrate({ v: 6, state: {} }), /neueren/);
+  test('v7 wird abgelehnt (zu neu)', () => {
+    assert.throws(() => S.migrate({ v: 7, state: {} }), /neueren/);
   });
 });
 
@@ -422,7 +422,7 @@ describe('Auto-Buyer und Timer', () => {
     assert.ok(q.length >= 1 && q.length <= F.queueCapacity('lab'));
     assert.equal(new Set(q.map(e => e.id)).size, q.length);
     for (let i = 0; i < 2400; i++) { AB.tick(2); tick(30); }
-    for (const r of RESEARCH) assert.equal(state.research[r.id], 1, r.id + ' wurde nicht erforscht');
+    for (const r of RESEARCH.filter(r => !r.corp)) assert.equal(state.research[r.id], 1, r.id + ' wurde nicht erforscht');   // Konzernforschung ist an die Konzernstufe gebunden
   });
   test('Boost- und Klick-Auto-Buyer: pro Takt hoechstens ein laufender Auftrag je Eintrag', () => {
     rich();
@@ -613,11 +613,11 @@ describe('Daten- und Balance-Sanity', () => {
     }
   });
   test('Dauern: jeder Forschungs-/Boost-Eintrag hat time > 0, Klick-Upgrades time-Formel; Spanne passt', () => {
-    for (const r of RESEARCH) assert.ok(r.time > 0 && r.time <= 1800, 'research ' + r.id);
-    for (const b of BOOSTS) assert.ok(b.time > 0 && b.time <= 1800, 'boost ' + b.id);
+    for (const r of RESEARCH) assert.ok(r.time > 0 && r.time <= (r.corp ? 17000 : 1800), 'research ' + r.id);   // Konzernforschung: bis ca. 4,5 h (Formel 1800 s × 1,4^(K-1))
+    for (const b of BOOSTS) assert.ok(b.time > 0 && b.time <= (b.corp ? 5800 : 1800), 'boost ' + b.id);
     for (const c of CLICKS) { assert.ok(c.time.base > 0 && c.time.growth >= 1 && c.time.max >= c.time.base, 'click ' + c.id); assert.ok(F.baseTime('click', c.id, 500) <= c.time.max); }
     assert.ok(Math.min(...RESEARCH.map(r => r.time)) >= 5 && Math.min(...RESEARCH.map(r => r.time)) <= 20, 'fruehe Forschung 5-20 s');
-    assert.ok(Math.max(...RESEARCH.map(r => r.time)) >= 600 && Math.max(...RESEARCH.map(r => r.time)) <= 1800, 'spaete Forschung bis ~30 min');
+    assert.ok(Math.max(...RESEARCH.filter(r => !r.corp).map(r => r.time)) >= 600 && Math.max(...RESEARCH.filter(r => !r.corp).map(r => r.time)) <= 1800, 'spaete Forschung bis ~30 min');
   });
   test('req-Verweise existieren und bilden keinen Zyklus (Forschung, Generatoren, Boosts, Klick, Rezepte, Material)', () => {
     const known = id => assert.ok(RESEARCH_MAP[id], 'unbekannte Forschung ' + id);
@@ -667,7 +667,7 @@ describe('Daten- und Balance-Sanity', () => {
     assert.ok(GENS.length >= 5 + 6, 'mind. 6 neue Generatoren');
     assert.ok(BOOSTS.length >= 6 + 8, 'mind. 8 neue Boosts');
     assert.ok(RESEARCH.length >= 70, 'mind. 70 Forschungen');
-    assert.ok(CLICKS.length >= 1 + 2 && CLICKS.length <= 1 + 5, '2-5 neue Klick-Upgrades');
+    assert.ok(CLICKS.length >= 1 + 2 && CLICKS.length <= 1 + 5 + 3, '2-5 neue Klick-Upgrades (+3 Konzern)');
     assert.ok(RECIPES.length >= 1 + 3, 'neue Rezeptketten');
     for (const id of ['q_lab', 'q_work', 'q_speed']) assert.ok(SHOP_MAP[id], id);
     assert.ok(RESEARCH_MAP.automation && RESEARCH_MAP.automation.time > 0);
@@ -693,10 +693,12 @@ describe('Daten- und Balance-Sanity', () => {
   });
   test('Spielbarkeit: Bot-lose Pruefung - mit ausreichend Material wird die gesamte Forschung durchlaufen und alles erforscht', () => {
     rich();
+    state.corp.total = 205;   // Konzernstufe K7 (Konzernforschung ist daran gebunden)
+    for (const k of RES_IDS) state.res[k] = 1e45;   // auch die 7 Konzern-Materialien
     state.prestige.shop.ab_research = 1;
     for (let guard = 0; guard < 1200 && Object.keys(state.research).length < RESEARCH.length; guard++) {
       for (const r of RESEARCH) if (!state.research[r.id] && !F.lockReason('research', r.id)) buy('research', r.id);
-      T.tick(60);
+      T.tick(600);
     }
     assert.equal(Object.keys(state.research).length, RESEARCH.length);
   });

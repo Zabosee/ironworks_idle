@@ -6,7 +6,9 @@ import { RESEARCH } from '../js/data/research.js';
 import { BOOSTS, CLICKS } from '../js/data/upgrades.js';
 import { GENS } from '../js/data/generators.js';
 import { RECIPES } from '../js/data/recipes.js';
-import { RES_IDS } from '../js/data/resources.js';
+import { RES_IDS, RES } from '../js/data/resources.js';
+import { CORP_SHOP, CORP_MILESTONES } from '../js/data/corp.js';
+import { ERAS } from '../js/data/eras.js';
 import { RESEARCH_COORDS, MIN_NODE_DISTANCE } from '../js/data/research-layout.js';
 
 const reqOf = d => (Array.isArray(d.req) ? d.req : d.req ? [d.req] : []);
@@ -51,6 +53,48 @@ describe('Fortschrittsgraph: Erreichbarkeit', () => {
       assert.ok(r.time > 0, r.id);
       for (const [k, v] of Object.entries(r.cost)) assert.ok(Number.isFinite(v) && v > 0, `${r.id}.${k}`);
     }
+  });
+});
+
+describe('Konzern-Inhalte (Ausbau 2)', () => {
+  const { R, P } = fixpoint();
+  test('Umfang laut Design: 112 Forschungen (36 Konzern), 39 Boosts, 9 Klick-Upgrades, 21 Generatoren, 19 Materialien, 10 Rezepte', () => {
+    assert.equal(RESEARCH.length, 112); assert.equal(RESEARCH.filter(r => r.corp).length, 36);
+    assert.equal(BOOSTS.length, 39); assert.equal(CLICKS.length, 9); assert.equal(GENS.length, 21);
+    assert.equal(RES_IDS.length, 19); assert.equal(RECIPES.length, 10);
+  });
+  test('corp ist 1..7; eine Forschung ist nie früher freigeschaltet als ihre Voraussetzung (Konzernstufe und Zeitalter)', () => {
+    const m = Object.fromEntries(RESEARCH.map(r => [r.id, r]));
+    for (const d of [...RESEARCH, ...BOOSTS, ...CLICKS].filter(d => d.corp !== undefined)) {
+      assert.ok(Number.isInteger(d.corp) && d.corp >= 1 && d.corp <= 7, d.id);
+      assert.ok((d.era ?? 0) < ERAS.length, d.id);
+      assert.ok(reqOf(d).length, d.id + ': Konzerninhalt ohne Voraussetzung');
+    }
+    for (const r of RESEARCH.filter(r => r.corp)) for (const q of reqOf(r)) assert.ok((r.corp ?? 0) >= (m[q].corp ?? 0), `${r.id} (K${r.corp}) vor Eltern ${q} (K${m[q].corp})`);
+    for (const d of [...BOOSTS, ...CLICKS].filter(d => d.corp)) for (const q of reqOf(d)) assert.ok(d.corp >= (m[q].corp ?? 0) && (d.era ?? 0) >= (m[q].era ?? 0), d.id + ' vor ' + q);
+  });
+  test('Fixpunkt mit Konzernstufe 7 / Zeitalter 8: alle Konzern-Inhalte und die 7 neuen Materialien erreichbar', () => {
+    for (const r of RESEARCH.filter(r => r.corp)) assert.ok(R.has(r.id), r.id);
+    for (const k of ['cobalt', 'molybdenum', 'carbide', 'platinum', 'vanadium', 'iridium', 'superalloy']) assert.ok(P.has(k), k);
+  });
+  test('Jedes Konzern-Material: Freischalt-Forschung existiert und schaltet auch den Generator frei; img und sym gesetzt', () => {
+    for (const k of ['cobalt', 'molybdenum', 'carbide', 'platinum', 'vanadium', 'iridium', 'superalloy']) {
+      const req = RES[k].req; assert.ok(req?.length === 1 && RESEARCH.some(r => r.id === req[0] && r.corp), k);
+      assert.deepEqual(GENS.find(g => g.res === k).req, req);
+      assert.equal(RES[k].img, `assets/icons/res-${k}.svg`); assert.ok(RES[k].sym);
+    }
+    assert.equal(RES.cobalt.color, '#60a5fa');
+  });
+  test('Konzern-Meilensteine erreichbar (steigend) und Shop-Summe = Schwelle K7', () => {
+    CORP_MILESTONES.forEach((ms, i) => { if (i) assert.ok(ms.at > CORP_MILESTONES[i - 1].at); assert.ok(ms.mult > 1); });
+    const sum = CORP_SHOP.reduce((a, it) => a + (it.costs ? it.costs.reduce((x, y) => x + y, 0) : Array.from({ length: it.max }, (_, l) => Math.ceil(it.cost * it.growth ** l)).reduce((x, y) => x + y, 0)), 0);
+    assert.equal(sum, CORP_MILESTONES.at(-1).at);
+  });
+  test('Konzernforschung: Kosten steigen mit der Konzernstufe (größter Posten), Dauer bis ca. 4,5 h', () => {
+    const maxCost = r => Math.max(...Object.values(r.cost));
+    const minBy = k => Math.min(...RESEARCH.filter(r => r.corp === k).map(maxCost));
+    for (let k = 2; k <= 7; k++) assert.ok(minBy(k) > minBy(k - 1), 'Staffelung K' + k);
+    for (const r of RESEARCH.filter(r => r.corp)) assert.ok(r.time >= 1000 && r.time <= 17000, r.id);
   });
 });
 

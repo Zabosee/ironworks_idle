@@ -16,3 +16,5 @@ export const AUTOMATION_RESEARCH = 'automation';       // Forschung: alle Dauern
 export const AUTOMATION_MULT = 0.75;
 export const MIN_DURATION = 1;                         // Sekunden
 export const MAX_ENTRIES = 12;                         // Obergrenze beim Laden eines Spielstands
+export const LAB2_RESEARCH = 'c_lab2';                 // Konzernforschung: Dauern zusätzlich x LAB2_MULT
+export const LAB2_MULT = 0.85;

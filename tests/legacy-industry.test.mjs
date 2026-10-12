@@ -73,7 +73,7 @@ describe('Alter v5-Spielstand ohne Neuguss', () => {
     assert.equal(en, de);
   });
   test('Import eines Saves ohne Neuguss sperrt die Industrie wieder; Reset ebenso', () => {
-    state.prestige.count = 4; state.stats.total.ore = 1e25;
+    state.prestige.count = 4; state.stats.total.ore = 1e24;   // Zeitalter 5 (unter 5e24)
     assert.equal(eraIndex(), 5);
     S.importSave(oldSave());
     assert.equal(industryUnlocked(), false); assert.equal(eraIndex(), 0);

@@ -1,7 +1,7 @@
 # Fortschritt / Übergabe (Checkpoints)
 
 Diese Datei ist der Wiederaufsetzpunkt, falls eine Sitzung abbricht (Tokenlimit o.ä.).
-Jeder abgeschlossene Schritt wird als Git-Commit in diesem Ordner gesichert (`git log --oneline`).
+Dieser Ordner ist ein Git-Repository (Remote `origin`, Branch `main`). Zwischenstände stehen in dieser Datei und in den Docs, abgeschlossene Schritte werden committet (`git log --oneline`).
 
 ## Auftrag (Lukas, 2026-10-11)
 1. Gesamtes Spiel mit allen Subagents logisch reviewen.
@@ -16,7 +16,7 @@ Jeder abgeschlossene Schritt wird als Git-Commit in diesem Ordner gesichert (`gi
 
 ## Umgebung
 - Spiel: `eisenwerk-idle/`, Server: `py -m http.server 8080` in diesem Ordner → http://localhost:8080
-- Tests: `node --test` in `eisenwerk-idle/`
+- Tests: `node --test --test-timeout=900000` in `eisenwerk-idle/`. `tests/balance.test.mjs` simuliert bis zu 336 h Spielzeit und braucht ca. 265 s; Aufrufe mit kürzerem Zeitlimit (unter ca. 300 s) brechen ab.
 - Live-Browser: Chrome mit `--remote-debugging-port=9222`, gesteuert über `node tools/live.mjs <befehl>`
 
 ## Status
@@ -47,6 +47,17 @@ Jeder abgeschlossene Schritt wird als Git-Commit in diesem Ordner gesichert (`gi
 - Langsamere Progression: Zeitalter hängen an kumulierten Erz-Schwellen; kalibrierter Sim-Lauf (`tools/balance-sim.mjs 175 4 1 30 rate`): 1. Neuguss 1,8 h, Zeitalter 1 bei 7,5 h, 2 bei 38 h, 3 bei 96 h, 4 bei 128 h, 5 bei ca. 192 h. Schneller Standardlauf (ohne Parameter): 1. Neuguss 2,6 h, Zeitalter 1 bis 5 bei 4,7 / 6,6 / 13,3 / 14,9 / 15,1 h. Details und Einordnung: docs/GAME-DESIGN.md, Abschnitt 3b.
 - Industrie-Tab (Generator-Ausbau) und Zeitalter erst ab dem 1. Neuguss; alte Spielstände werden nicht migriert.
 - 76 Forschungen (Zeitalter 0 bis 5), 15 neue Zeitalter-Boosts, 2 neue Klick-Upgrades (`hydraulic`, `plasmalance`).
-- Tests: 419 Unit-Tests, E2E 87/87 PASS.
+- Tests: 423 Unit-Tests grün (`tests/balance.test.mjs` besteht 10/10, Laufzeit ca. 265 s, Gesamtlauf mit `--test-timeout=900000` bzw. Zeitlimit >= 300 s), E2E 87/87 PASS (E2E nicht erneut ausgeführt; Angabe aus dem früheren Lauf).
 - Freigabe: release-gatekeeper 8/10.
-- Offene Punkte: Erster Neuguss erst nach ca. 2 h, bis dahin kein Industrie-Tab (Designrisiko, siehe GAME-DESIGN.md Abschnitt 8); kein echter Spieler gemessen; frühere Empfehlungen (render.js aufteilen, leere Forschungsebenen ausblenden, Werk-Hinweis max. 10 Sprites, Emoji-Fallbacks entfernen).
+- UI-Umbau (nach der Freigabe):
+  - Sidebar: Der Ofen (Klickzone `#click-zone`) steht oben. Die Konvertierungsraten stehen unter dem jeweiligen Output-Material (`.meter-flows`); der eigene Block `#conv` ist entfernt.
+  - `render.js` ist aufgeteilt: `render.js` (120 Zeilen, Frame-Schleife), `sidebar.js`, `cards.js`, `queues.js`, `panels.js`.
+  - Emojis sind durch SVG ersetzt: Sprites `assets/sprites/items.svg` und `ui.svg`, Helfer `symSvg`/`svgUse` in `js/ui/assets.js`. Das Forschungs-`sym` kommt über die Tabelle `SYM` in `js/data/research.js` aus dem Emoji `icon`. Die Statusbadges der Forschungskarte laufen bereits über SVG (`research-map.js`).
+  - Bug behoben: `sym-factory` in `items.svg` hatte einen falschen `viewBox`.
+  - Docs mit dem Code abgeglichen (Zeitalter-Schwellen, Forschungs-/Boost-/Klick-Tabellen in GAME-DESIGN.md, Plan und Spec als historisch markiert).
+- Offene Punkte: Erster Neuguss erst nach ca. 2 h, bis dahin kein Industrie-Tab (Designrisiko, siehe GAME-DESIGN.md Abschnitt 8); kein echter Spieler gemessen.
+- Frühere Empfehlungen, aktueller Stand:
+  - render.js aufteilen: erledigt (siehe oben).
+  - Leere Forschungsebenen ausblenden: gegenstandslos. Die Forschungskarte hat keine Ebenen/Regale; Knoten werden per `hidden` ausgeblendet.
+  - Emoji-Fallbacks entfernen: teilweise erledigt. Die Oberfläche zeigt SVG; die Datenfelder `icon` (und `sym` als SVG-Name) bleiben als Textfallback in den Daten und werden z. B. in `cards.js`, `panels.js`, `research-map.js` genutzt, wenn kein `sym`/Bild existiert.
+  - Werk-Hinweis max. 10 Sprites: unklar/offen, im Code nicht geprüft.

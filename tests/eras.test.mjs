@@ -50,7 +50,7 @@ describe('Zeitalter: Ableitung', () => {
     assert.ok(Math.abs(F.eraMult(2) - ERAS[0].mult * ERAS[1].mult * ERAS[2].mult) < 1e-12);
     const g0 = F.globalMult();
     setEra(2);
-    assert.ok(Math.abs(F.globalMult() / g0 - F.eraMult(2)) < 1e-9);
+    assert.ok(Math.abs(F.globalMult() / g0 - F.eraMult(2) * F.industryMult()) < 1e-9);   // Erz 1e17 hebt auch die Industrie-Leiste
   });
   test('eraProgress: 0..1 (log. im Erz), am Ende 1', () => {
     state.prestige.count = 1;
@@ -141,10 +141,28 @@ describe('Zeitalter: Neuguss und Speicherstand', () => {
   test('Migration v4 -> v5: evo leer, alles andere bleibt; Zeitalter folgt den Statistiken', () => {
     const old = { res: { ore: 5 }, stats: { total: { ore: ERAS[2].at }, playTime: 5000 }, prestige: { count: 1 } };
     const m = S.migrate({ v: 4, t: 1, state: old });
-    assert.equal(m.v, 5); assert.deepEqual(m.state.evo, {}); assert.deepEqual(old.evo, undefined);
+    assert.equal(m.v, S.SAVE_VERSION); assert.deepEqual(m.state.evo, {}); assert.deepEqual(old.evo, undefined);
     const s = S.sanitize(m.state);
     assert.equal(s.stats.playTime, 5000);
     assert.equal(F.eraIndex(ERAS[2].at, s.prestige.count >= 1), 2);
     assert.equal(s.evo.mine, 0);
+  });
+});
+
+describe('Zeitalter 6 bis 8 (Industrie-Ausbau)', () => {
+  test('9 Zeitalter, Namen/Schwellen/Boni laut Design, kumulativ x31,6', () => {
+    assert.equal(ERAS.length, 9);
+    assert.deepEqual(ERAS.slice(6).map(e => [e.id, e.at, e.mult]), [['atomic', 5e24, 1.5], ['space', 8e25, 1.5], ['cosmic', 4e26, 2]]);
+    assert.ok(Math.abs(F.eraMult(8) - 7.02 * 4.5) < 0.01);
+  });
+  test('Schwellen 6 bis 8 greifen', () => {
+    setEra(5); state.stats.total.ore = 4.9e24; assert.equal(F.eraIndex(), 5);
+    state.stats.total.ore = 5e24; assert.equal(F.eraIndex(), 6);
+    state.stats.total.ore = 4e26; assert.equal(F.eraIndex(), 8); assert.equal(F.nextEra(), null);
+  });
+  test('Spielstand: evo bis EVO_MAX = 8 bleibt, darüber wird geklemmt', () => {
+    assert.equal(EVO_MAX, 8);
+    const s = S.sanitize({ evo: { mine: 8, drill: 9 } });
+    assert.equal(s.evo.mine, 8); assert.equal(s.evo.drill, 8);
   });
 });

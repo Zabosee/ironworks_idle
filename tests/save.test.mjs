@@ -198,10 +198,10 @@ describe('Migration alter Saves (eisenwerk-idle-save)', () => {
     assert.ok(state.savedAt > 0, 'Fallback-Zeitstempel statt NaN');
   });
   test('migrate: v2 passt durch, falsche Versionen werfen', () => {
-    assert.equal(S.migrate({ v: 2, t: 5, state: {} }).v, 5);
-    assert.equal(S.migrate({ v: 3, t: 5, state: {} }).v, 5);
-    assert.equal(S.migrate({ v: 4, t: 5, state: {} }).v, 5);
-    assert.throws(() => S.migrate({ v: 6, state: {} }), /neueren/);
+    assert.equal(S.migrate({ v: 2, t: 5, state: {} }).v, 6);
+    assert.equal(S.migrate({ v: 3, t: 5, state: {} }).v, 6);
+    assert.equal(S.migrate({ v: 5, t: 5, state: {} }).v, 6);
+    assert.throws(() => S.migrate({ v: 7, state: {} }), /neueren/);
     assert.throws(() => S.migrate({ state: {} }), /Version/);
     assert.throws(() => S.migrate(null), /Format/);
   });

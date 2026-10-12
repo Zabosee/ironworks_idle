@@ -72,8 +72,8 @@ test('Research Layout', async t => {
     assert.strictEqual(coordCount, RESEARCH.length, `${coordCount} Koordinaten aber ${RESEARCH.length} Forschungen`);
   });
 
-  await t.test('alle 76 Forschungen sind vorhanden', () => {
-    const expectedCount = 76;
+  await t.test('alle 112 Forschungen sind vorhanden (76 + 36 Konzernforschung)', () => {
+    const expectedCount = 112;
     assert.strictEqual(RESEARCH.length, expectedCount, `sollte ${expectedCount} Forschungen haben, hat ${RESEARCH.length}`);
   });
 });

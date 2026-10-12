@@ -44,6 +44,24 @@ export const CLICKS = [
     costs: [{ res: 'steel', base: 5e20, growth: 1.7 }, { res: 'tungsten', base: 5e20, growth: 1.55 }],
     time: { base: 400, growth: 1.15, max: 1800 },
   },
+  {
+    id: 'carbidechisel', sym: 'chisel', icon: '⚒️', name: 'Hartmetall-Meißel', req: ['c_tool'], corp: 2,
+    base: 0, perLevel: 3e11,
+    costs: [{ res: 'steel', base: 1e22, growth: 1.7 }, { res: 'carbide', base: 4.4e9, growth: 1.5 }],
+    time: { base: 600, growth: 1.15, max: 2400 },
+  },
+  {
+    id: 'iridiumram', sym: 'ram', icon: '🔨', name: 'Iridium-Ramme', req: ['c_iridium'], era: 6, corp: 5,
+    base: 0, perLevel: 5e14,
+    costs: [{ res: 'steel', base: 3e24, growth: 1.7 }, { res: 'iridium', base: 1.9e11, growth: 1.55 }],
+    time: { base: 600, growth: 1.15, max: 2400 },
+  },
+  {
+    id: 'superhammer', sym: 'sledge', icon: '🛠️', name: 'Superlegierungs-Schlägel', req: ['c_super'], era: 7, corp: 6,
+    base: 0, perLevel: 2e18,
+    costs: [{ res: 'steel', base: 1e26, growth: 1.7 }, { res: 'superalloy', base: 9.3e11, growth: 1.55 }],
+    time: { base: 600, growth: 1.15, max: 2400 },
+  },
 ];
 export const CLICK_MAP = Object.fromEntries(CLICKS.map(c => [c.id, c]));
 
@@ -84,5 +102,15 @@ export const BOOSTS = [
   { id: 'robotarm',  sym: 'robot', icon: '🤖', name: 'Roboterarm-Kalibrierung',  desc: 'Klickwert ×2, Autoklick-Ertrag ×1,5.', cost: { steel: 1e23, alloy: 2.3e15, tungsten: 7.2e13 }, mult: { click: 2, autoclick: 1.5 }, time: 1300, req: ['plantnet'], era: 4 },
   { id: 'nanocoat',  sym: 'nanogrid', icon: '✨', name: 'Nano-Beschichtung',      desc: 'Erzproduktion ×2.',        cost: { steel: 6e22, titan: 3e16 },                     mult: { ore: 2 },       time: 1400, req: ['proc_5'], era: 5 },
   { id: 'fusioncat', sym: 'atom', icon: '☀️', name: 'Fusions-Katalysator',       desc: 'Alle Materialien ×1,5.',   cost: { steel: 3e23, tungsten: 2e14, gold: 6.8e13 },      mult: { all: 1.5 },     time: 1600, req: ['fusion'], era: 5 },
+
+  // Konzern-Boosts (Ausbau 2, GAME-DESIGN-2.md 5.4): corp = Mindest-Konzernstufe; Reset beim Neuguss wie alle Boosts
+  { id: 'cb_cobalt', sym: 'cobalt', icon: '🔵', name: 'Kobalt-Katalysator', desc: 'Kobaltproduktion ×2, Molybdänproduktion ×1,5.', cost: { steel: 1.2e18, cobalt: 6e8, molybdenum: 4.8e8 }, mult: { cobalt: 2, molybdenum: 1.5 }, time: 1200, req: ['c_cobalt'], corp: 1 },
+  { id: 'cb_sinter', sym: 'carbide', icon: '🔶', name: 'Sinterpresse', desc: 'Hartmetallproduktion ×2, Wolframproduktion ×1,5.', cost: { steel: 3.1e19, carbide: 4.4e9, tungsten: 3e10 }, mult: { carbide: 2, tungsten: 1.5 }, time: 1560, req: ['c_sinter'], corp: 2 },
+  { id: 'cb_platin', sym: 'platinum', icon: '⚪', name: 'Platin-Elektrolyse', desc: 'Platinproduktion ×2, Goldproduktion ×1,5.', cost: { steel: 7.1e20, platinum: 3.4e10, gold: 2.4e11 }, mult: { platinum: 2, gold: 1.5 }, time: 2028, req: ['c_platin'], corp: 3 },
+  { id: 'cb_vanadium', sym: 'vanadium', icon: '🟢', name: 'Vanadium-Stahlbad', desc: 'Vanadiumproduktion ×2, Stahlproduktion ×2.', cost: { steel: 1.1e21, vanadium: 1e11, molybdenum: 4.2e11 }, mult: { vanadium: 2, steel: 2 }, time: 2636, req: ['c_vanadium'], corp: 4 },
+  { id: 'cb_iridium', sym: 'iridium', icon: '💠', name: 'Iridium-Tiegel', desc: 'Iridiumproduktion ×2, alle Materialien ×1,1.', cost: { steel: 8.1e21, iridium: 1.9e11 }, mult: { iridium: 2, all: 1.1 }, time: 3427, req: ['c_iridium'], era: 6, corp: 5 },
+  { id: 'cb_vacuum', sym: 'superalloy', icon: '🔷', name: 'Vakuumguss', desc: 'Superlegierungsproduktion ×2, alle Materialien ×1,15.', cost: { steel: 9.7e22, superalloy: 9.3e11 }, mult: { superalloy: 2, all: 1.15 }, time: 4456, req: ['c_super'], era: 7, corp: 6 },
+  { id: 'cb_line', sym: 'conveyor', icon: '🛤️', name: 'Konzern-Fließbandsystem', desc: 'Erzproduktion ×2, Stahlproduktion ×2.', cost: { steel: 9.7e22, iridium: 2.3e12 }, mult: { ore: 2, steel: 2 }, time: 4456, req: ['c_orbital'], era: 7, corp: 6 },
+  { id: 'cb_center', sym: 'chip', icon: '🖥️', name: 'Weltkonzern-Rechenzentrum', desc: 'Alle Materialien ×1,25.', cost: { steel: 8.5e23, superalloy: 8.2e12 }, mult: { all: 1.25 }, time: 5792, req: ['c_charta'], era: 8, corp: 7 },
 ];
 export const BOOST_MAP = Object.fromEntries(BOOSTS.map(b => [b.id, b]));

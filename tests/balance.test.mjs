@@ -11,7 +11,7 @@ const at = (r, n) => r.milestones[n];
 
 describe('Balance: Hochofen-Schleife', () => {
   // "Aktiv": Neuguss, sobald der Gewinnzuwachs abflacht. 6 h simulierte Spielzeit (ca. 5 s Rechenzeit).
-  const active = simulate({ hours: 6, dt: 8, policy: 'rate', frac: 1 });
+  const active = simulate({ hours: 6, dt: 8, policy: 'rate', frac: 1, corp: false });
 
   test('erster Meilenstein nach 1-2 Neugüssen, nach spätestens 3 h', () => {
     assert.ok(at(active, MILESTONES[0].at), 'Meilenstein 1 nicht erreicht');
@@ -42,7 +42,7 @@ describe('Balance: Hochofen-Schleife', () => {
   });
 
   test('gelegentlicher Spieler (Neuguss bei Gewinn >= 10 % des Bestands) erreicht die ersten fünf Meilensteine', () => {
-    const casual = simulate({ hours: 10, dt: 8, policy: 'frac', frac: 0.1 });
+    const casual = simulate({ hours: 10, dt: 8, policy: 'frac', frac: 0.1, corp: false });
     for (const m of MILESTONES.slice(0, -1)) assert.ok(at(casual, m.at), `Meilenstein ${m.at} nicht erreicht`);
     assert.ok(at(casual, MILESTONES[0].at).count <= 2);
   });
@@ -54,7 +54,7 @@ describe('Balance: Hochofen-Schleife', () => {
 
 describe('Balance: Zeitalter-Progression', () => {
   // Lange Simulation (bis Zeitalter 5, max. 14 Tage aktive Spielzeit, dt=30, ca. 2 Minuten Rechenzeit)
-  const eras = simulate({ hours: 336, dt: 30, policy: 'rate', frac: 1, stopAtEra: 5 });
+  const eras = simulate({ hours: 336, dt: 30, policy: 'rate', frac: 1, stopAtEra: 5, corp: false });
   const hours = i => eras.eraTimes[i] / H;
 
   test('Zeitalter 1 kommt erst nach dem 1. Neuguss und mehrere Stunden danach (2..8 h)', () => {

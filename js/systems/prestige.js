@@ -1,6 +1,7 @@
 // Prestige "Hochofen-Neuguss" und Prestige-Shop.
 import { state, defaultState } from '../core/state.js';
-import { prestigeGain, shopCost, shopLevel, startOre } from '../core/formulas.js';
+import { prestigeGain, shopCost, shopLevel, startOre, keepsResearch } from '../core/formulas.js';
+import { RESEARCH } from '../data/research.js';
 import { emit, toast } from '../core/events.js';
 import { t } from '../core/i18n.js';
 import { autoSave } from '../core/save.js';
@@ -10,29 +11,38 @@ import { SHOP_MAP, MILESTONES, PRESTIGE, HISTORY_MAX } from '../data/prestige.js
 
 export const canPrestige = () => prestigeGain() >= 1;
 
-export function doPrestige() {
-  const gain = prestigeGain();
-  if (gain < 1) return false;
+/**
+ * Gemeinsamer Durchlauf-Reset von Neuguss und Konzerngründung: Ressourcen, Generatoren, Klick-Upgrades, Ausbau, Boosts, Buffs,
+ * Werkbank-Aufträge und Statistik des Durchlaufs (stats.run, runTime, runClicks). Konzernforschung (Feld corp) bleibt immer.
+ * keepResearch: normale Forschung samt Laboraufträgen bleibt; keepCorpQueue: laufende Konzernforschungs-Aufträge bleiben.
+ * Setzt weder Hochofen-Punkte noch Startvorrat (das übernimmt der Aufrufer).
+ */
+export function resetRun({ keepResearch, keepCorpQueue }) {
   const fresh = defaultState();
-  const oldTotal = state.prestige.total;
-
   state.res = fresh.res;
-  state.res.ore = startOre();
   state.gens = fresh.gens;
   state.clicks = fresh.clicks;
   state.evo = fresh.evo;   // Generator-Ausbau beginnt jeden Durchlauf neu; das Zeitalter (aus stats.total) bleibt
   state.boosts = {};
-  if (shopLevel('keep') < 1) state.research = {};
+  if (!keepResearch) state.research = Object.fromEntries(RESEARCH.filter(r => r.corp && state.research[r.id]).map(r => [r.id, 1]));
   state.buffs = [];
-  resetForPrestige(shopLevel('keep') >= 1);   // Werkbank-Aufträge verfallen; Forschungsaufträge laufen mit Wissensarchiv weiter
+  resetForPrestige(keepResearch, keepCorpQueue);   // Werkbank-Aufträge verfallen; Laboraufträge laufen mit Wissensarchiv weiter
+  state.stats.run = fresh.stats.run;
+  state.stats.runTime = 0;
+  state.stats.runClicks = 0;
+}
+
+export function doPrestige() {
+  const gain = prestigeGain();
+  if (gain < 1) return false;
+  const oldTotal = state.prestige.total;
 
   // Chronik: Daten des beendeten Durchlaufs festhalten, bevor sie zurückgesetzt werden
   const runTime = Math.max(0, state.stats.runTime || 0);
   const entry = { gain, ore: state.stats.run.ore || 0, time: runTime, at: Date.now() };
 
-  state.stats.run = fresh.stats.run;
-  state.stats.runTime = 0;
-  state.stats.runClicks = 0;
+  resetRun({ keepResearch: keepsResearch(), keepCorpQueue: true });
+  state.res.ore = startOre();
   state.stats.bestPrestige = Math.max(state.stats.bestPrestige, gain);
   if (runTime > 0 && (!(state.stats.fastestPrestige > 0) || runTime < state.stats.fastestPrestige)) state.stats.fastestPrestige = runTime;
 

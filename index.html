@@ -27,6 +27,14 @@
 <div class="app">
   <aside class="sidebar" aria-label="Ressourcen und Hauptaktion" data-i18n-aria="Ressourcen und Hauptaktion">
     <h1 class="logo"><img class="logo-img" src="assets/icons/furnace.svg" alt="" width="40" height="40"><span data-i18n="Eisenwerk Idle">Eisenwerk Idle</span></h1>
+    <div id="click-zone" class="click-zone">
+      <button id="collect" class="collect" type="button" aria-describedby="clickVal">
+        <span class="collect-icon" aria-hidden="true"><img src="assets/icons/furnace.svg" alt="" width="72" height="72" draggable="false"></span>
+        <span class="collect-label" data-i18n="Erz sammeln">Erz sammeln</span>
+      </button>
+      <div id="clickVal" class="click-val"></div>
+    </div>
+
     <div id="meters" class="meters"></div>
     <button id="cast-summary" class="cast-summary" type="button" title="Neuguss-Chronik im Hochofen öffnen" data-i18n-title="Neuguss-Chronik im Hochofen öffnen"><span id="cast-ico" class="cast-ico" aria-hidden="true"></span><span class="cast-text"><span class="cast-line"><span class="cast-k" data-i18n="Neugüsse:">Neugüsse:</span> <strong id="cast-count">0</strong></span><span class="cast-line"><span class="cast-k" data-i18n="Gussformen:">Gussformen:</span> <strong id="cast-points">0</strong> <span id="cast-bonus" class="cast-bonus"></span></span></span></button>
     <div id="era-summary" class="era-summary" hidden title="Zeitalter der Industrialisierung" data-i18n-title="Zeitalter der Industrialisierung">
@@ -38,16 +46,7 @@
       </span>
     </div>
 
-    <div id="click-zone" class="click-zone">
-      <button id="collect" class="collect" type="button" aria-describedby="clickVal">
-        <span class="collect-icon" aria-hidden="true"><img src="assets/icons/furnace.svg" alt="" width="72" height="72" draggable="false"></span>
-        <span class="collect-label" data-i18n="Erz sammeln">Erz sammeln</span>
-      </button>
-      <div id="clickVal" class="click-val"></div>
-    </div>
-
     <ul id="buffs" class="buffs" aria-label="Aktive Effekte" data-i18n-aria="Aktive Effekte"></ul>
-    <div id="conv" class="note"></div>
     <div class="side-foot"><span id="saved" data-i18n="Noch nicht gespeichert">Noch nicht gespeichert</span></div>
   </aside>
 
@@ -56,10 +55,11 @@
       <nav id="tabs" class="tabs" role="tablist" aria-label="Bereiche" data-i18n-aria="Bereiche">
         <button class="tab" role="tab" id="tabbtn-works" data-tab="works" aria-controls="tab-works" title="Werk" data-i18n-title="Werk" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-works"/></svg><span class="tab-label" data-i18n="Werk">Werk</span></button>
         <button class="tab" role="tab" id="tabbtn-gens" data-tab="gens" aria-controls="tab-gens" title="Generatoren" data-i18n-title="Generatoren" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-gens"/></svg><span class="tab-label" data-i18n="Generatoren">Generatoren</span></button>
-        <button class="tab" role="tab" id="tabbtn-industry" data-tab="industry" hidden aria-controls="tab-industry" title="Industrie" data-i18n-title="Industrie" type="button"><span class="ico ico-emoji" aria-hidden="true">🏭</span><span class="tab-label" data-i18n="Industrie">Industrie</span></button>
+        <button class="tab" role="tab" id="tabbtn-industry" data-tab="industry" hidden aria-controls="tab-industry" title="Industrie" data-i18n-title="Industrie" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-industry"/></svg><span class="tab-label" data-i18n="Industrie">Industrie</span></button>
         <button class="tab" role="tab" id="tabbtn-upgrades" data-tab="upgrades" aria-controls="tab-upgrades" title="Upgrades" data-i18n-title="Upgrades" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-upgrades"/></svg><span class="tab-label" data-i18n="Upgrades">Upgrades</span><span class="tab-badge" id="badge-upgrades" hidden></span></button>
         <button class="tab" role="tab" id="tabbtn-research" data-tab="research" aria-controls="tab-research" title="Forschung" data-i18n-title="Forschung" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-research"/></svg><span class="tab-label" data-i18n="Forschung">Forschung</span><span class="tab-badge" id="badge-research" hidden></span></button>
         <button class="tab" role="tab" id="tabbtn-prestige" data-tab="prestige" aria-controls="tab-prestige" title="Hochofen" data-i18n-title="Hochofen" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-prestige"/></svg><span class="tab-label" data-i18n="Hochofen">Hochofen</span><span id="prestige-dot" class="dot" hidden><span class="sr-only" data-i18n=" (Neuguss möglich)"> (Neuguss möglich)</span></span></button>
+        <button class="tab" role="tab" id="tabbtn-corp" data-tab="corp" hidden aria-controls="tab-corp" aria-describedby="corp-tab-status" title="Konzern" data-i18n-title="Konzern" type="button"><svg id="corp-lock" class="ico tab-lock" aria-hidden="true" focusable="false" hidden><use href="assets/sprites/ui.svg#lock"/></svg><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-corp"/></svg><span class="tab-label" data-i18n="Konzern">Konzern</span><span id="corp-dot" class="dot" hidden><span class="sr-only" data-i18n=" (Konzerngründung möglich)"> (Konzerngründung möglich)</span></span><span id="corp-tab-status" class="sr-only"></span></button>
         <button class="tab" role="tab" id="tabbtn-achievements" data-tab="achievements" aria-controls="tab-achievements" title="Erfolge" data-i18n-title="Erfolge" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-achievements"/></svg><span class="tab-label" data-i18n="Erfolge">Erfolge</span></button>
         <button class="tab" role="tab" id="tabbtn-stats" data-tab="stats" aria-controls="tab-stats" title="Statistik" data-i18n-title="Statistik" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-stats"/></svg><span class="tab-label" data-i18n="Statistik">Statistik</span></button>
         <button class="tab" role="tab" id="tabbtn-settings" data-tab="settings" aria-controls="tab-settings" title="Einstellungen" data-i18n-title="Einstellungen" type="button"><svg class="ico" aria-hidden="true" focusable="false"><use href="assets/sprites/ui.svg#tab-settings"/></svg><span class="tab-label" data-i18n="Einstellungen">Einstellungen</span></button>
@@ -107,6 +107,10 @@
 
     <section id="tab-prestige" class="panel" role="tabpanel" aria-labelledby="tabbtn-prestige" hidden>
       <div id="prestige-root" class="panel-grid"></div>
+    </section>
+
+    <section id="tab-corp" class="panel" role="tabpanel" aria-labelledby="tabbtn-corp" hidden>
+      <div id="corp-root"></div>
     </section>
 
     <section id="tab-achievements" class="panel" role="tabpanel" aria-labelledby="tabbtn-achievements" hidden>

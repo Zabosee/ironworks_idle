@@ -1,76 +1,36 @@
-// Rendering aller Panels. Baut das DOM einmal auf (ohne innerHTML) und aktualisiert danach nur Textknoten/Klassen.
+// Einstieg der UI: verdrahtet Panels, Ereignisse und den Frame-Takt. Die Teile liegen in sidebar/cards/queues/panels.
 import { state } from '../core/state.js';
-import { on } from '../core/events.js';
-import { fmt, fmtInt, fmtTime, fmtClock, decimal } from '../core/format.js';
-import { t, tName, tDesc, tDefName, tDefDesc, locale } from '../core/i18n.js';
-import {
-  rates, bulkPlan, duration, levelOf, lockReason, genOutputAt, clickBaseAt, milestone, researchMult, achievementBonus,
-  prestigeMult, globalMult, buffMult, prestigeGain, oreForGain, shopLevel, shopCost, autobuyerUnlocked, researchDepth,
-  pendingOf, isRevealed, resVisible, queueSlots, queueCapacity, eraDef, eraIndex, nextEra, eraMult, eraProgress, industryUnlocked,
-} from '../core/formulas.js';
-import { RES, RES_IDS } from '../data/resources.js';
-import { GENS, ELITE_FROM, EXTRA_MILESTONES, MILESTONE_STEP } from '../data/generators.js';
-import { CLICKS, BOOSTS } from '../data/upgrades.js';
-import { RECIPE_MAP } from '../data/recipes.js';
-import { RESEARCH } from '../data/research.js';
-import { PRESTIGE, SHOP, MILESTONES, AUTOBUYERS, HISTORY_MAX } from '../data/prestige.js';
-import { ACHIEVEMENTS } from '../data/achievements.js';
-import { BUFFS } from '../data/golden.js';
+import { on, toast } from '../core/events.js';
+import { t, locale } from '../core/i18n.js';
+import { rates } from '../core/formulas.js';
+import { fmtInt } from '../core/format.js';
 import { buy } from '../systems/production.js';
-import { doPrestige, buyShop, canPrestige } from '../systems/prestige.js';
-import { setEnabled } from '../systems/autobuyers.js';
-import { queueState, cancel } from '../systems/timers.js';
-import { QUEUES, QUEUE_IDS, REFUND } from '../data/timers.js';
-import { imgFor, UI_SPRITE, ITEM_SPRITE } from './assets.js';
-import { buildFlask, ensureClipDefs } from './lab.js';
-import { h, $, clear, setText, setClass, setAttr, confirmDialog } from './dom.js';
-import { activeTab, setTabHidden } from './tabs.js';
+import { $, setText } from './dom.js';
+import { activeTab } from './tabs.js';
 import { restartAnim, clearOneShots, updateOrbs } from './effects.js';
 import { sample, drawHistory } from './charts.js';
 import { buildIndustry, renderIndustry } from './industry.js';
-import { initResearchMap, updateNodeStates, updateResearchPanel } from './research-map.js';
+import { buildCorp, renderCorp } from './corp.js';
+import { updateResearchPanel } from './research-map.js';
+import { els, initSidebar, renderTop, renderBuffs, showDelta } from './sidebar.js';
+import { cards, buildCards, renderCards } from './cards.js';
+import { buildQueues, renderQueues, buildAutobuyers, renderAutobuyers } from './queues.js';
+import { sv, buildPrestige, renderPrestige, buildAchievements, renderAchievements, buildStats, renderStats } from './panels.js';
 
-/** Kleines ui.svg-Symbol (currentColor). */
-function svgUse(name, cls = '') {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'), u = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-  svg.setAttribute('class', ('ico ' + cls).trim()); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
-  u.setAttribute('href', UI_SPRITE + '#' + name); svg.append(u);
-  return svg;
-}
-
-/** Item-Symbol aus items.svg; `cat` färbt per CSS-Klasse (sym-click, sym-boost, sym-shop, sym-ach, sym-buff, sym-prestige). */
-function symUse(sym, cat = '', cls = '') {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'), u = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-  svg.setAttribute('class', ('ico sym ' + (cat ? 'sym-' + cat + ' ' : '') + cls).trim()); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
-  u.setAttribute('href', ITEM_SPRITE + '#sym-' + sym); svg.append(u);
-  return svg;
-}
-
-const cards = [];          // { kind, id, el, t, b, d, n, c }
-const meters = {};         // pro Ressource: { amt, rps, delta, canvas }
-const shopCards = {};
-const achItems = {};
 let lastRates = null;
-let els = {};
 
 // ---------- Aufbau ----------
 export function initRender() {
-  els = {
-    meters: $('#meters'), clickVal: $('#clickVal'), conv: $('#conv'), buffs: $('#buffs'), saved: $('#saved'),
-    buyAmount: $('#buyamount'), prestigeDot: $('#prestige-dot'),
-    castCount: $('#cast-count'), castPoints: $('#cast-points'), castBonus: $('#cast-bonus'),
-    eraBox: $('#era-summary'), eraName: $('#era-name'), eraBonus: $('#era-bonus'), eraIco: $('#era-ico'), eraFill: $('#era-fill'), eraNext: $('#era-next'),
-  };
-  buildMeters();
+  initSidebar();
   buildCards();
-  buildAutobuyers();
-  buildQueues();
+  buildAutobuyers(refresh);
+  buildQueues(refresh);
   buildPrestige();
   buildAchievements();
   buildStats();
   buildIndustry($('#industry-root'));
+  buildCorp();
   bindActions();
-
   on('buy', e => {
     if (e.silent) return;
     const card = cards.find(c => c.kind === e.kind && c.id === e.id);
@@ -89,97 +49,20 @@ export function initRender() {
     if (card) restartAnim(card.root, 'done-flash');
   });
   on('prestige', refresh);
+  for (const ev of ['corp', 'corpshop', 'autocastset']) on(ev, refresh);
+  on('corpunlock', () => { const b = document.getElementById('tabbtn-corp'); if (b) restartAnim(b, 'tab-pulse'); refresh(); });
+  let lastAuto = 0;
+  on('autocast', e => {   // höchstens ein Toast je 10 s
+    const now = Date.now();
+    if (now - lastAuto < 10000) return;
+    lastAuto = now;
+    toast(t('Auto-Neuguss: +{gain} Gussformen', { gain: fmtInt(e.gain) }), 'info');
+  });
   on('loaded', refresh);
   on('tab', () => { clearOneShots(); refresh(); });
   on('buffs', () => renderBuffs(true));
   on('saved', ts => setText(els.saved, t('Gespeichert {time}', { time: new Date(ts).toLocaleTimeString(locale()) })));
   on('save-failed', () => setText(els.saved, t('Speichern nicht möglich')));
-}
-
-const BASE_RES = ['ore', 'steel', 'titan'];
-function buildMeters() {
-  const moreList = h('div', { class: 'meters-more-list' });
-  els.moreCount = h('span', { class: 'more-count' });
-  const toggle = h('button', { class: 'more-toggle', type: 'button', 'aria-expanded': 'true', 'aria-controls': 'meters-more-list' }, h('span', { text: t('Weitere Materialien') + ' ' }), els.moreCount, h('span', { class: 'more-chev', 'aria-hidden': 'true' }));
-  moreList.id = 'meters-more-list';
-  els.more = h('div', { class: 'meters-more' }, toggle, moreList);
-  const setOpen = open => { toggle.setAttribute('aria-expanded', String(open)); moreList.hidden = !open; };
-  toggle.addEventListener('click', () => setOpen(moreList.hidden));
-  $('#cast-ico').append(symUse(PRESTIGE.sym || 'flame', 'prestige'));
-  $('#cast-summary').addEventListener('click', () => document.getElementById('tabbtn-prestige')?.click());
-  for (const k of RES_IDS) {
-    const r = RES[k];
-    const m = {
-      amt: h('span', { class: 'amt' }), rps: h('span', { class: 'rps' }),
-      delta: h('span', { class: 'delta' }),
-    };
-    meters[k] = m;
-    m.el = h('div', { class: 'meter', style: `--c:${r.color}` },
-      h('div', { class: 'orb', id: 'orb-' + k, 'aria-hidden': 'true' },
-        h('span', { class: 'ring' }), h('span', { class: 'orb-core' }, imgFor(r) ? h('img', { src: imgFor(r), alt: '', draggable: 'false' }) : r.icon)),
-      h('div', { class: 'meter-body' },
-        h('div', { class: 'meter-row' }, h('span', { class: 'meter-name', text: tName('resources', r) }), m.amt),
-        h('div', { class: 'meter-row small' }, h('span', {}, m.rps, '/s'), m.delta)));
-    (BASE_RES.includes(k) ? els.meters : moreList).append(m.el);
-  }
-  els.meters.append(els.more);
-  // Mobil (<1024px) ist die Gruppe immer offen und Teil der kompakten Leiste
-  const mq = window.matchMedia('(max-width: 1023px)');
-  const sync = () => { if (mq.matches) setOpen(true); };
-  mq.addEventListener('change', sync);
-  sync();
-}
-
-function makeCard(kind, id, extra = {}) {
-  const c = {
-    kind, id,
-    t: h('span', { class: 't' }), b: h('span', { class: 'b' }),
-    d: h('span', { class: 'd' }), n: h('span', { class: 'n', hidden: true }), c: h('span', { class: 'c' }),
-  };
-  c.nIco = svgUse('lock', 'note-ico'); c.nTxt = h('span');
-  c.n.append(c.nIco, c.nTxt);
-  const ico = extra.img ? h('img', { class: 'card-ico', src: extra.img, alt: '', draggable: 'false' }) : extra.sym ? h('span', { class: 'card-ico card-sym', 'aria-hidden': 'true' }, symUse(extra.sym, extra.cat)) : extra.emoji ? h('span', { class: 'card-ico card-emoji', 'aria-hidden': 'true', text: extra.emoji }) : null;
-  delete extra.img; delete extra.emoji; delete extra.sym; delete extra.cat;
-  if (kind === 'gen') { c.msFill = h('i'); c.ms = h('span', { class: 'ms-bar', 'aria-hidden': 'true' }, c.msFill); }
-  // Boosts/Klick-Upgrades: Ring um das Icon zeigt den Fortschritt des Auftrags (Variable --p)
-  if (kind === 'boost' || kind === 'click') c.ring = h('span', { class: 'timer-ring', 'aria-hidden': 'true' }, ico);
-  c.el = h('button', { class: 'card', type: 'button', dataset: { kind, id }, ...extra },
-    h('span', { class: 'card-head' }, c.ring || ico, c.t, c.b), c.d, c.n, c.ms, c.c);
-  c.root = c.el;
-  return c;
-}
-
-/** Forschungskarte als Laborgefäß: Kolben links, Text/Knopf rechts, darunter Fortschritt (role=progressbar außerhalb des Buttons). */
-function wrapResearch(c) {
-  const def = c.def;
-  c.flask = buildFlask(def);
-  const mk = n => { const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'), u = document.createElementNS('http://www.w3.org/2000/svg', 'use'); svg.setAttribute('class', 'ico flask-mark ' + n); svg.setAttribute('aria-hidden', 'true'); u.setAttribute('href', UI_SPRITE + '#' + n); svg.append(u); return svg; };
-  c.markLock = mk('lock'); c.markDone = mk('check');
-  c.progText = h('span', { class: 'prog-text' });
-  c.progFill = h('i');
-  c.prog = h('div', { class: 'card-prog', role: 'progressbar', 'aria-label': t('Forschung {name}', { name: tName('research', def) }), 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0' },
-    c.progText, h('span', { class: 'prog-bar', 'aria-hidden': 'true' }, c.progFill));
-  c.root = h('div', { class: 'flask-card', style: `--liquid:${def.liquid}` },
-    h('div', { class: 'flask-wrap', 'aria-hidden': 'true' }, c.flask, c.markLock, c.markDone),
-    h('div', { class: 'flask-body' }, c.el, c.prog));
-}
-
-function buildCards() {
-  const add = (container, kind, def) => {
-    const c = makeCard(kind, def.id, imgFor(def) ? { img: imgFor(def) } : (kind === 'boost' || kind === 'click') ? (def.sym ? { sym: def.sym, cat: kind } : { emoji: def.icon }) : {});
-    c.def = def;
-    cards.push(c);
-    if (kind === 'research') wrapResearch(c);
-    container.append(c.root);
-  };
-  ensureClipDefs($('#lab'));
-  const gens = $('#list-gens'), ups = $('#list-upgrades'), boosts = $('#list-boosts'), rs = $('#list-research');
-  for (const g of GENS) add(gens, 'gen', g);
-  for (const c of CLICKS) add(ups, 'click', c);
-  for (const b of BOOSTS) add(boosts, 'boost', b);
-
-  // Research: Neue Map-Struktur
-  initResearchMap(rs);
 }
 
 function bindActions() {
@@ -209,578 +92,14 @@ function bindActions() {
   });
 }
 
-// ---------- Warteschlangen (.queue-bar mit .slot-chip) ----------
-const qv = {};   // queue -> { root, title, list, key, chips: [{ chip, time, entry }] }
-function buildQueues() {
-  for (const q of QUEUE_IDS) {
-    const root = document.getElementById('queue-' + q);
-    if (!root) continue;
-    root.hidden = false;
-    qv[q] = { root, title: h('h3', { class: 'queue-title' }), list: h('ul', { class: 'queue-list' }), key: '', chips: [] };
-    root.append(qv[q].title, qv[q].list);
-    qv[q].list.addEventListener('click', e => {
-      const b = e.target.closest('button[data-index]');
-      if (!b) return;
-      cancel(q, Number(b.dataset.index));
-      refresh();
-    });
-  }
-}
-
-/** Text der Erstattung, z. B. "50 % zurück: 150 🪨 · 20 🔩". */
-function refundText(q, index, running) {
-  const e = state.timers[q][index];
-  const f = running ? REFUND.running : REFUND.waiting;
-  const parts = e ? RES_IDS.filter(k => e.cost[k] > 0).map(k => `${fmt(e.cost[k] * f)} ${tName('resources', RES[k])}`) : [];
-  return t('{pct} % zurück', { pct: Math.round(f * 100) }) + (parts.length ? ': ' + parts.join(' · ') : '');
-}
-
-function renderQueues(only) {
-  for (const q of QUEUE_IDS) {
-    const v = qv[q];
-    if (!v || (only && !only.includes(q))) continue;
-    const st = queueState(q), slots = queueSlots(q), cap = queueCapacity(q);
-    const running = st.filter(e => e.running).length;
-    setText(v.title, t('{name}: {running}/{slots} aktiv · {waiting}/{wcap} wartend', { name: tName('timers', QUEUES[q]), running, slots, waiting: st.length - running, wcap: cap - slots }));
-    const key = slots + '|' + st.map(e => e.kind + ':' + e.id + (e.running ? '*' : '')).join('|');
-    if (key !== v.key) {
-      v.key = key;
-      clear(v.list);
-      v.chips = [];
-      st.forEach(e => {
-        const time = h('span', { class: 'chip-time', role: 'timer' }), fill = h('i');
-        const short = e.running ? '50 %' : '100 %';
-        const btn = h('button', { class: 'btn chip-cancel', type: 'button', dataset: { index: e.index }, title: refundText(q, e.index, e.running),
-          'aria-label': t('{name} abbrechen ({refund})', { name: e.name, refund: refundText(q, e.index, e.running) }) }, svgUse('cancel'), h('span', { text: t('Abbrechen ({pct} zurück)', { pct: short }) }));
-        const chip = h('li', { class: 'slot-chip ' + (e.running ? 'running' : 'waiting') },
-          h('span', { class: 'chip-name', text: e.name }), time, h('span', { class: 'chip-bar', 'aria-hidden': 'true' }, fill), btn);
-        v.list.append(chip);
-        v.chips.push({ chip, time });
-      });
-      for (let i = running; i < slots; i++) v.list.append(h('li', { class: 'slot-chip free' }, h('span', { class: 'chip-name', text: t('Slot frei') })));
-    }
-    st.forEach((e, i) => {
-      const c = v.chips[i];
-      if (!c) return;
-      setText(c.time, e.running ? fmtClock(e.left) : t('wartet · {time}', { time: fmtClock(e.total) }));
-      const pv = e.running ? e.progress.toFixed(2) : '0';
-      if (c.chip._p !== pv) { c.chip._p = pv; c.chip.style.setProperty('--p', pv); }
-    });
-  }
-}
-
-/** Tab-Abzeichen: laufende Aufträge als Restzeit des nächsten Abschlusses, zusätzlich Wartende. */
-const badgeEls = {};
-function renderBadges() {
-  for (const [q, tab] of [['lab', 'research'], ['workshop', 'upgrades']]) {
-    const el = badgeEls[tab] ??= document.getElementById('badge-' + tab);
-    if (!el) continue;
-    const st = queueState(q), run = st.filter(e => e.running);
-    el.hidden = st.length === 0;
-    if (!st.length) continue;
-    const left = run.length ? Math.min(...run.map(e => e.left)) : 0;
-    const wait = st.length - run.length;
-    setText(el, `${run.length}/${queueSlots(q)} · ${fmtClock(left)}${wait ? ' +' + wait : ''}`);
-    setAttr(el, 'title', t('{name}: {run} läuft, {wait} wartet', { name: tName('timers', QUEUES[q]), run: run.length, wait }));
-  }
-}
-
-// ---------- Auto-Buyer ----------
-const abToggles = {};
-function buildAutobuyers() {
-  const root = $('#list-auto');
-  for (const a of AUTOBUYERS) {
-    const status = h('span', { class: 'b' });
-    const btn = h('button', {
-      class: 'toggle', type: 'button', 'aria-pressed': 'false',
-      onclick: () => {
-        if (!autobuyerUnlocked(a.id)) return;
-        setEnabled(a.id, !state.autobuyers[a.id]);
-        refresh();
-      },
-    }, h('span', { class: 't' }, svgUse('robot'), ' ' + tName('autobuyers', a)), status);
-    abToggles[a.id] = { btn, status };
-    root.append(btn);
-  }
-}
-
-function renderAutobuyers() {
-  for (const a of AUTOBUYERS) {
-    const { btn, status } = abToggles[a.id];
-    const unlocked = autobuyerUnlocked(a.id), on = unlocked && state.autobuyers[a.id];
-    setAttr(btn, 'aria-pressed', on);
-    setAttr(btn, 'aria-disabled', !unlocked);
-    setClass(btn, 'locked', !unlocked);
-    setClass(btn, 'on', on);
-    setText(status, unlocked ? (on ? t('An') : t('Aus')) : t('Gesperrt (Hochofen-Shop)'));
-  }
-}
-
-// ---------- Karten-Inhalt ----------
-function prevMilestone(lvl) {
-  let prev = Math.floor(lvl / MILESTONE_STEP) * MILESTONE_STEP;
-  if (state.research.precision) for (const t of EXTRA_MILESTONES) if (t <= lvl && t > prev) prev = t;
-  return prev;
-}
-
-function nextMilestone(lvl) {
-  let next = (Math.floor(lvl / MILESTONE_STEP) + 1) * MILESTONE_STEP;
-  if (state.research.precision) {
-    const extra = EXTRA_MILESTONES.find(t => t > lvl);
-    if (extra && extra < next) next = extra;
-  }
-  return next;
-}
-
-function costEntries(plan) {
-  const out = [];
-  if (plan.count > 1) out.push({ text: '×' + plan.count, ok: true });
-  for (const k of RES_IDS) {
-    const v = plan.cost[k];
-    if (v > 0) out.push({ text: fmt(v), img: imgFor(RES[k]), name: tName('resources', RES[k]), ok: state.res[k] >= v });
-  }
-  return out;
-}
-
-function setCost(el, entries) {
-  const key = entries.map(e => e.img + e.sym + e.text + (e.ok ? '+' : '-')).join('|');
-  if (el._k === key) return;
-  el._k = key;
-  clear(el);
-  for (const e of entries) el.append(h('span', { class: e.ok ? 'ok' : 'bad', title: e.name }, e.img ? h('img', { class: 'cost-ico', src: e.img, alt: e.name ? e.name + ': ' : '', draggable: 'false' }) : e.sym ? symUse(e.sym, 'prestige', 'cost-sym') : null, e.text));
-}
-
-/** Notizzeile: Text und optionales ui.svg-Symbol (lock, star, hourglass, clock). */
-function setNote(c, text, icon = '') {
-  setText(c.nTxt, text);
-  const hide = !text;
-  if (c.n.hidden !== hide) c.n.hidden = hide;
-  const showIcon = !!icon && !hide;
-  if (c.nIco.style.display !== (showIcon ? '' : 'none')) c.nIco.style.display = showIcon ? '' : 'none';
-  if (showIcon && c.nIco._i !== icon) { c.nIco._i = icon; c.nIco.firstChild.setAttribute('href', UI_SPRITE + '#' + icon); }
-}
-
-function describe(c) {
-  const { kind, def } = c;
-  const lvl = levelOf(kind, def.id);
-  const lock = lockReason(kind, def.id);
-  const plan = bulkPlan(kind, def.id, kind === 'gen' ? state.settings.buyAmount : 1);
-  const k = Math.max(plan.count, 1);
-  const o = { title: imgFor(def) || kind !== 'gen' ? tDefName(kind, def) : `${def.icon} ${tDefName(kind, def)}`, badge: '', desc: '', note: '', plan, status: 'ok' };
-
-  if (kind === 'gen') {
-    const out = genOutputAt(def, lvl);
-    o.badge = t('Stufe {n}', { n: fmtInt(lvl) }) + (lvl >= ELITE_FROM ? ' · ' + t('Elite') : '');
-    o.desc = `${fmt(out)} ${tName('resources', RES[def.res])}/s · +${fmt(genOutputAt(def, lvl + k) - out)}/s`;
-    o.note = lock || t('×2 bei Stufe {next} (jetzt ×{now})', { next: nextMilestone(lvl), now: fmt(milestone(lvl)) }) + (lvl >= ELITE_FROM - 1 ? ' · ' + t('Elite: kostet Titan') : '');
-    o.icon = lock ? 'lock' : lvl >= ELITE_FROM - 1 ? 'star' : '';
-  } else if (kind === 'click') {
-    o.badge = t('Stufe {n}', { n: fmtInt(lvl) });
-    o.desc = t('Klickbeitrag: {from} → {to} Erz nach Kauf', { from: fmt(clickBaseAt(lvl, undefined, def)), to: fmt(clickBaseAt(lvl + k, undefined, def)) });
-    o.tip = t('Klickbeitrag = (Basis + Stufe × Zuwachs) × Meilensteinfaktor (jetzt ×{ms}) × Boni (Forschung, Shop, Gesamtbonus). Der Wert enthält bereits alle Boni.', { ms: fmt(milestone(lvl)) });
-    o.note = def.costs ? '' : lvl >= def.eliteFrom - 1 ? t('Elite: kostet Titan') : lvl >= def.steelFrom - 1 ? t('Ab Stufe {n} kostet es Stahl', { n: def.steelFrom }) : '';
-  } else {
-    const done = lvl > 0;
-    o.badge = done ? (kind === 'research' ? t('Erforscht') : t('Aktiv')) : '';
-    o.desc = tDefDesc(kind, def);
-    o.note = !done && lock ? lock : '';
-    o.icon = o.note ? 'lock' : '';
-    if (done) o.status = 'done';
-  }
-  const p = kind === 'gen' ? null : pendingOf(kind, def.id);
-  o.prog = { value: o.status === 'done' ? 1 : 0, running: false, text: o.status === 'done' ? (kind === 'research' ? t('Erforscht') : t('Aktiv')) : t('Dauer {time}', { time: fmtClock(kind === 'gen' ? 0 : duration(kind, def.id)) }) };
-  if (p) {
-    const q = queueState(p.queue)[p.index];
-    o.prog = q.running
-      ? { value: q.progress, running: true, text: t('Restzeit {time} · {pct} %', { time: fmtClock(q.left), pct: Math.round(q.progress * 100) }) }
-      : { value: 0, running: false, text: t('Wartet · Dauer {time}', { time: fmtClock(q.total) }) };
-  }
-  if (p) {
-    // Auftrag läuft oder wartet: Restzeit als Text auf der Karte, kein Doppelkauf
-    const e = queueState(p.queue)[p.index];
-    o.status = 'pending';
-    o.icon = 'hourglass';
-    o.note = kind === 'research' ? '' : e.running ? t('Läuft: noch {time} ({pct} %)', { time: fmtClock(e.left), pct: Math.round(e.progress * 100) }) : t('Wartet (Platz {n}) · {time}', { n: p.index - queueSlots(p.queue) + 1, time: fmtClock(e.total) });
-  } else if (kind !== 'gen' && kind !== 'research' && o.status === 'ok' && !lock) {
-    o.icon = o.note ? o.icon : 'clock';
-    o.note = (o.note ? o.note + ' · ' : '') + t('Dauer {time}', { time: fmtClock(duration(kind, def.id)) });
-  }
-  if (lock && o.status === 'ok') o.status = 'locked';
-  o.hidden = !isRevealed(kind, def.id);
-  return o;
-}
-
-/** Fortschritt von Kolben (Forschung) bzw. Ring (Boost/Klick): nur --p und Text, keine DOM-Umbauten. */
-function renderProgress(c, o) {
-  const v = o.prog.value, pv = v.toFixed(2);
-  const target = c.flask ? c.root : c.ring;
-  if (target._p !== pv) { target._p = pv; target.style.setProperty('--p', pv); }
-  setClass(c.root, 'running', o.prog.running);
-  setClass(c.root, 'waiting', o.status === 'pending' && !o.prog.running);
-  setClass(c.root, 'empty', v === 0);
-  setClass(c.root, 'is-done', o.status === 'done');
-  setClass(c.root, 'is-locked', o.status === 'locked');
-  if (c.ring) { setClass(c.ring, 'on', o.status === 'pending'); return; }
-  setText(c.progText, o.prog.text);
-  const pct = Math.round(v * 100);
-  setAttr(c.prog, 'aria-valuenow', pct);
-  setAttr(c.prog, 'aria-valuetext', o.prog.text);
-  if (c.progFill._f !== pv) { c.progFill._f = pv; c.progFill.style.transform = `scaleX(${pv})`; }
-}
-
-function renderCards(kinds) {
-  // Research nutzt neue Map-Struktur
-  if (kinds.includes('research')) {
-    updateNodeStates();
-    return;
-  }
-
-  for (const c of cards) {
-    if (!kinds.includes(c.kind)) continue;
-    const o = describe(c);
-    const can = o.status === 'ok' && o.plan.count > 0 && o.plan.affordable;
-    if (c.root.hidden !== o.hidden) c.root.hidden = o.hidden;
-    setText(c.t, o.title); setText(c.b, o.badge); setText(c.d, o.desc); setAttr(c.d, 'title', o.tip || ''); setNote(c, o.note, o.icon);
-    setCost(c.c, o.status === 'done' || o.status === 'pending' ? [] : costEntries(o.plan));
-    if (c.msFill) {
-      const lv = levelOf(c.kind, c.def.id), a = prevMilestone(lv), b = nextMilestone(lv);
-      const f = ((lv - a) / Math.max(b - a, 1)).toFixed(3);
-      if (c.msFill._f !== f) { c.msFill._f = f; c.msFill.style.transform = `scaleX(${f})`; }
-    }
-    setAttr(c.el, 'aria-disabled', !can);
-    setClass(c.el, 'can', can);
-    setClass(c.el, 'done', o.status === 'done');
-    setClass(c.el, 'pending', o.status === 'pending');
-    setClass(c.el, 'locked', o.status === 'locked');
-    if (c.flask || c.ring) renderProgress(c, o);
-    if (c.flask) setClass(c.root, 'can', can);
-  }
-}
-
-// ---------- Prestige ----------
-const pv = {};
-function buildPrestige() {
-  const root = $('#prestige-root');
-  pv.points = h('strong'); pv.total = h('strong'); pv.mult = h('strong'); pv.gain = h('strong'); pv.hint = h('p', { class: 'hint' });
-  pv.fill = h('div', { class: 'bar-fill' });
-  pv.bar = h('div', { class: 'bar', role: 'progressbar', 'aria-label': t('Fortschritt zum nächsten Punkt'), 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0' }, pv.fill);
-  pv.btnT = h('span');
-  pv.btn = h('button', {
-    class: 'btn btn-primary btn-big', type: 'button',
-    onclick: async () => {
-      if (!canPrestige()) return;
-      const gain = prestigeGain();
-      const ok = await confirmDialog({
-        title: t('{name}?', { name: t(PRESTIGE.name) }),
-        message: t('Du setzt Ressourcen, Generatoren, Klick-Upgrades und Boosts{research} zurück (laufende Aufträge der Werkbank{lab} verfallen ohne Erstattung) und erhältst {gain} {currency}. Shop-Käufe, Erfolge und Auto-Buyer bleiben erhalten.', { research: shopLevel('keep') ? '' : t(' sowie Forschung'), lab: shopLevel('keep') ? '' : t(' und des Labors'), gain, currency: t(PRESTIGE.currency) }),
-        confirmLabel: t('Neuguss durchführen'),
-      });
-      if (ok) doPrestige();
-    },
-  }, symUse(PRESTIGE.sym || 'flame', 'prestige'), ' ', pv.btnT);
-  pv.msList = h('ul', { class: 'milestones' });
-  pv.ms = MILESTONES.map(m => {
-    const li = h('li', {}, h('strong', { text: `${fmtInt(m.at)} ${t(PRESTIGE.currency)}` }), ' – ' + t(m.desc), h('span', { class: 'ms-state' }));
-    pv.msList.append(li);
-    return { li, state: li.lastChild, m };
-  });
-  const shopGrid = h('div', { class: 'grid' });
-  for (const it of SHOP) {
-    const c = makeCard('shop', it.id, it.sym ? { sym: it.sym, cat: 'shop' } : {});
-    c.it = it;
-    c.el.removeAttribute('data-kind');
-    c.el.dataset.shop = it.id;
-    shopCards[it.id] = c;
-    shopGrid.append(c.el);
-  }
-  shopGrid.addEventListener('click', e => {
-    const el = e.target.closest('[data-shop]');
-    if (el && el.getAttribute('aria-disabled') !== 'true') buyShop(el.dataset.shop);
-  });
-
-  buildChronicle();
-  root.append(
-    h('div', { class: 'panel-box' },
-      h('h2', {}, PRESTIGE.sym ? symUse(PRESTIGE.sym, 'prestige', 'h-ico') : PRESTIGE.icon, ' ' + t(PRESTIGE.name)),
-      h('p', { text: t('Schmelze alles ein und gieße neu: Du erhältst {currency}, die deine Produktion dauerhaft um +{pct} % je Stück erhöhen. Je mehr Erz du in einem Durchlauf produzierst, desto mehr bekommst du. Jede weitere Gussform benötigt ×{growth} so viel Erz (exponentielle Skalierung).', { currency: t(PRESTIGE.currency), pct: PRESTIGE.perPoint * 100, growth: decimal(PRESTIGE.growth) }) }),
-      h('dl', { class: 'kv' },
-        h('dt', { text: t('{currency} (verfügbar)', { currency: t(PRESTIGE.currency) }) }), h('dd', {}, pv.points),
-        h('dt', { text: t('Insgesamt verdient') }), h('dd', {}, pv.total),
-        h('dt', { text: t('Produktionsbonus') }), h('dd', {}, pv.mult),
-        h('dt', { text: t('Ertrag bei Neuguss jetzt') }), h('dd', {}, pv.gain)),
-      pv.bar, pv.hint, pv.btn),
-    h('div', { class: 'panel-box' }, h('h2', { text: t('Meilensteine') }), h('p', { class: 'hint', text: t('Basierend auf den insgesamt verdienten Gussformen.') }), pv.msList),
-    cv.box,
-    h('div', { class: 'panel-box wide' }, h('h2', { text: t('Gießerei-Shop') }), shopGrid));
-}
-
-// ---------- Neuguss-Chronik ----------
-const cv = {};
-const fmtDate = t => (t > 0 ? new Date(t).toLocaleString(locale(), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '–');
-function buildChronicle() {
-  const row = (label, node) => [h('dt', { text: label }), h('dd', {}, node)];
-  for (const k of ['count', 'points', 'best', 'fastest', 'cur', 'next']) cv[k] = h('span');
-  cv.fill = h('div', { class: 'bar-fill' });
-  cv.bar = h('div', { class: 'bar', role: 'progressbar', 'aria-label': t('Fortschritt zum nächsten Meilenstein'), 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0' }, cv.fill);
-  cv.empty = h('p', { class: 'hint', text: t('Noch keine Einträge. Dein nächster Neuguss erscheint hier.') });
-  cv.body = h('tbody');
-  cv.table = h('table', { class: 'chronicle' },
-    h('caption', { class: 'sr-only', text: t('Die letzten {n} Neugüsse, neueste zuerst', { n: HISTORY_MAX }) }),
-    h('thead', {}, h('tr', {}, [t('Nr.'), t('Dauer'), t(PRESTIGE.currency), t('Erz im Durchlauf')].map(label => h('th', { scope: 'col', text: label })))),
-    cv.body);
-  cv.box = h('div', { class: 'panel-box wide' },
-    h('h2', {}, symUse('urn', 'prestige', 'h-ico'), ' ' + t('Neuguss-Chronik')),
-    h('dl', { class: 'kv' },
-      ...row(t('Neugüsse durchgeführt'), cv.count),
-      ...row(t('{currency} (gesamt verdient / Bestand)', { currency: t(PRESTIGE.currency) }), cv.points),
-      ...row(t('Bester Durchlauf'), cv.best),
-      ...row(t('Schnellster Durchlauf'), cv.fastest),
-      ...row(t('Aktueller Durchlauf'), cv.cur),
-      ...row(t('Nächster Meilenstein'), cv.next)),
-    cv.bar,
-    h('h3', { class: 'chron-h', text: t('Letzte {n} Neugüsse', { n: HISTORY_MAX }) }),
-    cv.empty, cv.table);
-  cv.key = '';
-}
-
-function renderChronicle(gain) {
-  const p = state.prestige, st = state.stats, hist = Array.isArray(p.history) ? p.history : [];
-  setText(cv.count, fmtInt(p.count));
-  setText(cv.points, `${fmtInt(p.total)} / ${fmtInt(p.points)}`);
-  setText(cv.best, st.bestPrestige > 0 ? `${fmtInt(st.bestPrestige)} ${t(PRESTIGE.currency)}` : '–');
-  setText(cv.fastest, st.fastestPrestige > 0 ? fmtTime(st.fastestPrestige) : '–');
-  setText(cv.cur, t('{time} · +{gain} {currency} bei Neuguss jetzt', { time: fmtTime(st.runTime), gain: fmtInt(gain), currency: t(PRESTIGE.currency) }));
-  const idx = MILESTONES.findIndex(m => p.total < m.at);
-  let frac = 1;
-  if (idx < 0) setText(cv.next, t('Alle Meilensteine erreicht'));
-  else {
-    const m = MILESTONES[idx], from = idx > 0 ? MILESTONES[idx - 1].at : 0;
-    frac = Math.min(1, Math.max(0, (p.total - from) / Math.max(m.at - from, 1)));
-    setText(cv.next, t('{at} {currency} ({desc}) · noch {left}', { at: fmtInt(m.at), currency: t(PRESTIGE.currency), desc: t(m.desc), left: fmtInt(m.at - p.total) }));
-  }
-  cv.fill.style.transform = `scaleX(${frac.toFixed(3)})`;
-  setAttr(cv.bar, 'aria-valuenow', Math.round(frac * 100));
-  setAttr(cv.bar, 'aria-valuetext', idx < 0 ? t('Alle Meilensteine erreicht') : t('{pct} % bis {at} {currency}', { pct: Math.round(frac * 100), at: fmtInt(MILESTONES[idx].at), currency: t(PRESTIGE.currency) }));
-  // Tabelle nur bei Änderung neu aufbauen
-  const key = p.count + ':' + hist.length + ':' + (hist.at(-1)?.at || 0);
-  if (key === cv.key) return;
-  cv.key = key;
-  clear(cv.body);
-  const max = Math.max(1, ...hist.map(e => e.gain));
-  hist.forEach((e, i) => {
-    const bar = h('i'); bar.style.transform = `scaleX(${(e.gain / max).toFixed(3)})`;
-    cv.body.append(h('tr', {},
-      h('th', { scope: 'row', text: '#' + fmtInt(p.count - (hist.length - 1 - i)), title: fmtDate(e.at) }),
-      h('td', { text: fmtTime(e.time) }),
-      h('td', {}, h('span', { class: 'chron-gain' }, h('b', { text: '+' + fmtInt(e.gain) }), h('span', { class: 'chron-bar', 'aria-hidden': 'true' }, bar))),
-      h('td', { text: fmt(e.ore) })));
-  });
-  // neueste zuerst
-  [...cv.body.children].reverse().forEach(tr => cv.body.append(tr));
-  cv.empty.hidden = hist.length > 0;
-  cv.table.hidden = hist.length === 0;
-}
-
-function renderPrestige() {
-  const p = state.prestige, gain = prestigeGain();
-  setText(pv.points, fmtInt(p.points));
-  setText(pv.total, fmtInt(p.total));
-  setText(pv.mult, '×' + fmt(prestigeMult()));
-  setText(pv.gain, '+' + fmtInt(gain));
-  const run = state.stats.run.ore, target = oreForGain(gain), prev = gain >= 1 ? oreForGain(gain - 1) : 0;
-  const frac = Math.min(1, Math.max(0, (run - prev) / Math.max(target - prev, 1)));
-  pv.fill.style.transform = `scaleX(${frac.toFixed(3)})`;
-  setAttr(pv.bar, 'aria-valuenow', Math.round(frac * 100));
-  setText(pv.hint, gain >= 1
-    ? t('Nächste Gussform ab {target} Erz in diesem Durchlauf (aktuell {run}).', { target: fmt(target), run: fmt(run) })
-    : t('Erste Gussform ab {target} Erz in diesem Durchlauf (aktuell {run}).', { target: fmt(target), run: fmt(run) }));
-  setText(pv.btnT, gain >= 1 ? t('Neuguss: +{gain} {currency}', { gain: fmtInt(gain), currency: t(PRESTIGE.currency) }) : t('Noch nicht möglich'));
-  setAttr(pv.btn, 'aria-disabled', gain < 1);
-  for (const { li, state: st, m } of pv.ms) {
-    const done = p.total >= m.at;
-    setClass(li, 'done', done);
-    setText(st, done ? ' ' + t('(erreicht)') : ' ' + t('(gesperrt)'));
-  }
-  renderChronicle(gain);
-  for (const it of SHOP) {
-    const c = shopCards[it.id], lvl = shopLevel(it.id), maxed = lvl >= it.max, cost = shopCost(it.id);
-    const can = !maxed && p.points >= cost;
-    setText(c.t, it.sym ? tName('prestige', it) : `${it.icon} ${tName('prestige', it)}`);
-    setText(c.b, it.max > 1 ? t('Stufe {lvl}/{max}', { lvl, max: it.max }) : (maxed ? t('Gekauft') : ''));
-    setText(c.d, tDesc('prestige', it));
-    setNote(c, '');
-    setCost(c.c, maxed ? [] : [{ text: (PRESTIGE.sym ? '' : PRESTIGE.icon + ' ') + fmtInt(cost), sym: PRESTIGE.sym, name: t(PRESTIGE.currency), ok: p.points >= cost }]);
-    setAttr(c.el, 'aria-disabled', !can);
-    setClass(c.el, 'can', can);
-    setClass(c.el, 'done', maxed);
-  }
-}
-
-// ---------- Achievements ----------
-const av = {};
-function buildAchievements() {
-  const root = $('#ach-root');
-  av.summary = h('p', { class: 'summary' });
-  const list = h('ul', { class: 'ach-list' });
-  for (const a of ACHIEVEMENTS) {
-    const st = h('span', { class: 'ach-state' });
-    const li = h('li', { class: 'ach' },
-      h('span', { class: 'ach-icon', 'aria-hidden': 'true' }, a.sym ? symUse(a.sym, 'ach') : a.icon),
-      h('span', { class: 'ach-text' }, h('strong', { text: tName('achievements', a) }), h('span', { text: tDesc('achievements', a) })),
-      h('span', { class: 'ach-bonus', text: `+${decimal((a.bonus * 100).toFixed(1).replace('.0', ''))} %` }), st);
-    achItems[a.id] = { li, st };
-    list.append(li);
-  }
-  root.append(av.summary, list);
-}
-
-function renderAchievements() {
-  const n = ACHIEVEMENTS.filter(a => state.achievements[a.id]).length;
-  setText(av.summary, t('{n} von {total} freigeschaltet · Produktionsbonus +{bonus} %', { n, total: ACHIEVEMENTS.length, bonus: decimal((achievementBonus() * 100).toFixed(1).replace('.0', '')) }));
-  for (const a of ACHIEVEMENTS) {
-    const done = !!state.achievements[a.id], it = achItems[a.id];
-    setClass(it.li, 'done', done);
-    setText(it.st, done ? t('Erreicht') : t('Gesperrt'));
-  }
-}
-
-// ---------- Statistik ----------
-const sv = { rows: [] };
-function buildStats() {
-  const root = $('#stats-root');
-  const defs = [
-    [t('Spielzeit gesamt'), () => fmtTime(state.stats.playTime)],
-    [t('Dauer dieses Durchlaufs'), () => fmtTime(state.stats.runTime)],
-    [t('Spielstart'), () => new Date(state.stats.startedAt).toLocaleDateString(locale())],
-    [t('Klicks gesamt'), () => fmtInt(state.stats.clicks)],
-    [t('Klicks in diesem Durchlauf'), () => fmtInt(state.stats.runClicks)],
-    ...RES_IDS.map(k => [t('{name} produziert (gesamt)', { name: tName('resources', RES[k]) }), () => fmt(state.stats.total[k])]),
-    [t('Erz produziert (Durchlauf)'), () => fmt(state.stats.run.ore)],
-    [t('Höchste Erzproduktion'), () => fmt(state.stats.bestOreRate) + '/s'],
-    [t('Gekaufte Stufen/Upgrades'), () => fmtInt(state.stats.buys)],
-    [t('Goldene Barren gefangen'), () => fmtInt(state.stats.golden)],
-    [t('Neuguss durchgeführt'), () => fmtInt(state.prestige.count)],
-    [t('Bester Neuguss'), () => fmtInt(state.stats.bestPrestige) + ' ' + t(PRESTIGE.currency)],
-    [t('Erfolge'), () => `${Object.keys(state.achievements).length} / ${ACHIEVEMENTS.length}`],
-  ];
-  const dl = h('dl', { class: 'kv' });
-  for (const [label, fn] of defs) {
-    const dd = h('dd');
-    dl.append(h('dt', { text: label }), dd);
-    sv.rows.push({ dd, fn });
-  }
-
-  const stack = [
-    ...RES_IDS.map(k => [t('Forschung & Boosts ({name})', { name: tName('resources', RES[k]) }), () => researchMult(k)]),
-    [t('{currency} & Meilensteine', { currency: t(PRESTIGE.currency) }), () => prestigeMult()],
-    [t('Erfolge'), () => 1 + achievementBonus()],
-    [t('Aktive Effekte'), () => buffMult('prod')],
-    [t('Global (ohne Forschung)'), () => globalMult()],
-  ];
-  const stackDl = h('dl', { class: 'kv' });
-  for (const [label, fn] of stack) {
-    const dd = h('dd');
-    stackDl.append(h('dt', { text: label }), dd);
-    sv.rows.push({ dd, fn: () => '×' + fmt(fn()) });
-  }
-
-  sv.canvas = h('canvas', { class: 'chart', role: 'img', 'aria-label': t('Verlauf der Produktion pro Sekunde in den letzten 15 Minuten, logarithmisch') });
-  const legend = h('ul', { class: 'legend' }, RES_IDS.map(k => h('li', { style: `--c:${RES[k].color}`, text: tName('resources', RES[k]) })));
-  root.append(
-    h('div', { class: 'panel-box' }, h('h2', { text: t('Statistik') }), dl),
-    h('div', { class: 'panel-box' }, h('h2', { text: t('Multiplikator-Stapel') }), stackDl),
-    h('div', { class: 'panel-box wide' }, h('h2', { text: t('Produktionsverlauf (log. Skala)') }), sv.canvas, legend));
-}
-
-function renderStats() {
-  for (const { dd, fn } of sv.rows) setText(dd, fn());
-}
-
-// ---------- Oben / global ----------
-function showDelta(before, after) {
-  for (const k of RES_IDS) {
-    if (!(after[k] > before[k] * 1.001)) continue;
-    const el = meters[k].delta;
-    el.textContent = before[k] > 0 ? `▲ +${fmt((after[k] / before[k] - 1) * 100)} %` : t('▲ NEU');
-    el.classList.add('show');
-    clearTimeout(el._h);
-    el._h = setTimeout(() => el.classList.remove('show'), 2000);
-  }
-}
-
-let buffKey = '';
-const buffTimes = {};
-function renderBuffs(force = false) {
-  const key = state.buffs.map(b => b.id).join(',');
-  if (force || key !== buffKey) {
-    buffKey = key;
-    clear(els.buffs);
-    for (const b of state.buffs) {
-      const def = BUFFS[b.id];
-      if (!def) continue;
-      const time = h('span', { class: 'buff-time' });
-      buffTimes[b.id] = time;
-      els.buffs.append(h('li', { class: 'buff' }, h('span', { class: 'buff-ico', 'aria-hidden': 'true' }, def.sym ? symUse(def.sym, 'buff') : def.icon), h('span', { class: 'buff-name', text: `${tName('golden', def)} (${tDesc('golden', def)})` }), time));
-    }
-  }
-  for (const b of state.buffs) if (buffTimes[b.id]) setText(buffTimes[b.id], Math.ceil(b.left) + ' s');
-}
-
-function renderTop(r) {
-  let more = 0;
-  for (const k of RES_IDS) {
-    const vis = resVisible(k);
-    if (!BASE_RES.includes(k) && vis) more++;
-    if (meters[k].el.hidden === vis) meters[k].el.hidden = !vis;
-    setText(meters[k].amt, fmt(state.res[k]));
-    setText(meters[k].rps, fmt(r[k]));
-  }
-  if (els.more.hidden !== (more === 0)) els.more.hidden = more === 0;
-  setText(els.moreCount, `(${more})`);
-  setText(els.clickVal, t('+{n} Erz pro Klick', { n: fmt(r.click) }));
-  setText(els.conv, (r.flows || []).map(f => {
-    const rc = RECIPE_MAP[f.id], part = o => Object.entries(o).map(([k, v]) => `${fmt(v)} ${tName('resources', RES[k])}/s`).join(' + ');
-    return `${rc.icon} ${tName('recipes', rc)}: ${part(f.inputs)} → ${part(f.outputs)}`;
-  }).join('\n'));
-  for (const b of els.buyAmount.querySelectorAll('button[data-amount]')) {
-    const on = b.dataset.amount === state.settings.buyAmount;
-    setAttr(b, 'aria-checked', on);
-    setAttr(b, 'tabindex', on ? 0 : -1);
-  }
-  els.prestigeDot.hidden = !canPrestige();
-  setText(els.castCount, fmtInt(state.prestige.count));
-  setText(els.castPoints, fmtInt(state.prestige.total));
-  const bonus = (prestigeMult() - 1) * 100;
-  setText(els.castBonus, t('(+{bonus} % Produktion)', { bonus: bonus >= 100 ? fmtInt(bonus) : decimal(bonus.toFixed(1)) }));
-  renderEra();
-  renderBadges();
-  renderBuffs();
-}
-
-/** Zeitalter-Anzeige in der Seitenleiste: Name, Gesamtbonus, Fortschritt zum nächsten Zeitalter (log. Skala). */
-function renderEra() {
-  const unlocked = industryUnlocked();
-  setTabHidden('industry', !unlocked);
-  if (els.eraBox.hidden !== !unlocked) els.eraBox.hidden = !unlocked;
-  if (!unlocked) return;
-  const e = eraDef(eraIndex()), nx = nextEra();
-  setText(els.eraIco, e.sym);
-  setText(els.eraName, tName('eras', e));
-  setText(els.eraBonus, t('(Bonus ×{mult})', { mult: decimal(eraMult().toFixed(2)) }));
-  const f = eraProgress().toFixed(3);
-  if (els.eraFill._f !== f) { els.eraFill._f = f; els.eraFill.style.transform = `scaleX(${f})`; }
-  let txt = t('Höchstes Zeitalter erreicht');
-  if (nx) txt = t('Nächstes: {name} – ab {ore} Erz', { name: tName('eras', nx), ore: fmt(nx.at) });
-  setText(els.eraNext, txt);
-}
-
-function renderActive() {
+function renderActive(r) {
   switch (activeTab()) {
     case 'gens': renderCards(['gen']); break;
-    case 'industry': renderIndustry(); break;
+    case 'industry': renderIndustry(r); break;
     case 'upgrades': renderCards(['click', 'boost']); renderQueues(['workshop']); renderAutobuyers(); break;
     case 'research': renderCards(['research']); renderQueues(['lab']); break;
     case 'prestige': renderPrestige(); break;
+    case 'corp': renderCorp(); break;
     case 'achievements': renderAchievements(); break;
     case 'stats': renderStats(); drawHistory(sv.canvas); break;
     default: break;
@@ -791,7 +110,7 @@ function renderActive() {
 export function refresh() {
   lastRates = rates();
   renderTop(lastRates);
-  renderActive();
+  renderActive(lastRates);
 }
 
 let acc = 0, sparkAcc = 0;
@@ -803,7 +122,7 @@ export function frame(r, dt) {
   acc = 0;
   lastRates = r;
   renderTop(r);
-  renderActive();
+  renderActive(r);
   updateOrbs(r, step);
   updateResearchPanel();
   if (sparkAcc >= 1) {

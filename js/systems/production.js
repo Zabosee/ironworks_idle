@@ -13,6 +13,7 @@ export function tick(dt) {
   const s = state.stats;
   s.playTime += dt;
   s.runTime += dt;
+  s.corpRunTime += dt;
   if (r.ore > s.bestOreRate) s.bestOreRate = r.ore;
   if (state.buffs.length) {
     for (const b of state.buffs) b.left -= dt;

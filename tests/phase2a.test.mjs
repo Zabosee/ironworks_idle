@@ -284,9 +284,9 @@ describe('Klick-Upgrades als Liste', () => {
 });
 
 describe('Save v3 / Migration', () => {
-  test('SAVE_VERSION ist 5, serialize schreibt v:5', () => {
-    assert.equal(S.SAVE_VERSION, 5);
-    assert.equal(JSON.parse(S.serialize()).v, 5);
+  test('SAVE_VERSION ist 6, serialize schreibt v:6', () => {
+    assert.equal(S.SAVE_VERSION, 6);
+    assert.equal(JSON.parse(S.serialize()).v, 6);
   });
   const v2 = {
     v: 2, t: 1_700_000_000_000,
@@ -312,9 +312,9 @@ describe('Save v3 / Migration', () => {
     assert.deepEqual(state.prestige, { points: 2, total: 6, count: 1, shop: { pp_eff: 1 }, history: [] });
     assert.equal(state.settings.format, 'scientific'); assert.equal(state.settings.buyAmount, '10');
     assert.equal(state.settings.autosave, false);
-    // nach dem Speichern liegt v5 vor und laedt gleich
+    // nach dem Speichern liegt v6 vor und laedt gleich
     S.save();
-    assert.equal(JSON.parse(ls.getItem(S.SAVE_KEY)).v, 5);
+    assert.equal(JSON.parse(ls.getItem(S.SAVE_KEY)).v, 6);
     const snap = JSON.stringify({ ...state, savedAt: 0 });
     S.load();
     assert.equal(JSON.stringify({ ...state, savedAt: 0 }), snap);
@@ -329,7 +329,7 @@ describe('Save v3 / Migration', () => {
     assert.equal(out.stats.total.ore, 1e6);
   });
   test('v2 ohne stats/click migriert ohne Fehler', () => {
-    assert.equal(S.migrate({ v: 2, t: 5, state: {} }).v, 5);
+    assert.equal(S.migrate({ v: 2, t: 5, state: {} }).v, S.SAVE_VERSION);
     ls.setItem(S.SAVE_KEY, JSON.stringify({ v: 2, t: 5, state: { gens: { mine: 2 } } }));
     assert.equal(S.load().loaded, true);
     assert.equal(state.gens.mine, 2);

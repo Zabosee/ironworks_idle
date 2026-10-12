@@ -14,6 +14,8 @@ import * as F from './core/formulas.js';
 import * as golden from './systems/golden.js';
 import * as achievements from './systems/achievements.js';
 import * as eras from './systems/eras.js';
+import * as corp from './systems/corp.js';
+import * as industry from './systems/industry.js';
 import { initRender, frame, refresh } from './ui/render.js';
 import { initTabs } from './ui/tabs.js';
 import { initWorks } from './ui/works.js';
@@ -64,10 +66,13 @@ function boot() {
   golden.init();
   achievements.check(0, true);
   eras.reset();
+  corp.reset();
+  industry.reset();
   // Zeitgeber beim Laden/Import/Reset und beim Neuguss zurücksetzen
-  const resetTimers = () => { golden.init(); autobuyers.reset(); achievements.reset(); eras.reset(); };
+  const resetTimers = () => { golden.init(); autobuyers.reset(); achievements.reset(); eras.reset(); corp.reset(); industry.reset(); };
   on('loaded', () => { resetTimers(); resetHistory(); });
   on('prestige', resetTimers);
+  on('corp', resetTimers);
   refresh();
 
   let last = performance.now(), sinceSave = 0;
@@ -81,6 +86,8 @@ function boot() {
     golden.tick(dt);
     achievements.check(dt);
     eras.check(dt);
+    industry.check(dt);   // Event 'industry' bei neuer Leisten-Stufe
+    corp.tick(dt);   // Freischalt-Toast und Auto-Neuguss
     frame(r, dt);
     if (state.settings.autosave && (sinceSave += dt) >= state.settings.autosaveSec) { sinceSave = 0; save(); }
     requestAnimationFrame(loop);

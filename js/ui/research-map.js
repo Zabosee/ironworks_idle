@@ -1,14 +1,19 @@
 // Interaktive Research Skilltree Map mit Pan, Zoom und Keyboard Navigation
 import { RESEARCH, RESEARCH_MAP } from '../data/research.js';
 import { RESEARCH_COORDS, MIN_NODE_DISTANCE } from '../data/research-layout.js';
-import { levelOf, lockReason, pendingOf, isRevealed, bulkPlan, duration, eraIndex, industryUnlocked } from '../core/formulas.js';
+import { levelOf, lockReason, pendingOf, isRevealed as revealed, bulkPlan, duration, eraIndex, industryUnlocked, corpStage } from '../core/formulas.js';
 import { fmtClock, fmt } from '../core/format.js';
 import { t, tName, tDesc } from '../core/i18n.js';
 import { state } from '../core/state.js';
 import { RES } from '../data/resources.js';
 import { ERAS } from '../data/eras.js';
 import { buy } from '../systems/production.js';
+import { imgFor, symSvg, svgUse } from './assets.js';
 import { h, $, clear, setText, setClass, setAttr } from './dom.js';
+import { corpTabVisible, corpPill } from './corp-common.js';
+
+/** Wie formulas.isRevealed, dazu: Konzernforschung (Ast) erst, wenn der Konzern-Reiter sichtbar ist. */
+const isRevealed = (kind, id) => revealed(kind, id) && (!RESEARCH_MAP[id]?.corp || corpTabVisible());
 
 let mapState = {
   translateX: 0,
@@ -90,10 +95,11 @@ export function initResearchMap(container) {
         'aria-label': tName('research', r),
         title: tName('research', r),
       },
-      h('span', { class: 'node-ico', 'aria-hidden': 'true', text: r.icon }),
+      h('span', { class: 'node-ico', 'aria-hidden': 'true', text: r.sym ? null : r.icon }, r.sym ? symSvg(r.sym) : null),
       h('span', { class: 'node-label', text: tName('research', r) }),
       h('span', { class: 'node-badge', 'aria-hidden': 'true' }),
-      r.era ? h('span', { class: 'node-era', 'aria-hidden': 'true', title: t('Zeitalter: {name}', { name: tName('eras', ERAS[r.era]) }), text: ERAS[r.era].sym }) : null
+      r.corp ? h('span', { class: 'node-corp', 'aria-hidden': 'true' }, corpPill(r.corp)) : null,
+      r.era ? h('span', { class: 'node-era', 'aria-hidden': 'true', title: t('Zeitalter: {name}', { name: tName('eras', ERAS[r.era]) }) }, symSvg(ERAS[r.era].ico)) : null
     );
 
     node.addEventListener('click', (e) => {
@@ -118,6 +124,11 @@ export function initResearchMap(container) {
     mapState.nodes.push({ el: node, id: r.id, def: r, coord });
   }
 
+  // Überschrift des Konzernforschungs-Asts (erscheint mit dem Konzern-Reiter)
+  mapState.branch = h('div', { class: 'corp-branch', style: '--x: -1900; --y: 120;', hidden: true },
+    h('h2', {}, symSvg('corp', 'h-ico', 'prestige'), ' ' + t('Konzernforschung')), h('p', { text: t('Dauerhaft: bleibt bei Neuguss und Gründung') }));
+  nodesContainer.append(mapState.branch);
+
   // Zusammenbau Container
   mapContainer.append(svg, nodesContainer);
   viewport.append(mapContainer);
@@ -125,7 +136,7 @@ export function initResearchMap(container) {
   // Detailpanel
   const panel = h('div', { class: 'research-panel', hidden: true },
     h('div', { class: 'research-panel-header' },
-      h('button', { class: 'research-panel-close', type: 'button', 'aria-label': t('Schließen'), text: '✕' })
+      h('button', { class: 'research-panel-close', type: 'button', 'aria-label': t('Schließen') }, symSvg('close'))
     ),
     h('div', { class: 'research-panel-content' })
   );
@@ -331,7 +342,7 @@ function buildResearchPanel() {
 
   // Icon + Name
   const name = h('div', { class: 'panel-name-row' },
-    h('span', { class: 'panel-icon', text: def.icon }),
+    h('span', { class: 'panel-icon', 'aria-hidden': 'true', text: def.sym ? null : def.icon }, def.sym ? symSvg(def.sym) : null),
     h('h2', { class: 'panel-title', text: tName('research', def) })
   );
   content.append(name);
@@ -343,7 +354,11 @@ function buildResearchPanel() {
 
   if (def.era) {
     const ok = eraIndex() >= def.era;
-    content.append(h('p', { class: 'panel-era' + (ok ? ' ok' : ' bad'), text: `${ERAS[def.era].sym} ${t('Zeitalter: {name}', { name: tName('eras', ERAS[def.era]) })} ${ok ? t('(erreicht)') : !industryUnlocked() ? t('(nach dem ersten Neuguss)') : t('(ab {ore} Erz gesamt)', { ore: fmt(ERAS[def.era].at) })}` }));
+    content.append(h('p', { class: 'panel-era' + (ok ? ' ok' : ' bad') }, symSvg(ERAS[def.era].ico, 'era-sym'), `${t('Zeitalter: {name}', { name: tName('eras', ERAS[def.era]) })} ${ok ? t('(erreicht)') : !industryUnlocked() ? t('(nach dem ersten Neuguss)') : t('(ab {ore} Erz gesamt)', { ore: fmt(ERAS[def.era].at) })}`));
+  }
+
+  if (def.corp) {
+    content.append(h('p', { class: 'panel-corp' }, corpPill(def.corp), ' ' + (done ? t('Dauerhaft: bleibt bei Neuguss und Gründung') : t('Konzernforschung · dauerhaft')))); 
   }
 
   // Beschreibung
@@ -359,7 +374,7 @@ function buildResearchPanel() {
     costDiv.append(h('span', { class: 'cost-title', text: t('Kosten:') }));
     for (const [res, amt] of Object.entries(cost)) {
       const row = h('span', { class: 'panel-cost-row' },
-        h('span', { class: 'cost-label', text: (RES[res]?.icon || '') + ' ' + (RES[res] ? tName('resources', RES[res]) : res) }),
+        h('span', { class: 'cost-label' }, imgFor(RES[res]) ? h('img', { class: 'cost-ico', src: imgFor(RES[res]), alt: '', draggable: 'false' }) : (RES[res]?.icon || '') + ' ', RES[res] ? tName('resources', RES[res]) : res),
         h('span', { class: 'cost-amount', text: fmt(amt) }));
       refs.costs.push({ res, amt, row });
       costDiv.append(row);
@@ -376,8 +391,8 @@ function buildResearchPanel() {
 
   // Fehlende Voraussetzungen
   if (lock && !done) {
-    const lockEl = h('p', { class: 'panel-lock', text: lock });
-    content.append(lockEl);
+    content.append(h('p', { class: 'panel-lock', text: lock }));
+    for (const x of extraLocks(def, lock)) content.append(h('p', { class: 'panel-lock', text: x }));
   }
 
   // Fortschritt bei laufender Forschung
@@ -397,6 +412,26 @@ function buildResearchPanel() {
   }
 
   // Bei laufender/wartender Forschung Button zum Abbrechen (später)
+}
+
+/** Weitere Sperrgründe neben dem ersten (max. 3 zusammen): Zeitalter und Konzernstufe. */
+function extraLocks(def, first) {
+  const out = [];
+  if (def.era > eraIndex() && industryUnlocked()) out.push(t('Benötigt Zeitalter: {name}', { name: tName('eras', ERAS[def.era]) }));
+  if (def.corp > corpStage()) out.push(t('Benötigt Konzernstufe: K{n}', { n: def.corp }));
+  return out.filter(x => x !== first).slice(0, 2);
+}
+
+/** Zeigt den Konzernforschungs-Ast: Mitte der erforschbaren Konzernknoten (sonst aller sichtbaren), lesbare Skalierung. Nach dem Wechsel in den Forschungs-Reiter aufrufen. */
+export function focusCorpBranch() {
+  const shown = mapState.nodes.filter(n => n.def.corp && isRevealed('research', n.id));
+  const open = shown.filter(n => !levelOf('research', n.id) && !lockReason('research', n.id));
+  const pts = (open.length ? open : shown).map(n => n.coord);
+  if (!pts.length || !mapState.container) return;
+  const cx = (Math.min(...pts.map(p => p.x)) + Math.max(...pts.map(p => p.x))) / 2, cy = (Math.min(...pts.map(p => p.y)) + Math.max(...pts.map(p => p.y))) / 2;
+  mapState.scale = Math.max(mapState.scale, 0.6);
+  mapState.translateX = -cx * mapState.scale; mapState.translateY = -cy * mapState.scale;
+  applyTransform(mapState.container);
 }
 
 function applyTransform(container) {
@@ -475,6 +510,7 @@ function renderLines(svg) {
  */
 export function updateNodeStates() {
   const svg = document.querySelector('.research-lines');
+  if (mapState.branch) mapState.branch.hidden = !corpTabVisible();
 
   for (const card of mapState.nodes) {
     const { el, id, def } = card;
@@ -496,12 +532,11 @@ export function updateNodeStates() {
       // Badge Icon
       const badge = el.querySelector('.node-badge');
       if (badge) {
-        let badgeText = '';
-        if (done) badgeText = '✓';
-        else if (pending) badgeText = '⏳';
-        else if (lock) badgeText = '🔒';
-        else badgeText = '🎯';
-        setText(badge, badgeText);
+        const kind = done ? 'done' : pending ? 'pending' : lock ? 'locked' : 'available';
+        if (badge._k !== kind) {
+          badge._k = kind;
+          badge.replaceChildren(kind === 'done' ? svgUse('check') : kind === 'pending' ? symSvg('hourglass') : kind === 'locked' ? svgUse('lock') : symSvg('target'));
+        }
       }
 
       // ARIA Label

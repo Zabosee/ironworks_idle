@@ -123,7 +123,15 @@ export function queueState(queue) {
   });
 }
 
-/** Beim Neuguss: Werkbank leeren (Boosts/Klick-Upgrades werden zurückgesetzt); Labor nur ohne Wissensarchiv. Keine Erstattung nötig, da Ressourcen ohnehin zurückgesetzt werden. */
-export function resetForPrestige(keepResearch) {
-  for (const q of QUEUE_IDS) if (!(keepResearch && QUEUES[q].kinds.includes('research'))) state.timers[q] = [];
+/**
+ * Beim Neuguss: Werkbank leeren (Boosts/Klick-Upgrades werden zurückgesetzt); Labor nur ohne Wissensarchiv/Konzernarchiv.
+ * Aufträge der Konzernforschung (Feld corp) bleiben mit keepCorp (Neuguss: true, Konzerngründung: false).
+ * Keine Erstattung nötig, da Ressourcen ohnehin zurückgesetzt werden.
+ */
+export function resetForPrestige(keepResearch, keepCorp = true) {
+  for (const q of QUEUE_IDS) {
+    if (!QUEUES[q].kinds.includes('research')) { state.timers[q] = []; continue; }
+    if (keepResearch) continue;
+    state.timers[q] = keepCorp ? state.timers[q].filter(e => e.kind === 'research' && defOf('research', e.id)?.corp) : [];
+  }
 }

@@ -106,7 +106,7 @@ button { cursor: pointer; }
 .buff-time { font-family: ui-monospace, monospace; color: var(--gold); }
 .note { font-size: .75rem; color: var(--muted); }
 .note:empty { display: none; }
-#conv { white-space: pre-line; }
+.meter-flow { font-size: .7rem; color: var(--muted); margin-top: .15rem; overflow-wrap: anywhere; }
 .side-foot { margin-top: auto; font-size: .75rem; color: var(--muted); }
 
 /* ---------- Tabs ---------- */
@@ -406,7 +406,6 @@ body { background: linear-gradient(180deg, var(--steel-900), var(--steel-800) 60
 .lane.tier-19 { --g-body: #ffffff; --g-trim: #fbbf24; --show-t1: inline; --show-t2: inline; --show-t3: inline; --show-t4: inline; border-color: #ffffff; }
 .lane-head { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; margin-bottom: .4rem; }
 .lane-ico { width: 2.2rem; height: 2.2rem; flex: none; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .5)); }
-.lane-ico-emoji { font-size: 1.6rem; line-height: 2.2rem; text-align: center; }
 .lane-title { flex: 1; min-width: 9rem; }
 .lane-name { margin: 0; font-size: 1rem; color: var(--text); text-transform: none; letter-spacing: 0; }
 .lane-meta { display: flex; gap: .6rem; font-size: .8rem; color: #cbd5e1; }
@@ -538,7 +537,7 @@ body { background: linear-gradient(180deg, var(--steel-900), var(--steel-800) 60
 
 @media (max-width: 1023px) {
   .sidebar { backdrop-filter: none; position: sticky; top: 0; z-index: 20; flex-direction: column; gap: .4rem; padding: .4rem .6rem; border-bottom: 1px solid var(--border); background: rgba(11, 17, 32, .96); }
-  .logo, #conv, .side-foot { display: none; }
+  .logo, .meter-flows, .side-foot { display: none; }
   .meters { display: flex; gap: .4rem; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
   .meters::-webkit-scrollbar { display: none; }
   .meters-more, .meters-more-list { display: contents; }
@@ -841,6 +840,12 @@ h2 .h-ico { width: 1.3rem; height: 1.3rem; vertical-align: -.2em; }
   display: block;
   line-height: 1;
 }
+
+.node-badge .ico { width: 1em; height: 1em; display: block; padding: 3px; box-sizing: content-box; border-radius: 50%; background: var(--panel-2); border: 1px solid var(--border); color: #94a3b8; }
+.research-node.done .node-badge .ico { color: #4ade80; }
+.research-node.pending .node-badge .ico { color: #fbbf24; }
+.research-node.available .node-badge .ico { color: #38bdf8; }
+.research-panel-close .ico { width: 1rem; height: 1rem; }
 
 .node-badge.loading {
   animation: node-spin 2s linear infinite;
@@ -1188,13 +1193,12 @@ h2 .h-ico { width: 1.3rem; height: 1.3rem; vertical-align: -.2em; }
 }
 
 /* ---------- Industrie-Tab: Zeitalter und Generator-Ausbau ---------- */
-.ico-emoji { display: inline-grid; place-items: center; font-size: 1.1rem; line-height: 1; }
 .era-line { list-style: none; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .6rem; margin: .75rem 0 0; padding: 0; }
 .era-step { position: relative; display: grid; gap: .25rem; align-content: start; padding: .7rem .75rem .9rem; border-radius: var(--radius); background: rgba(15, 23, 42, .6); border: 1px solid rgba(71, 85, 105, .5); opacity: .6; }
 .era-step.done { opacity: .85; border-color: rgba(251, 191, 36, .35); }
 .era-step.current { opacity: 1; border-color: #fbbf24; box-shadow: 0 0 14px rgba(251, 191, 36, .25); }
 .era-step.next { opacity: 1; }
-.era-step-ico { font-size: 1.5rem; }
+.era-step-ico .ico { width: 1.7rem; height: 1.7rem; }
 .era-step-at, .era-step-desc, .era-state { font-size: .75rem; color: var(--muted); }
 .era-step-mult { font-size: .8rem; color: #fbbf24; }
 .era-step-bar { display: block; height: 5px; border-radius: 3px; background: rgba(71, 85, 105, .5); overflow: hidden; margin-top: .25rem; }
@@ -1231,3 +1235,157 @@ h2 .h-ico { width: 1.3rem; height: 1.3rem; vertical-align: -.2em; }
 .panel-era.ok { color: #fbbf24; }
 .panel-era.bad { color: #f87171; }
 
+
+/* Forschungskarte: SVG-Symbole statt Emojis */
+.node-ico .sym { width: 1em; height: 1em; display: block; }
+.node-era .sym { width: 16px; height: 16px; color: #fbbf24; }
+.research-node.locked .node-era .sym { color: #64748b; }
+.panel-icon .sym { width: 2rem; height: 2rem; display: block; }
+.panel-era .era-sym { width: 1.1em; height: 1.1em; vertical-align: -.2em; margin-right: .3em; }
+.cost-label .cost-ico { width: 1.1rem; height: 1.1rem; vertical-align: -.25em; margin-right: .3rem; }
+
+/* ---------- Ausbau 2: Konzern, Meilenstein-Leisten, Zielleiste, Neuguss-Vorschau, Auto-Neuguss ---------- */
+:root { --corp: #22d3ee; --lock-text: #a8b4c6; }
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* Reiter "Konzern": gesperrt sichtbar (aria-disabled), Schloss vor dem Label, einmaliger Puls beim Freischalten */
+.tab-lock { width: 1rem; height: 1rem; flex: none; }
+.tab[aria-disabled="true"] { border: 1px dashed var(--border); color: var(--lock-text); }
+.tab[aria-selected="true"][aria-disabled="true"] { color: #111827; border-color: transparent; }
+.tab-pulse { animation: tab-pulse 220ms var(--ease-out); }
+@keyframes tab-pulse { 40% { transform: scale(1.08); box-shadow: 0 0 14px var(--gold-glow); } }
+@media (max-width: 1023px) {
+  .tabs { overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { min-width: 2.75rem; }   /* 10 Reiter: Leiste scrollt, Fokus scrollt in Sicht */
+}
+
+/* Abzeichen "K3" */
+.corp-pill { display: inline-flex; align-items: center; gap: .25rem; padding: 0 .45rem; min-height: 1.3rem; border-radius: 99px; border: 1px solid var(--corp); background: var(--panel); color: var(--text); font: 700 .72rem ui-monospace, monospace; white-space: nowrap; }
+.corp-pill .sym { width: .85rem; height: .85rem; color: var(--corp); }
+.card-head .corp-pill { align-self: flex-start; }
+.node-corp { position: absolute; top: -10px; left: -16px; pointer-events: none; z-index: 1; }
+.research-node.locked .corp-pill { border-style: dashed; color: var(--lock-text); }
+.panel-corp { margin: .35rem 0; font-size: .85rem; }
+.corp-branch { position: absolute; transform: translate(calc(var(--x, 0) * 1px), calc(var(--y, 0) * 1px)); width: 520px; padding: .6rem 1rem; border: 2px solid var(--corp); border-radius: var(--radius); background: rgba(15, 23, 42, .85); pointer-events: none; }
+.corp-branch h2 { margin: 0; font-size: 1.4rem; }
+.corp-branch p { color: var(--lock-text); }
+.panel-lock { color: var(--lock-text); }
+
+/* Zielleiste */
+.goal-bar { display: grid; gap: .3rem; padding: .5rem .75rem; border-radius: var(--radius); background: rgba(30, 41, 59, .6); border: 1px solid rgba(71, 85, 105, .5); margin-bottom: .75rem; }
+.goal-go { display: flex; align-items: center; gap: .4rem; min-height: 44px; width: 100%; text-align: left; font: inherit; color: var(--text); cursor: pointer; background: none; border: 0; padding: 0; }
+.goal-go:disabled { cursor: default; }
+.goal-ico { width: 1.2rem; height: 1.2rem; flex: none; color: var(--gold); }
+.goal-k { color: var(--muted); font-size: .8rem; }
+.goal-name { font-weight: 700; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.goal-eta { color: var(--muted); font-size: .8rem; white-space: nowrap; margin-left: auto; }
+.goal-barline { margin: 0; }
+.goal-barline .bar-fill::after { display: none; }
+.goal-in { animation: goal-in 120ms ease-out; }
+@keyframes goal-in { from { opacity: 0; } }
+.goal-side { margin-top: .25rem; padding: .4rem .6rem; margin-bottom: 0; }
+.goal-side .goal-go { min-height: 32px; flex-wrap: wrap; font-size: .8rem; }
+.goal-side .goal-k { display: none; }
+@media (max-width: 1023px) { .goal-side { display: none; } .goal-works .goal-go { flex-wrap: wrap; } }
+
+/* Neuguss-Vorschau, Bewertung als Text-Pille mit Symbol */
+.cast-preview { margin: .6rem 0; }
+.cast-preview h3 { margin-bottom: .4rem; }
+.cast-preview .kv { margin-bottom: .5rem; }
+.cast-preview dd { min-width: 8rem; }
+.pill-row { min-height: 1.8rem; }
+.pill { display: inline-flex; align-items: center; gap: .35rem; padding: .15rem .65rem; border-radius: 99px; border: 1px solid; font-size: .85rem; font-weight: 700; }
+.pill .ico { width: 1rem; height: 1rem; }
+.pill-yes { color: var(--good); border-color: var(--good); }
+.pill-no { color: var(--lock-text); border-color: var(--steel-500); }
+
+/* Auto-Neuguss */
+.autocast { display: grid; gap: .6rem; }
+.autocast-head { display: flex; align-items: center; gap: .5rem; }
+.autocast-head strong { flex: 1; }
+.switch { position: relative; width: 3rem; height: 1.7rem; min-height: 44px; border-radius: 99px; background: var(--panel); border: 2px solid var(--steel-500); flex: none; padding: 0; background-clip: content-box; }
+.switch-knob { position: absolute; top: 50%; left: 4px; width: 1.1rem; height: 1.1rem; margin-top: -.55rem; border-radius: 50%; background: var(--muted); transition: transform var(--t-fast); }
+.switch.on { border-color: var(--good); background: #064e3b; background-clip: content-box; }
+.switch.on .switch-knob { transform: translateX(1.3rem); background: var(--good); }
+.autocast-row { display: flex; flex-wrap: wrap; align-items: end; gap: .6rem 1rem; }
+.seg-group { display: inline-flex; }
+.seg { border-radius: 0; min-height: 44px; }
+.seg:first-child { border-radius: 8px 0 0 8px; }
+.seg:last-child { border-radius: 0 8px 8px 0; }
+.seg[aria-checked="true"] { background: #7c2d12; border-color: var(--accent); color: #fff; }
+.autocast-field { display: grid; gap: .2rem; font-size: .85rem; color: var(--muted); }
+.autocast-field input { min-height: 44px; width: 8rem; background: var(--bg-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: .3rem .6rem; font: inherit; }
+.shop-cell { display: grid; gap: .5rem; align-content: start; }
+.shop-cell .autocast { padding: .75rem 1rem; border: 2px solid var(--border); border-radius: var(--radius); background: var(--panel); }
+
+/* Konzern-Reiter */
+.corp-lock { border-color: var(--corp); border-style: dashed; }
+.corp-lock h2 { margin-top: 0; }
+.lock-count { color: var(--lock-text); font-variant-numeric: tabular-nums; }
+.expect { list-style: none; padding: 0; margin: 0; display: grid; gap: .4rem; }
+.expect li { padding: .4rem .7rem; border: 1px dashed var(--steel-500); border-radius: 8px; background: var(--panel); color: var(--lock-text); }
+.expect .sym { width: 1.2rem; height: 1.2rem; vertical-align: -.25em; }
+.corp-main > .panel-box { border-color: rgba(34, 211, 238, .35); }
+.corp-points { font-size: 2rem; font-weight: 800; display: flex; align-items: center; gap: .5rem; font-variant-numeric: tabular-nums; }
+.corp-points .big-ico { width: 2rem; height: 2rem; }
+.corp-points-k { font-size: 1rem; font-weight: 600; color: var(--muted); }
+.corp-stage { display: flex; align-items: center; gap: .4rem; font-weight: 700; margin-top: .5rem; }
+.corp-bonus { color: #cbd5e1; font-size: .9rem; }
+.corp-gain { font-size: 1.5rem; font-weight: 800; }
+.corp-jump { color: var(--gold); font-size: .85rem; min-height: 1.2rem; }
+.corp-research.locked { border-style: dashed; background: #131c2e; border-color: #475569; }
+.shop-grid { grid-template-columns: 1fr; }
+@media (min-width: 640px) { .shop-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .shop-grid { grid-template-columns: repeat(3, 1fr); } }
+.dialog-corp { max-width: min(44rem, 94vw); }
+.dlg-gain { font-weight: 700; }
+.dlg-cols { display: grid; gap: .75rem; grid-template-columns: 1fr; margin-bottom: .75rem; }
+@media (min-width: 640px) { .dlg-cols { grid-template-columns: 1fr 1fr; } }
+.dlg-col { padding: .6rem .8rem; border-radius: 8px; border: 2px solid; background: var(--bg-2); }
+.dlg-col.lost { border-color: var(--bad); }
+.dlg-col.kept { border-color: var(--good); }
+.dlg-col h3 { display: flex; align-items: center; gap: .35rem; color: var(--text); }
+.dlg-col .ico { width: 1rem; height: 1rem; flex: none; }
+.dlg-col ul { margin: 0; padding-left: 1.1rem; font-size: .9rem; }
+@media (max-width: 639px) { .dialog-corp .dialog-actions { flex-direction: column-reverse; } .dialog-corp .btn { width: 100%; min-height: 44px; } }
+
+/* Industrie: Meilenstein-Leisten, 9 Zeitalter, 8 Ausbau-Pips */
+.industry-tracks { display: grid; gap: 1rem; grid-template-columns: 1fr; margin-bottom: 1rem; }
+@media (min-width: 900px) { .industry-tracks { grid-template-columns: 1fr 1fr; } }
+.track-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.track-head h2 { margin: 0; }
+.track-total { color: var(--gold); font-size: 1.1rem; }
+.track-marks { list-style: none; padding: 0; margin: .8rem 0 .4rem; display: flex; flex-wrap: wrap; gap: .6rem .5rem; }
+.track-mark { display: grid; justify-items: center; gap: .1rem; width: 4.2rem; font-size: .72rem; color: var(--lock-text); text-align: center; }
+@media (max-width: 639px) { .track-mark { width: calc(25% - .4rem); } }
+.mark-dot { position: relative; display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; border: 2px solid var(--steel-500); font-size: .75rem; font-weight: 700; color: var(--text); }
+.mark-dot .mark-check { display: none; width: 1rem; height: 1rem; }
+.track-mark.done .mark-dot { background: var(--gold); border-color: var(--gold); color: #111827; }
+.track-mark.done .mark-dot b { display: none; }
+.track-mark.done .mark-dot .mark-check { display: block; }
+.track-mark.next .mark-dot { border-color: var(--ember); }
+.mark-mult { color: var(--gold); font-weight: 700; }
+.mark-next { display: none; color: var(--ember-hot); font-weight: 700; }
+.track-mark.next .mark-next { display: block; }
+.mark-pulse .mark-dot { animation: mark-pulse 300ms var(--ease-out); }
+@keyframes mark-pulse { 40% { transform: scale(1.35); box-shadow: 0 0 12px var(--gold-glow); } }
+.track-text { color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
+.era-line { grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); }
+.evo-pips { flex-wrap: nowrap; gap: .15rem; }
+.evo-pips i { width: .5rem; height: .5rem; flex: none; }
+.evo-pips i[hidden] { display: none; }
+
+/* Materialien: Untergruppe "Konzern-Materialien" */
+.more-ico { width: 1.1rem; height: 1.1rem; flex: none; color: var(--corp); }
+.meters-corp .more-toggle { border-color: rgba(34, 211, 238, .45); }
+@media (max-width: 1023px) {
+  .meters-corp { display: contents; }
+  .meters-corp .more-toggle { display: flex; flex: none; width: auto; min-height: 44px; margin: 0; padding: .3rem .6rem; white-space: nowrap; }
+  .meters-corp .more-toggle[aria-expanded="true"] { margin-bottom: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-pulse, .goal-in, .mark-pulse .mark-dot { animation: none; }
+  .switch-knob { transition: none; }
+}

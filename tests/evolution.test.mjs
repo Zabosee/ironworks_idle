@@ -65,3 +65,30 @@ describe('Generator-Ausbau', () => {
     assert.equal(buyAllEvo(), 0);
   });
 });
+
+describe('Generator-Ausbau VI bis VIII', () => {
+  test('Daten laut Design: 8 Stufen, kumuliert x324, Stufe k braucht Zeitalter k', () => {
+    assert.equal(EVO_MAX, 8);
+    assert.deepEqual(EVO_AT, [10, 25, 50, 100, 200, 300, 325, 345]);
+    assert.deepEqual(EVO_MULT, [1.5, 1.5, 2, 2, 3, 2, 2, 3]);
+    assert.deepEqual(EVO_COST, [25, 60, 150, 400, 1000, 2000, 3000, 4000]);
+    assert.ok(Math.abs(EVO_MULT.reduce((a, b) => a * b) - 324) < 1e-9);
+    assert.ok(EVO_AT.every((a, i) => i === 0 || a > EVO_AT[i - 1]));
+  });
+  test('Sperren und Kosten der Stufen 6 bis 8', () => {
+    for (let k = 5; k < 8; k++) {
+      state.evo.mine = k; state.gens.mine = EVO_AT[k] - 1;
+      setEra(k); assert.match(F.evoLock('mine'), /Zeitalter/);
+      setEra(k + 1); assert.match(F.evoLock('mine'), new RegExp('Stufe ' + EVO_AT[k]));
+      state.gens.mine = EVO_AT[k]; assert.equal(F.evoLock('mine'), null);
+      const u = F.unitCost('gen', 'mine', EVO_AT[k]), c = F.evoCost('mine');
+      for (const r in u) assert.equal(c[r], Math.ceil(u[r] * EVO_COST[k]));
+    }
+    state.evo.mine = 8; assert.equal(F.evoLock('mine'), 'Maximum erreicht');
+  });
+  test('Voller Ausbau multipliziert die Ausgabe um x324', () => {
+    const g = GENS.find(x => x.id === 'mine'); state.gens.mine = 10;
+    const before = F.genOutputAt(g, 10); state.evo.mine = 8;
+    assert.ok(Math.abs(F.genOutputAt(g, 10) / before - 324) < 1e-6);
+  });
+});

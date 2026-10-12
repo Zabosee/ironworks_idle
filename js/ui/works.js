@@ -7,7 +7,7 @@ import { t, tName } from '../core/i18n.js';
 import { levelOf, lockReason, isRevealed, genOutputAt } from '../core/formulas.js';
 import { GENS, genTier, tierName, tierPips, TIER_NAMES } from '../data/generators.js';
 import { h, $, setText, setAttr } from './dom.js';
-import { imgFor, spriteHref } from './assets.js';
+import { imgFor, spriteHref, symSvg } from './assets.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const MAX_SLOTS = 10;
@@ -29,7 +29,7 @@ function useSvg(href, cls, viewBox) {
 
 function buildLane(def) {
   const L = { def, tier: -1, shown: -1, lv: -1, evolveTimer: 0 };
-  const ico = imgFor(def) ? h('img', { class: 'lane-ico', src: imgFor(def), alt: '', draggable: 'false' }) : h('span', { class: 'lane-ico lane-ico-emoji', 'aria-hidden': 'true', text: def.icon });
+  const ico = imgFor(def) ? h('img', { class: 'lane-ico', src: imgFor(def), alt: '', draggable: 'false' }) : h('span', { class: 'lane-ico', 'aria-hidden': 'true' }, symSvg('ingot'));
   L.name = h('h3', { class: 'lane-name', text: tName('generators', def) });
   L.lvlEl = h('span', { class: 'lane-level' });
   L.rank = h('span', { class: 'lane-rank' });
