@@ -20,6 +20,7 @@ export function defaultState() {
     timers: Object.fromEntries(QUEUE_IDS.map(q => [q, []])),   // Warteschlangen: je [{ kind, id, total, left, cost }], die ersten `slots` Einträge laufen
     prestige: { points: 0, total: 0, count: 0, shop: {}, history: [] },   // history: letzte Neugüsse { gain, ore, time, at }, älteste zuerst
     corp: { points: 0, total: 0, count: 0, shop: {}, history: [] },   // 2. Reset-Ebene (Patente); history: letzte Gründungen { gain, gussformen, time, at }
+    focus: '', focusNext: '',   // Schwerpunkt (data/prestige.js FOCUS): aktiv im laufenden Durchlauf / gewählt für den nächsten Neuguss
     autoCast: { on: false, mode: 'gain', value: 0 },   // Auto-Neuguss (Konzern-Shop c_autocast); mode 'gain' | 'time', value 0 = Vorgabe
     autobuyers: Object.fromEntries(AUTOBUYERS.map(a => [a.id, false])),
     achievements: {},
@@ -34,6 +35,8 @@ export function defaultState() {
       bestPrestige: 0, fastestPrestige: 0, startedAt: Date.now(),
     },
     settings: { format: 'standard', autosave: true, autosaveSec: 10, particles: true, buyAmount: '1', lang: 'de' },
+    challenges: { done: {}, active: null },   // Herausforderungen: done { id: true }, active null | { id, left, goal, base, gen } (data/challenges.js)
+    daily: { last: '', streak: 0 },   // Tagesbonus: letzter Bonus-Tag (lokal, YYYY-MM-DD) und Serie
     savedAt: 0,
   };
 }

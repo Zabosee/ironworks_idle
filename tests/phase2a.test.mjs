@@ -8,6 +8,7 @@ import path from 'node:path';
 import { state, reset, give, collect, installStorage, quietConsole, finishAll, zeroRes } from './helpers.mjs';
 import { replaceState, defaultState, addResource } from '../js/core/state.js';
 import * as F from '../js/core/formulas.js';
+import { OFFLINE_EFFICIENCY } from '../js/data/timers.js';
 import * as S from '../js/core/save.js';
 import { buy, tick } from '../js/systems/production.js';
 import { doPrestige, buyShop } from '../js/systems/prestige.js';
@@ -284,9 +285,9 @@ describe('Klick-Upgrades als Liste', () => {
 });
 
 describe('Save v3 / Migration', () => {
-  test('SAVE_VERSION ist 6, serialize schreibt v:6', () => {
-    assert.equal(S.SAVE_VERSION, 6);
-    assert.equal(JSON.parse(S.serialize()).v, 6);
+  test('SAVE_VERSION ist 9, serialize schreibt v:9', () => {
+    assert.equal(S.SAVE_VERSION, 9);
+    assert.equal(JSON.parse(S.serialize()).v, 9);
   });
   const v2 = {
     v: 2, t: 1_700_000_000_000,
@@ -314,7 +315,7 @@ describe('Save v3 / Migration', () => {
     assert.equal(state.settings.autosave, false);
     // nach dem Speichern liegt v6 vor und laedt gleich
     S.save();
-    assert.equal(JSON.parse(ls.getItem(S.SAVE_KEY)).v, 6);
+    assert.equal(JSON.parse(ls.getItem(S.SAVE_KEY)).v, 9);
     const snap = JSON.stringify({ ...state, savedAt: 0 });
     S.load();
     assert.equal(JSON.stringify({ ...state, savedAt: 0 }), snap);
@@ -392,7 +393,7 @@ describe('Review 3: Hintergrund-Tab behaelt Buffs', () => {
     state.gens.mine = 10; state.buffs = [{ id: 'frenzy', left: 100 }, { id: 'clickfrenzy', left: 20 }];
     const ev = collect('buffs');
     const r = S.applyOffline(30, { runtime: true });
-    assert.equal(state.res.ore, 20 * 30, 'Ertrag ohne Buff');
+    assert.equal(state.res.ore, 20 * 30, 'Ertrag ohne Buff, im Laufzeitpfad mit Effizienz 1');
     assert.equal(r.seconds, 30);
     assert.deepEqual(state.buffs.map(b => [b.id, b.left]), [['frenzy', 70]]);
     assert.equal(ev.got.length, 1, 'abgelaufener Buff meldet buffs');

@@ -281,6 +281,8 @@ export const EN = {
     golden_1: { name: "Golden Moment", desc: "Catch 1 golden ingot." },
     golden_10: { name: "Lucky Devil", desc: "Catch 10 golden ingots." },
     golden_50: { name: "Gold Digger", desc: "Catch 50 golden ingots." },
+    challenge_1: { name: 'Trial by Fire', desc: 'Complete a challenge in the Blast Furnace.' },
+    challenge_3: { name: 'Master Exam', desc: 'Complete all 3 challenges in the Blast Furnace.' },
     golden_200: { name: "Midas", desc: "Catch 200 golden ingots." },
     time_3600: { name: "One Shift", desc: "Play for a total of 1 hour." },
     time_86400: { name: "Around the Clock", desc: "Play for a total of 24 hours." },
@@ -346,9 +348,22 @@ export const EN = {
     10000:  { desc: 'Production ×5' },
     250000: { desc: 'Production ×10' },
   },
+  challenges: {
+    noclick: { name: 'No Clicking',  desc: 'Click yield 0. Produce the steel goal in 20 min.' },
+    onegen:  { name: 'One Generator', desc: 'Only one generator type may be bought (the first purchase decides). Steel goal in 20 min.' },
+    iron:    { name: 'Iron Deadline', desc: 'Production halved. Steel goal in 30 min.' },
+  },
+  randomEvents: {
+    vein:     { name: 'Ore Vein Found' },
+    shortage: { name: 'Material Shortage' },
+    order:    { name: 'Special Order' },
+  },
   golden: {
     frenzy:      { name: 'Smelting Frenzy', desc: 'Production ×7' },
     clickfrenzy: { name: 'Hammer Fury',     desc: 'Click value ×25' },
+    vein:        { name: 'Ore Vein',        desc: 'Click value ×10' },
+    orderbonus:  { name: 'Order Bonus',     desc: 'Production ×2' },
+    shortage:    { name: 'Material Shortage', desc: 'One material −50%' },
   },
   timers: {
     lab:      { name: 'Laboratory' },

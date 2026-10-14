@@ -51,6 +51,7 @@ export function buy(kind, id, amount, { silent = false } = {}) {
   for (const k of RES_IDS) if (state.res[k] < 0) state.res[k] = 0; // Rundungsschutz
   const before = genTier(state.gens[id]);
   state.gens[id] += plan.count;
+  if (state.challenges.active && !state.challenges.active.gen) state.challenges.active.gen = id;   // 'Ein Generator': erster Kauf legt den Typ fest
   state.stats.buys += plan.count;
   emit('buy', { kind, id, count: plan.count, silent });
   const tier = genTier(state.gens[id]);

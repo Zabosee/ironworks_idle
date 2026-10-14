@@ -4,12 +4,13 @@ import { fmt, fmtInt, fmtTime, decimal } from '../core/format.js';
 import { t, tName, tDesc, locale } from '../core/i18n.js';
 import { corpLevel, researchMult, achievementBonus, prestigeMult, globalMult, buffMult, prestigeGain, oreForGain, shopLevel, shopCost } from '../core/formulas.js';
 import { RES, RES_IDS } from '../data/resources.js';
-import { PRESTIGE, SHOP, MILESTONES, HISTORY_MAX } from '../data/prestige.js';
+import { PRESTIGE, SHOP, MILESTONES, HISTORY_MAX, FOCUS, FOCUS_BONUS, FOCUS_MALUS } from '../data/prestige.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
-import { doPrestige, buyShop, canPrestige } from '../systems/prestige.js';
+import { doPrestige, buyShop, canPrestige, setFocus } from '../systems/prestige.js';
 import { symSvg } from './assets.js';
 import { h, $, clear, setText, setClass, setAttr, confirmDialog } from './dom.js';
 import { makeCard, setCost, setNote } from './cards.js';
+import { buildChallenges, renderChallenges } from './challenges.js';
 import { buildCastPreview, buildAutocast } from './goals.js';
 
 const shopCards = {};
@@ -36,6 +37,18 @@ export function buildPrestige() {
       if (ok) doPrestige();
     },
   }, symSvg(PRESTIGE.sym || 'flame', '', 'prestige'), ' ', pv.btnT);
+  // Schwerpunkt für den nächsten Durchlauf: Klick wählt, erneuter Klick hebt auf (Schalter, aria-pressed)
+  pv.focusBtns = FOCUS.map(f => {
+    const b = h('button', { class: 'btn', type: 'button', title: t(f.desc), 'aria-describedby': 'focus-desc-' + f.id, 'aria-pressed': 'false', text: t(f.name) });
+    b.addEventListener('click', () => setFocus(state.focusNext === f.id ? '' : f.id));
+    return { f, b };
+  });
+  pv.focusInfo = h('p', { class: 'hint' });
+  pv.focusAuto = h('p', { class: 'hint', hidden: true, text: t('Bei aktivem Auto-Neuguss bleibt die zuletzt gewählte Schwerpunkt-Wahl bestehen.') });
+  pv.focusBox = h('div', { class: 'focus-pick', role: 'group', 'aria-label': t('Schwerpunkt für den nächsten Durchlauf') },
+    h('h3', { text: t('Schwerpunkt für den nächsten Durchlauf') }),
+    h('p', { class: 'hint', text: t('+{bonus} % Produktion auf die gewählte Kette, −{malus} % auf die anderen. Gilt ab dem nächsten Neuguss für einen Durchlauf; Konzerngründung setzt zurück.', { bonus: FOCUS_BONUS * 100, malus: FOCUS_MALUS * 100 }) }),
+    h('p', { class: 'pill-row' }, ...pv.focusBtns.map(x => x.b)), ...pv.focusBtns.map(({ f }) => h('span', { class: 'sr-only', id: 'focus-desc-' + f.id, text: t(f.desc) })), pv.focusInfo, pv.focusAuto);
   pv.preview = buildCastPreview();
   pv.auto = buildAutocast();
   pv.autoBox = h('div', { class: 'panel-box', hidden: true }, pv.auto.el);   // erst nach Kauf von Auto-Neuguss sichtbar
@@ -69,10 +82,11 @@ export function buildPrestige() {
         h('dt', { text: t('Insgesamt verdient') }), h('dd', {}, pv.total),
         h('dt', { text: t('Produktionsbonus') }), h('dd', {}, pv.mult),
         h('dt', { text: t('Ertrag bei Neuguss jetzt') }), h('dd', {}, pv.gain)),
-      pv.bar, pv.hint, pv.preview.el, pv.btn),
+      pv.bar, pv.hint, pv.preview.el, pv.focusBox, pv.btn),
     pv.autoBox,
     h('div', { class: 'panel-box' }, h('h2', { text: t('Meilensteine') }), h('p', { class: 'hint', text: t('Basierend auf den insgesamt verdienten Gussformen.') }), pv.msList),
     cv.box,
+    buildChallenges(),
     h('div', { class: 'panel-box wide' }, h('h2', { text: t('Gießerei-Shop') }), shopGrid));
 }
 
@@ -157,6 +171,10 @@ export function renderPrestige() {
     ? t('Nächste Gussform ab {target} Erz in diesem Durchlauf (aktuell {run}).', { target: fmt(target), run: fmt(run) })
     : t('Erste Gussform ab {target} Erz in diesem Durchlauf (aktuell {run}).', { target: fmt(target), run: fmt(run) }));
   setText(pv.btnT, (gain >= 1 ? t('Neuguss: +{gain} {currency}', { gain: fmtInt(gain), currency: t(PRESTIGE.currency) }) : t('Noch nicht möglich')) + (state.autoCast?.on && corpLevel('c_autocast') > 0 ? ' · ' + t('Auto aktiv') : ''));
+  for (const { f, b } of pv.focusBtns) setAttr(b, 'aria-pressed', state.focusNext === f.id);
+  const fa = FOCUS.find(f => f.id === state.focus), fn = FOCUS.find(f => f.id === state.focusNext);
+  setText(pv.focusInfo, t('Aktiv: {a} · Nächster Neuguss: {n}', { a: fa ? t(fa.name) : t('kein Schwerpunkt'), n: fn ? t(fn.name) : t('kein Schwerpunkt') }));
+  pv.focusAuto.hidden = !state.autoCast?.on;
   pv.preview.update();
   pv.auto.update();
   pv.autoBox.hidden = pv.auto.el.hidden;
@@ -167,6 +185,7 @@ export function renderPrestige() {
     setText(st, done ? ' ' + t('(erreicht)') : ' ' + t('(gesperrt)'));
   }
   renderChronicle(gain);
+  renderChallenges();
   for (const it of SHOP) {
     const c = shopCards[it.id], lvl = shopLevel(it.id), maxed = lvl >= it.max, cost = shopCost(it.id);
     const can = !maxed && p.points >= cost;

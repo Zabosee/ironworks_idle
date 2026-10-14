@@ -74,5 +74,9 @@ const [OUT, VAR] = INDUSTRY_TRACKS, VAR_MAX = VAR.steps[VAR.steps.length - 1].at
 add('industry_a5', '🏁', 'Montan-Imperator', `Erreiche Stufe A5 der Industrie-Leiste Fördermenge.`, 0.01, s => OUT.value(s) >= OUT.steps[4].at);
 add('industry_b7', '🧩', 'Alle Materialien', `Besitze alle ${VAR_MAX} Materialien (Industrie-Leiste Materialvielfalt komplett).`, 0.02, s => VAR.value(s) >= VAR_MAX);
 
+const chDone = s => Object.keys(s.challenges?.done || {}).length;
+add('challenge_1', '🏁', 'Bewährungsprobe', 'Schaffe eine Herausforderung im Hochofen.', 0.01, s => chDone(s) >= 1);
+add('challenge_3', '🏁', 'Meisterprüfung', 'Schaffe alle 3 Herausforderungen im Hochofen.', 0.01, s => chDone(s) >= 3);
+
 export const ACHIEVEMENTS = ACH;
 export const ACHIEVEMENT_MAP = Object.fromEntries(ACH.map(a => [a.id, a]));

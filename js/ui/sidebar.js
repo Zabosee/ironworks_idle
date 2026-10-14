@@ -97,7 +97,7 @@ export function showDelta(before, after) {
 let buffKey = '';
 const buffTimes = {};
 export function renderBuffs(force = false) {
-  const key = state.buffs.map(b => b.id).join(',');
+  const key = state.buffs.map(b => b.id + (b.res || '')).join(',');
   if (force || key !== buffKey) {
     buffKey = key;
     clear(els.buffs);
@@ -106,7 +106,7 @@ export function renderBuffs(force = false) {
       if (!def) continue;
       const time = h('span', { class: 'buff-time' });
       buffTimes[b.id] = time;
-      els.buffs.append(h('li', { class: 'buff' }, h('span', { class: 'buff-ico', 'aria-hidden': 'true' }, def.sym ? symSvg(def.sym, '', 'buff') : def.icon), h('span', { class: 'buff-name', text: `${tName('golden', def)} (${tDesc('golden', def)})` }), time));
+      els.buffs.append(h('li', { class: 'buff' }, h('span', { class: 'buff-ico', 'aria-hidden': 'true' }, def.sym ? symSvg(def.sym, '', 'buff') : def.icon), h('span', { class: 'buff-name', text: `${tName('golden', def)} (${b.res ? t('{res} −{pct} %', { res: tName('resources', RES[b.res]), pct: Math.round((1 - def.mult) * 100) }) : tDesc('golden', def)})` }), time));
     }
   }
   for (const b of state.buffs) if (buffTimes[b.id]) setText(buffTimes[b.id], Math.ceil(b.left) + ' s');

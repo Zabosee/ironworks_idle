@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { state, reset, give, collect, installStorage, finishAll, zeroRes } from './helpers.mjs';
 import { replaceState, defaultState } from '../js/core/state.js';
 import * as F from '../js/core/formulas.js';
+import { OFFLINE_EFFICIENCY } from '../js/data/timers.js';
 import * as S from '../js/core/save.js';
 import * as T from '../js/systems/timers.js';
 import * as AB from '../js/systems/autobuyers.js';
@@ -239,7 +240,7 @@ describe('Timer: Offline und Hintergrund', () => {
     const r0 = F.rates().ore;
     const ore0 = state.res.ore;
     const info = S.applyOffline(200);
-    const expected = 15 * r0 + 150 * 3 * r0 + 35 * 6 * r0;
+    const expected = (15 * r0 + 150 * 3 * r0 + 35 * 6 * r0) * OFFLINE_EFFICIENCY;
     assert.ok(Math.abs(info.gains.ore - expected) < 1e-9 * expected, `${info.gains.ore} vs ${expected}`);
     assert.ok(Math.abs(state.res.ore - ore0 - expected) < 1e-9 * expected);
     assert.ok(state.research.deepmines && state.boosts.diamond && state.boosts.magnet);
@@ -273,8 +274,8 @@ describe('Timer: Offline und Hintergrund', () => {
 });
 
 describe('Save v4: Timer, Sanitize, Migration', () => {
-  test('SAVE_VERSION 6; Roundtrip behaelt Auftraege (Rest, Kosten, Reihenfolge)', () => {
-    assert.equal(S.SAVE_VERSION, 6);
+  test('SAVE_VERSION 9; Roundtrip behaelt Auftraege (Rest, Kosten, Reihenfolge)', () => {
+    assert.equal(S.SAVE_VERSION, 9);
     rich();
     state.research.geology = 1;
     buy('research', 'converter'); buy('research', 'deepmines'); buy('boost', 'diamond');
@@ -382,8 +383,8 @@ describe('Save v4: Timer, Sanitize, Migration', () => {
     assert.equal(state.stats.total.ore, 100); assert.equal(state.stats.run.ore, 50); assert.equal(state.clicks.click, 3);
   });
 
-  test('v7 wird abgelehnt (zu neu)', () => {
-    assert.throws(() => S.migrate({ v: 7, state: {} }), /neueren/);
+  test('v10 wird abgelehnt (zu neu)', () => {
+    assert.throws(() => S.migrate({ v: 10, state: {} }), /neueren/);
   });
 });
 

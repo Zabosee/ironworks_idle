@@ -48,3 +48,19 @@ export const MILESTONES = [
   { at: 250000, mult: 10,   desc: 'Produktion ×10' },
 ];
 export const HISTORY_MAX = 10;   // Einträge der Neuguss-Chronik
+
+// Schwerpunkt ("Fokus") für den NÄCHSTEN Durchlauf: wird vor dem Neuguss gewählt (state.focusNext), mit dem Neuguss aktiv (state.focus),
+// Konzerngründung setzt beides zurück. +FOCUS_BONUS Produktion auf die Materialien der gewählten Kette, -FOCUS_MALUS auf die der anderen (Erz bleibt neutral).
+export const FOCUS_BONUS = 0.25;
+export const FOCUS_MALUS = 0.05;
+export const FOCUS = [
+  { id: 'steel', name: 'Stahlschmiede', desc: 'Stahlkette: Stahl, Kohle, Koks, Kupfer, Mangan, Vanadium.',
+    res: ['steel', 'coal', 'coke', 'copper', 'manganese', 'vanadium'] },
+  { id: 'titan', name: 'Titanofen', desc: 'Titankette: Titan, Chrom, Nickel, Legierung, Kobalt, Molybdän, Hartmetall.',
+    res: ['titan', 'chrome', 'nickel', 'alloy', 'cobalt', 'molybdenum', 'carbide'] },
+  { id: 'gold', name: 'Goldguss', desc: 'Edelkette: Gold, Wolfram, Platin, Iridium, Superlegierung.',
+    res: ['gold', 'tungsten', 'platinum', 'iridium', 'superalloy'] },
+];
+export const FOCUS_MAP = Object.fromEntries(FOCUS.map(f => [f.id, f]));
+export const FOCUS_RES = new Set(FOCUS.flatMap(f => f.res));
+export const FOCUS_DEFAULT = 'steel';   // feste Wahl des Balance-Bots

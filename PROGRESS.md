@@ -21,7 +21,7 @@ Dieser Ordner ist ein Git-Repository (Remote `origin`, Branch `main`). Zwischens
 
 ## Status
 - [x] Checkpoint 0: Ausgangsstand (176/176 Tests grün, Redesign mit SVGs)
-- [x] Phase 1: Review → docs/REVIEW-logic.md (Logik+Security), docs/SPEC-design.md (UX+Konzept)
+- [x] Phase 1: Review (Logik+Security) und Design-Spezifikation (UX+Konzept); die Dokumente wurden nach Abarbeitung entfernt
 - [x] Phase 2a: backend-developer – Review-Fixes + Ressourcen datengetrieben + Security-Härtung
 - [x] Phase 2b: backend-developer – Timer-System, neue Materialien/Generatoren/Upgrades, Save v3, docs/GAME-DESIGN.md
 - [x] Parallel zu 2b: ui-designer – SVG-Assets (assets/sprites/gens.svg, flasks.svg, ui.svg, bg/lab.svg, bg/works-floor.svg, neue res-/gen-Icons, assets/preview.html)
@@ -93,3 +93,7 @@ Auftrag Lukas: A1 robuster machen (D11), Konzernforschung teurer (D10), mehr For
   Rechnerische Untergrenze: 351 / 0,68 = 516 h. A1 und D11 sind erfüllt (schnellste Spielweise >= 504 h, Bot <= 700 h). Frühere Stände zum Vergleich: Schritt 6 (linear 52.000) Bot 591,3 h, schnelle Spielweisen 319 bis 520 h.
 - **Einschränkungen**: A1 ist weiter nur für den Bot und einige gesuchte Spielweisen gemessen, kein echter Spieler. Sehr seltene Gründungen werden bestraft (80 h Takt: 762 h). Zeitalter 2 bis 5 (Schritt 6: 55 / 106 / 114 / 114 h mit Konzern) und die Zeit der Kobalt-Forschung wurden nach Runde 2 nicht neu gemessen. Offen laut Plan: Titan und Legierung in Konzernprozessen billig, Forschungskarte im Browser ungeprüft.
 - **UI offen (Stand Schritt 9, nicht neu geprüft)**: Einklapp-Zustand der Materialgruppen nicht gespeichert; Konzern-Ast zeigt K1 bis K7 als Knoten-Abzeichen statt Zwischenüberschriften; Kartenansicht nach "Konzernforschung öffnen" wird teils vom Auto-Fit überschrieben; E2E deckt Mobil-Layout des Konzern-Reiters, Chronik-Tabelle und v5-Import-Migration nicht ab.
+
+## Etappe 2 (2026-10-14): Erster Neuguss, Schwerpunkt je Neuguss
+- Erster Neuguss: Messung mit `tools/balance-sim.mjs` (Policy `frac`, frac 0, dt 8): +1 Gussform bei 44 min, +10 bei 46 min, +25 bei 52 min. Das liegt schon im Ziel 45 bis 90 min, deshalb keine Kurvenänderung. Zielleiste (`js/ui/goals.js`) nennt den ersten Neuguss jetzt mit Nutzen (Gussformen, Zeitalter, Shop) und "bereit" ab 1e7 Erz. Test in `tests/balance.test.mjs`.
+- Schwerpunkt: Save-Version 8 (`focus`, `focusNext`, Migration `migrateV7toV8`), `focusMult` in `js/core/formulas.js`, `setFocus` in `js/systems/prestige.js`, Auswahl im Hochofen-Panel (`js/ui/panels.js`), Tests `tests/focus.test.mjs`. `tools/balance-full.mjs` mit Stahlschmiede: ALLES FREIGESCHALTET 602,3 h (unverändert, Korridor 504 bis 700 h).

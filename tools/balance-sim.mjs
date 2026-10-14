@@ -17,13 +17,13 @@ import { pathToFileURL } from 'node:url';
 import { state, replaceState, defaultState, addResource } from '../js/core/state.js';
 import * as F from '../js/core/formulas.js';
 import * as P from '../js/systems/production.js';
-import { doPrestige, buyShop } from '../js/systems/prestige.js';
+import { doPrestige, buyShop, setFocus } from '../js/systems/prestige.js';
 import { GENS } from '../js/data/generators.js';
 import { ERAS } from '../js/data/eras.js';
 import { buyEvo } from '../js/systems/evolution.js';
 import { RESEARCH } from '../js/data/research.js';
 import { BOOSTS, CLICKS } from '../js/data/upgrades.js';
-import { MILESTONES, SHOP, PRESTIGE } from '../js/data/prestige.js';
+import { MILESTONES, SHOP, PRESTIGE, FOCUS_DEFAULT } from '../js/data/prestige.js';
 import { doCorp, buyCorpShop } from '../js/systems/corp.js';
 import { CORP, CORP_SHOP, CORP_SHOP_MAP, CORP_MILESTONES } from '../js/data/corp.js';
 import { INDUSTRY_TRACKS } from '../js/data/industry.js';
@@ -62,7 +62,7 @@ export const CORP_PLAN = [
 const RARE = [['chromeworks', 1], ['nickelref', 1], ['reactor', 0.8], ['crucible', 0.6],
   ['cobaltmine', 0.5], ['molybdenumworks', 0.5], ['sinterworks', 0.4], ['platinummine', 0.3], ['vanadiumworks', 0.3], ['iridiumlab', 0.25], ['superfoundry', 0.2]];
 
-function buyGens(max = 30, pbLimit = 3000) {
+export function buyGens(max = 30, pbLimit = 3000) {
   const need = new Set();
   const add = c => { for (const k in c) if (state.res[k] < c[k]) need.add(k); };
   // Bedarf: Kosten aller Forschungen/Boosts, deren Voraussetzungen erfüllt sind (Zeitalter-Tor zählt nicht, sonst
@@ -94,7 +94,7 @@ function buyGens(max = 30, pbLimit = 3000) {
 }
 
 /** Ausbauten: kaufen, sobald bezahlbar und die Kosten höchstens 40 % des (gewichteten) Vorrats ausmachen. */
-function buyEvos() {
+export function buyEvos() {
   for (let again = true; again;) {
     again = false;
     for (const g of GENS) {
@@ -155,13 +155,14 @@ function spendShop(log) {
  *       0 = sobald Gewinn >= minCorpGain), corpFrac (zusätzlich gründen, wenn Gewinn >= corpFrac * bisherige Patente, 0 = aus), minCorpGain.
  *       hold (Sekunden: Neuguss/Gründung zurückhalten, solange eine freischaltbare Forschung/ein Boost in <= hold s bezahlbar wird, 0 = aus),
  *       workHold (true: laufende Werkbank-Erstaufträge schon vor dem Endspiel abwarten, Vorgabe false = unverändert),
+ *       onStep(t) (Rückruf nach jedem Schritt, Diagnose; die Herausforderungs-Kalibrierung forkt hier den Zustand),
  *       progressEvery (simulierte Stunden zwischen Fortschrittszeilen auf stderr, 0 = still), onProgress(t) (Rückruf dabei, Diagnose).
  * Rückgabe zusätzlich: eraTimes, snaps (Raten/Bestand beim Zeitalter-Eintritt), runRates (Raten kurz vor jedem Neuguss, Grundlage der
  *       Kostenkalibrierung der Zeitalter-Forschung), events { corpUnlock, firstCorp, stage[1..7], mat{id}, industry{track:[t je Stufe]},
  *       corpShopDone, all } (Sekunden aktiver Spielzeit), foundings [{ t, gain, total, stage }].
  */
 export function simulate({ hours = 48, clicksPerSec = 4, frac = 0.5, policy = 'rate', minGain = 3, minRun = 300, dt = 2, stopAtAll = false, stopAtEra = 0, stopAtDone = false, probe = [],
-  corp = true, corpFirst = 34, corpEvery = 40, corpFrac = 0, minCorpGain = 1, hold = 0, workHold = false, holdCap = 43200, progressEvery = 0, onProgress = null } = {}) {
+  corp = true, corpFirst = 34, corpEvery = 40, corpFrac = 0, minCorpGain = 1, hold = 0, workHold = false, focus = FOCUS_DEFAULT, holdCap = 43200, progressEvery = 0, onProgress = null, onStep = null } = {}) {
   replaceState(defaultState());
   state.settings.autosave = false;
   const milestones = {}, prestiges = [], shopLog = [], eraTimes = {}, probes = {}, snaps = {}, runRates = [], foundings = [];
@@ -181,6 +182,7 @@ export function simulate({ hours = 48, clicksPerSec = 4, frac = 0.5, policy = 'r
     for (const c of CLICKS) if (!(seen.endgame && everC.has(c.id)) && !F.lockReason('click', c.id) && worth(F.bulkPlan('click', c.id, 1).cost) < 0.3 * state.res.ore) P.buy('click', c.id);
     buyGens();
     buyEvos();
+    onStep?.(t);
     for (let i = 1; i < ERAS.length; i++) if (!(i in eraTimes) && F.eraIndex() >= i) { eraTimes[i] = t; const q = F.rates(); delete q.flows; snaps[i] = { t, rates: q, res: { ...state.res } }; }
     if (stopAtEra && stopAtEra in eraTimes) break;
     for (const ph of probe) if (!(ph in probes) && t >= ph * 3600) probes[ph] = state.stats.total.ore;
@@ -238,6 +240,7 @@ export function simulate({ hours = 48, clicksPerSec = 4, frac = 0.5, policy = 'r
       hist.length = 0;
       const runTime = state.stats.runTime;
       { const q = F.rates(); delete q.flows; runRates.push({ era: F.eraIndex(), t, rates: q }); }   // Spitzenraten des Durchlaufs je Zeitalter (Kalibrierung der Forschungskosten)
+      setFocus(focus);   // feste Standardwahl des Bots (opts.focus, Vorgabe FOCUS_DEFAULT; '' = ohne Fokus)
       doPrestige();
       prestiges.push({ t, runTime, gain, total: state.prestige.total, count: state.prestige.count });
       spendShop(shopLog);

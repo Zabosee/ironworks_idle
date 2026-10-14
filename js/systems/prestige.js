@@ -3,13 +3,24 @@ import { state, defaultState } from '../core/state.js';
 import { prestigeGain, shopCost, shopLevel, startOre, keepsResearch } from '../core/formulas.js';
 import { RESEARCH } from '../data/research.js';
 import { emit, toast } from '../core/events.js';
-import { t } from '../core/i18n.js';
+import { t, tName } from '../core/i18n.js';
 import { autoSave } from '../core/save.js';
 import { resetForPrestige } from './timers.js';
-import { SHOP_MAP, MILESTONES, PRESTIGE, HISTORY_MAX } from '../data/prestige.js';
+import { abort as abortChallenge } from './challenges.js';
+import { init as initRandomEvents } from './events-random.js';
+import { CHALLENGE_MAP } from '../data/challenges.js';
+import { SHOP_MAP, MILESTONES, PRESTIGE, HISTORY_MAX, FOCUS_MAP } from '../data/prestige.js';
 
 
 export const canPrestige = () => prestigeGain() >= 1;
+
+/** Wählt den Schwerpunkt für den NÄCHSTEN Durchlauf ('' = keiner). Wirkt erst mit dem Neuguss. */
+export function setFocus(id) {
+  if (id !== '' && !Object.hasOwn(FOCUS_MAP, id)) return false;
+  state.focusNext = id;
+  emit('focus', { id });
+  return true;
+}
 
 /**
  * Gemeinsamer Durchlauf-Reset von Neuguss und Konzerngründung: Ressourcen, Generatoren, Klick-Upgrades, Ausbau, Boosts, Buffs,
@@ -30,6 +41,9 @@ export function resetRun({ keepResearch, keepCorpQueue }) {
   state.stats.run = fresh.stats.run;
   state.stats.runTime = 0;
   state.stats.runClicks = 0;
+  const ch = state.challenges.active;
+  if (ch && abortChallenge()) toast(t('Herausforderung abgebrochen: {name} (Neuguss bzw. Konzerngründung). Kein Verlust.', { name: tName('challenges', CHALLENGE_MAP[ch.id]) }), 'warn');
+  initRandomEvents();   // ein offenes Zufallsereignis verfällt, das nächste wird neu geplant
 }
 
 export function doPrestige() {
@@ -43,6 +57,8 @@ export function doPrestige() {
 
   resetRun({ keepResearch: keepsResearch(), keepCorpQueue: true });
   state.res.ore = startOre();
+  state.focus = state.focusNext;   // gewählter Schwerpunkt gilt ab jetzt; für den übernächsten Durchlauf neu wählen
+  if (!state.autoCast?.on) state.focusNext = '';   // mit Auto-Neuguss bleibt die letzte Wahl, sonst würde der Automat ohne Schwerpunkt gießen
   state.stats.bestPrestige = Math.max(state.stats.bestPrestige, gain);
   if (runTime > 0 && (!(state.stats.fastestPrestige > 0) || runTime < state.stats.fastestPrestige)) state.stats.fastestPrestige = runTime;
 

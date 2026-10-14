@@ -28,6 +28,7 @@ export function doCorp() {
   p.history = [];
   p.shop = {};   // Erzvorrat (start) und alle anderen Hochofen-Shop-Stufen sind weg, state.res.ore bleibt 0
   state.stats.corpRunTime = 0;
+  state.focus = ''; state.focusNext = '';   // Schwerpunkt gehört zum Neuguss-Zyklus: neuer Konzern, neue Wahl
 
   const c = state.corp;
   c.points += gain;

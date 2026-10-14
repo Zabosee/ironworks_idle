@@ -137,7 +137,7 @@ describe('Validierung (sanitize) – negative / NaN / Muell-Werte', () => {
       { id: 'frenzy', left: 10 }, { id: 'nope', left: 10 }, { id: 'frenzy', left: -5 },
       { id: 'clickfrenzy', left: 1e9 }, null, 'x', { id: 'frenzy', left: NaN },
     ] }));
-    assert.deepEqual(state.buffs.map(b => [b.id, b.left]), [['frenzy', 10], ['clickfrenzy', 60]]);
+    assert.deepEqual(state.buffs.map(b => [b.id, b.left]), [['frenzy', 10], ['clickfrenzy', 80]]);
   });
   test('Buff-Liste wird auf 10 Eintraege begrenzt', () => {
     S.importSave(wrap({ buffs: Array.from({ length: 50 }, () => ({ id: 'frenzy', left: 5 })) }));
@@ -198,10 +198,10 @@ describe('Migration alter Saves (eisenwerk-idle-save)', () => {
     assert.ok(state.savedAt > 0, 'Fallback-Zeitstempel statt NaN');
   });
   test('migrate: v2 passt durch, falsche Versionen werfen', () => {
-    assert.equal(S.migrate({ v: 2, t: 5, state: {} }).v, 6);
-    assert.equal(S.migrate({ v: 3, t: 5, state: {} }).v, 6);
-    assert.equal(S.migrate({ v: 5, t: 5, state: {} }).v, 6);
-    assert.throws(() => S.migrate({ v: 7, state: {} }), /neueren/);
+    assert.equal(S.migrate({ v: 2, t: 5, state: {} }).v, 9);
+    assert.equal(S.migrate({ v: 3, t: 5, state: {} }).v, 9);
+    assert.equal(S.migrate({ v: 5, t: 5, state: {} }).v, 9);
+    assert.throws(() => S.migrate({ v: 10, state: {} }), /neueren/);
     assert.throws(() => S.migrate({ state: {} }), /Version/);
     assert.throws(() => S.migrate(null), /Format/);
   });

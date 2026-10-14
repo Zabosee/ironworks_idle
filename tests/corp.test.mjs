@@ -315,11 +315,11 @@ describe('Industrie-Leiste Materialvielfalt zählt die neuen Materialien', () =>
 
 describe('Save v6', () => {
   const wrap = (st, v = 6) => Buffer.from(JSON.stringify({ v, t: 1_700_000_000_000, state: st }), 'utf8').toString('base64');
-  test('SAVE_VERSION 6; Roundtrip erhält corp, Konzernforschung, autoCast und corpRunTime', () => {
-    assert.equal(S.SAVE_VERSION, 6);
+  test('SAVE_VERSION 9; Roundtrip erhält corp, Konzernforschung, autoCast und corpRunTime', () => {
+    assert.equal(S.SAVE_VERSION, 9);
     state.corp = { points: 7, total: 31, count: 4, shop: { c_eff: 2, c_heir: 3 }, history: [{ gain: 3, gussformen: 1e5, time: 1234, at: 99 }] };
     state.research.c_cobalt = 1; state.autoCast = { on: true, mode: 'time', value: 12 }; state.stats.corpRunTime = 777;
-    const o = JSON.parse(S.serialize()); assert.equal(o.v, 6);
+    const o = JSON.parse(S.serialize()); assert.equal(o.v, 9);
     S.importSave(S.exportSave());
     assert.deepEqual(state.corp, { points: 7, total: 31, count: 4, shop: { c_eff: 2, c_heir: 3 }, history: [{ gain: 3, gussformen: 1e5, time: 1234, at: 99 }] });
     assert.equal(state.research.c_cobalt, 1); assert.deepEqual(state.autoCast, { on: true, mode: 'time', value: 12 }); assert.equal(state.stats.corpRunTime, 777);
@@ -339,7 +339,7 @@ describe('Save v6', () => {
   test('Migration v5 -> v6: leere Defaults, Eingabe unverändert, alte Daten bleiben', () => {
     const old = { res: { ore: 5 }, research: { geology: 1 }, prestige: { points: 2, total: 6, count: 7, shop: {}, history: [] } };
     const m = S.migrate({ v: 5, t: 1, state: old });
-    assert.equal(m.v, 6);
+    assert.equal(m.v, 9);
     assert.deepEqual(m.state.corp, { points: 0, total: 0, count: 0, shop: {}, history: [] });
     assert.deepEqual(m.state.autoCast, { on: false, mode: 'gain', value: 0 });
     assert.equal(old.corp, undefined);
@@ -349,8 +349,8 @@ describe('Save v6', () => {
     for (const k of RES_IDS) assert.equal(state.res[k] >= 0, true);
     assert.equal(state.gens.cobaltmine, 0); assert.equal(state.stats.corpRunTime, 0);
   });
-  test('Spielstand aus neuerer Version (v7) wird abgelehnt', () => {
-    assert.throws(() => S.migrate({ v: 7, state: {} }), /neueren/);
+  test('Spielstand aus neuerer Version (v10) wird abgelehnt', () => {
+    assert.throws(() => S.migrate({ v: 10, state: {} }), /neueren/);
   });
   test('Konzernforschung im Spielstand wird übernommen (alle 49), unbekannte IDs nicht', () => {
     const ids = RESEARCH.filter(r => r.corp).map(r => r.id);

@@ -7,9 +7,10 @@ import { GENS, GEN_MAP, genTier, tierName, tierPips, MILESTONE_STEP, ELITE_FROM,
 import { CLICKS, CLICK_MAP, BOOSTS, BOOST_MAP } from '../data/upgrades.js';
 import { RESEARCH, RESEARCH_MAP } from '../data/research.js';
 import { RECIPES } from '../data/recipes.js';
-import { PRESTIGE, SHOP_MAP, MILESTONES, AUTOBUYERS, AUTOBUYER_INTERVAL } from '../data/prestige.js';
+import { PRESTIGE, FOCUS_MAP, FOCUS_RES, FOCUS_BONUS, FOCUS_MALUS, SHOP_MAP, MILESTONES, AUTOBUYERS, AUTOBUYER_INTERVAL } from '../data/prestige.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { BUFFS } from '../data/golden.js';
+import { CHALLENGE_MAP, CHALLENGE_BONUS } from '../data/challenges.js';
 import { ERAS, EVO_MAX, EVO_AT, EVO_MULT, EVO_COST } from '../data/eras.js';
 import { INDUSTRY_TRACKS } from '../data/industry.js';
 import { CORP, CORP_SHOP_MAP, CORP_MILESTONES, HEIR_FLOOR } from '../data/corp.js';
@@ -204,13 +205,27 @@ export function industryProgress() {
 }
 export const industryMult = () => industryProgress().reduce((m, tr) => m * tr.mult, 1);
 
+/** Fokus-Faktor auf die Produktion einer Ressource (state.focus, siehe data/prestige.js FOCUS). */
+export function focusMult(res) {
+  const f = FOCUS_MAP[state.focus];
+  if (!f) return 1;
+  return f.res.includes(res) ? 1 + FOCUS_BONUS : FOCUS_RES.has(res) ? 1 - FOCUS_MALUS : 1;
+}
+
+// ---------- Herausforderungen (state.challenges, siehe systems/challenges.js) ----------
+export const challengeDef = () => CHALLENGE_MAP[state.challenges?.active?.id] || null;
+/** Dauerhafter Bonus je geschaffter Herausforderung mal Malus der laufenden (Eiserne Frist). */
+export const challengeMult = () => (1 + CHALLENGE_BONUS * Object.keys(state.challenges?.done || {}).length) * (challengeDef()?.mods.prod ?? 1);
+/** true, wenn die laufende Herausforderung 'Ein Generator' diesen Generator-Typ sperrt. */
+export const oneGenBlocked = id => { const a = state.challenges?.active; return !!(a && a.gen && a.gen !== id && challengeDef()?.mods.oneGen); };
+
 /** Alles, was auf jede Produktion wirkt (außer Forschung/Boosts). */
-export const globalMult = () => prestigeMult() * corpMult() * achievementMult() * buffMult('prod') * eraMult() * synergyMult() * industryMult();
+export const globalMult = () => prestigeMult() * corpMult() * achievementMult() * buffMult('prod') * eraMult() * synergyMult() * industryMult() * challengeMult();
 export const mult = res => safe(researchMult(res) * globalMult());
 
 // ---------- Produktion ----------
 export const genLevel = id => state.gens[id] || 0;
-export const genOutputAt = (g, n, gm = globalMult()) => safe(g.base * n * milestone(n) * researchMult(g.res) * gm * evoMult(g.id));
+export const genOutputAt = (g, n, gm = globalMult()) => safe(g.base * n * milestone(n) * researchMult(g.res) * focusMult(g.res) * gm * evoMult(g.id));
 
 export const clickLevel = id => state.clicks[id] || 0;
 
@@ -249,7 +264,7 @@ export function rates() {
     if (n > 0) r[g.res] += genOutputAt(g, n, gm);
   }
   const clickRaw = safe(clickBaseTotal(gm) + (state.research.resonance ? 0.05 * r.ore : 0));
-  r.click = safe(clickRaw * buffMult('click'));
+  r.click = challengeDef()?.mods.click === 0 ? 0 : safe(clickRaw * buffMult('click'));
   if (state.research.autoclick) r.ore += 5 * clickRaw * keyMult('autoclick');
   r.flows = [];
   for (const rc of RECIPES) {
@@ -260,11 +275,12 @@ export function rates() {
     // boosted (Standard true): Ausgaben erhalten die Forschungs-/Boost-Multiplikatoren ihrer Ressource.
     // Globale Faktoren (Prestige, Erfolge, Buffs) stecken bereits in den Eingängen und werden nicht doppelt angewandt.
     for (const k in rc.outputs) {
-      flow.outputs[k] = cycles * rc.outputs[k] * (rc.boosted === false ? 1 : researchMult(k));
+      flow.outputs[k] = cycles * rc.outputs[k] * (rc.boosted === false ? 1 : researchMult(k)) * focusMult(k);
       r[k] += flow.outputs[k];
     }
     r.flows.push(flow);
   }
+  for (const b of state.buffs) if (b.id === 'shortage' && b.left > 0 && r[b.res] > 0) r[b.res] *= BUFFS.shortage.mult;   // Rohstoffengpass (Zufallsereignis)
   for (const k of RES_IDS) r[k] = safe(r[k]);
   return r;
 }
@@ -342,6 +358,7 @@ export function lockReason(kind, id) {
   if (d?.era > eraIndex() && !industryUnlocked()) return t('Benötigt den ersten Neuguss');
   if (d?.era > eraIndex()) return t('Benötigt Zeitalter: {name}', { name: tName('eras', ERAS[d.era]) });
   if (d?.corp > corpStage()) return t('Benötigt Konzernstufe: K{n}', { n: d.corp });
+  if (kind === 'gen' && oneGenBlocked(id)) return t('Herausforderung: nur ein Generator-Typ');
   const q = queueIdOf(kind);
   if (q) {
     const p = pendingOf(kind, id);

@@ -22,6 +22,13 @@ describe('Balance: Hochofen-Schleife', () => {
     assert.ok(at(active, MILESTONES[0].at).t < 3 * H);
   });
 
+  test('erster Neuguss mit sinnvollem Gewinn (>= 10 Gussformen) nach 45 bis 90 min aktiver Spielzeit', () => {
+    // Gemessen (dt 8): +1 Gussform bei 44 min, +10 bei 46 min, +25 bei 52 min. Der 'rate'-Bot wartet länger (1,7 h), ein Spieler gießt hier bereits.
+    const first = simulate({ hours: 2, dt: 8, policy: 'frac', frac: 0, corp: false, minGain: 10 }).prestiges[0];
+    assert.ok(first.t >= 45 * 60 && first.t <= 90 * 60, `erster Neuguss bei ${(first.t / 60).toFixed(1)} min`);
+    assert.ok(first.gain >= 10);
+  });
+
   test('alle Meilensteine bis auf den letzten werden gestaffelt in wenigen Stunden erreicht', () => {
     let last = 0;
     for (const m of MILESTONES.slice(0, -1)) {

@@ -5,6 +5,7 @@ import { tick, click, buy } from '../js/systems/production.js';
 import { applyOffline } from '../js/core/save.js';
 import { addResource } from '../js/core/state.js';
 import { MAX_LEVEL } from '../js/data/generators.js';
+import { OFFLINE_EFFICIENCY } from "../js/data/timers.js";
 
 beforeEach(reset);
 
@@ -191,15 +192,15 @@ describe('Offline-Fortschritt', () => {
     state.gens.mine = 10;
     const r = applyOffline(3600);
     assert.equal(r.seconds, 3600); assert.equal(r.capped, false);
-    assert.equal(state.res.ore, 20 * 3600);
-    assert.equal(r.gains.ore, 20 * 3600);
+    assert.equal(state.res.ore, 20 * 3600 * OFFLINE_EFFICIENCY);
+    assert.equal(r.gains.ore, 20 * 3600 * OFFLINE_EFFICIENCY);
     assert.equal(state.stats.playTime, 3600);
   });
   test('Deckel nach 8 h (Basis)', () => {
     state.gens.mine = 10;
     const r = applyOffline(30 * 24 * 3600);
     assert.equal(r.capped, true); assert.equal(r.seconds, 8 * 3600);
-    assert.equal(state.res.ore, 20 * 8 * 3600);
+    assert.equal(state.res.ore, 20 * 8 * 3600 * OFFLINE_EFFICIENCY);
   });
   test('Nachtschicht-Upgrade verlaengert den Deckel', () => {
     state.gens.mine = 10; state.prestige.shop.offline = 3;
@@ -220,6 +221,6 @@ describe('Offline-Fortschritt', () => {
     state.gens.mine = 10; state.buffs = [{ id: 'frenzy', left: 1000 }];
     applyOffline(100);
     assert.deepEqual(state.buffs, []);
-    assert.equal(state.res.ore, 20 * 100);
+    assert.equal(state.res.ore, 20 * 100 * OFFLINE_EFFICIENCY);
   });
 });

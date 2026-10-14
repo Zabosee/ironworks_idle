@@ -3,14 +3,14 @@
 //
 //   node tools/e2e.mjs                 alles ausführen, langsam (Pausen, damit man zusehen kann)
 //   node tools/e2e.mjs --fast          ohne Pausen
-//   node tools/e2e.mjs --only=c,d,e    nur diese Szenarien (Buchstaben a..n); a (Neustart) läuft immer zuerst
+//   node tools/e2e.mjs --only=c,d,e    nur diese Szenarien (Buchstaben a..o); a (Neustart) läuft immer zuerst
 //   node tools/e2e.mjs --strict        WARN (visuelle Heuristiken) zählen als Fehler
 //   node tools/e2e.mjs --keep          am Ende NICHT auf einen frischen Spielstand zurücksetzen
 //
 // Umgebung: CDP_PORT (9222), GAME_URL (http://localhost:8080), E2E_PAUSE_MS (Pause je Schritt, Standard 700),
 //           E2E_DIR (Ordner für Sicherung/Screenshots/Ergebnis, Standard: <tmpdir>/eisenwerk-e2e)
 //
-// Ablauf: aktuellen localStorage sichern -> frischer Spielstand (Autosave aus, localStorage leeren, Reload) -> Szenarien a..n.
+// Ablauf: aktuellen localStorage sichern -> frischer Spielstand (Autosave aus, localStorage leeren, Reload) -> Szenarien a..o.
 // Exit-Code 1 bei mindestens einem FAIL. Der gesicherte Spielstand wird NICHT zurückgespielt.
 // Ist document.hidden true (Fenster nicht sichtbar), pausiert requestAnimationFrame; dann wird die Spielzeit über
 // __eisenwerk.timers.tick simuliert (im Bericht vermerkt).
@@ -87,12 +87,14 @@ async function waitFor(fn, timeout = 8000, what = 'Bedingung') {
   }
 }
 const bootDone = () => ev(`!!window.__eisenwerk && typeof window.__eisenwerk === 'object' && !!document.querySelector('#meters .meter')`);
-async function reload() {
+async function reload({ welcome = false } = {}) {
   const loaded = new Promise(r => loadWaiters.push(r));
   await c.send('Page.reload', { ignoreCache: true });
   await Promise.race([loaded, sleep(10000)]);
   await waitFor(bootDone, 10000, 'Spiel gestartet');
   await sleep(300);
+  // Willkommen-Dialog (Offline/Tagesbonus) sperrt sonst alle Klicks; Szenarien, die ihn prüfen, rufen reload({ welcome: true })
+  if (!welcome && await ev(`!!document.querySelector('dialog[open] #dlg-welcome')`)) { await ev(`document.querySelector('dialog[open] button[value="ok"]').click()`); await sleep(150); }
 }
 const isVisible = sel => ev(`(() => { const e = document.querySelector(${J(sel)}); return !!e && !e.hidden && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'; })()`);
 let HIDDEN = false;
@@ -528,7 +530,8 @@ await scenario('i', 'Speichern/Reload und Offline-Simulation', async () => {
     const st = await ev(`document.querySelector('#settings-root .status').textContent`);
     assert(st === 'Spielstand gespeichert.', 'Status: ' + st);
     const raw = await ev(`localStorage.getItem('eisenwerk-idle-save-v2')`);
-    assert(raw && JSON.parse(raw).v === 6, 'Kein v6-Spielstand im localStorage');
+    const ver = await ev(`import('/js/core/save.js').then(m => m.SAVE_VERSION)`);
+    assert(raw && JSON.parse(raw).v === ver, `Kein v${ver}-Spielstand im localStorage`);
     snap = await G('JSON.parse(JSON.stringify(state))');
   });
   await step('Reload: Ressourcen, Generatoren, Forschung, Queue-Reihenfolge und Timer erhalten', async () => {
@@ -549,18 +552,22 @@ await scenario('i', 'Speichern/Reload und Offline-Simulation', async () => {
     await tab('research');
     await waitFor(() => G('state.research.resonance === 1'), 12000, 'Resonanzhammer fertig');
   });
-  await step('Offline-Simulation: lastSave 120 s zurückdatiert -> Willkommen-Toast, Timer fertig, Erz gutgeschrieben', async () => {
+  await step('Offline-Simulation: lastSave 120 s zurückdatiert -> Willkommen-Dialog (60 %), Timer fertig, Erz gutgeschrieben', async () => {
     await G('(state.res.steel = Math.max(state.res.steel, 1e7), true)');
     await tab('settings'); await clickText('#settings-root', 'Jetzt speichern');
-    const pre = await G('({ ore: state.res.ore, rate: F.rates().ore, lab: state.timers.lab.length, wk: state.timers.workshop.length })');
+    const pre = await G('({ ore: state.res.ore, rate: (() => { const b = state.buffs; state.buffs = []; const r = F.rates().ore; state.buffs = b; return r; })(), lab: state.timers.lab.length, wk: state.timers.workshop.length })');
     assert(pre.lab + pre.wk > 0, 'Keine laufenden Aufträge für den Offline-Test: ' + J(pre));
     await ev(`(() => { window.__eisenwerk.state.settings.autosave = false; const k = 'eisenwerk-idle-save-v2'; const d = JSON.parse(localStorage.getItem(k)); d.t -= 120000; localStorage.setItem(k, JSON.stringify(d)); return true; })()`);
-    await reload();
-    await expectToast('Willkommen zurück', 2500);
+    await reload({ welcome: true });
+    await waitFor(() => ev(`!!document.querySelector('dialog[open] #dlg-welcome')`), 3000, 'Willkommen-Dialog');
+    const dlgText = await ev(`document.querySelector('dialog[open]').textContent`);
+    assert(/60 %/.test(dlgText) && /Offline-Ertrag/.test(dlgText), 'Dialogtext: ' + dlgText);
+    await realClick('dialog[open] button[value="ok"]'); await sleep(200);
+    assert(!(await isVisible('dialog[open]')), 'Willkommen-Dialog nach Weiter noch offen');
     const post = await G('({ ore: state.res.ore, lab: state.timers.lab.length, wk: state.timers.workshop.length, converter: state.research.converter, turbo: state.boosts.turbo })');
     assert(post.lab === 0 && post.wk === 0, `Queues nach Offline nicht abgearbeitet: ${J(post)}`);
     assert(post.converter === 1 && post.turbo === 1, 'Offline-Aufträge nicht angewandt: ' + J(post));
-    assert(post.ore - pre.ore >= pre.rate * 120 * 0.75, `Offline-Erz +${post.ore - pre.ore}, erwartet >= ${pre.rate * 90} (Konverter wandelt 20 % in Stahl)`);
+    assert(post.ore - pre.ore >= pre.rate * 120 * 0.6 * 0.75, `Offline-Erz +${post.ore - pre.ore}, erwartet >= ${pre.rate * 120 * 0.45} (60 % Effizienz; Konverter wandelt 20 % in Stahl)`);
   });
   await shot('i-offline');
 });
@@ -668,12 +675,12 @@ await scenario('k', 'Export/Import Roundtrip', async () => {
   await tab('gens'); await realClick(card('gen', 'mine'), 3);
   let exported, snap;
   await tab('settings');
-  await step('Exportieren liefert gültigen Base64-Spielstand (v6)', async () => {
+  await step('Exportieren liefert gültigen Base64-Spielstand (aktuelle Version)', async () => {
     await clickText('#settings-root', 'Exportieren');
     exported = await ev(`document.getElementById('set-export').value`);
     assert(exported.length > 100, 'Export leer');
     const parsed = JSON.parse(Buffer.from(exported, 'base64').toString('utf8'));
-    assert(parsed.v === 6 && parsed.state.prestige.points === 4 && parsed.state.gens.mine === 3, `Export-Inhalt: v=${parsed.v}, Gussformen=${parsed.state.prestige.points}, mine=${parsed.state.gens.mine}`);
+    assert(parsed.v === await ev(`import('/js/core/save.js').then(m => m.SAVE_VERSION)`) && parsed.state.prestige.points === 4 && parsed.state.gens.mine === 3, `Export-Inhalt: v=${parsed.v}, Gussformen=${parsed.state.prestige.points}, mine=${parsed.state.gens.mine}`);
     snap = parsed.state;
   });
   await step('Stand ändern, Import per echter Texteingabe + Bestätigung: Zustand = Export', async () => {
@@ -996,6 +1003,57 @@ await scenario('n', 'Konzern-Reiter: Sperre, Gründen-Dialog, Shop, Auto-Neuguss
     assert(await G('JSON.stringify({ c: state.corp, a: state.autoCast })') === exp, 'Konzernstand nach Reload anders');
   });
   await step('Keine Konsolenfehler im Konzern-Szenario', async () => noNewErrors(errStart));
+});
+
+// =====================================================================================
+await scenario('o', 'Schwerpunkt, Herausforderung, Willkommen-Dialog (60 %)', async () => {
+  const prep = () => G(`(Object.assign(state.prestige, { count: 1, total: 1 }), state.stats.runTime = Math.max(state.stats.runTime, 1800), state.focus = '', state.focusNext = '', state.challenges = { done: {}, active: null }, window.__eisenwerk.refresh(), true)`);
+  await step('Schwerpunkt: wählen setzt aria-pressed, erneuter Klick hebt auf', async () => {
+    await prep(); await tab('prestige');
+    await clickText('#prestige-root .focus-pick', 'Titanofen');
+    assert(await G('state.focusNext') === 'titan', 'focusNext: ' + await G('state.focusNext'));
+    assert(await ev(`[...document.querySelectorAll('#prestige-root .focus-pick button')].find(b => b.textContent.includes('Titanofen')).getAttribute('aria-pressed')`) === 'true', 'aria-pressed fehlt');
+    await clickText('#prestige-root .focus-pick', 'Titanofen');
+    assert(await G('state.focusNext') === '', 'Auswahl nicht aufgehoben');
+  });
+  await step('Schwerpunkt gilt nach dem Neuguss (focus = Wahl, focusNext leer)', async () => {
+    await clickText('#prestige-root .focus-pick', 'Goldguss');
+    await G('(state.stats.run.ore = 1.2e7, window.__eisenwerk.refresh(), true)');
+    await realClick('#prestige-root .btn-big');
+    await waitFor(() => isVisible('dialog[open]'), 3000, 'Dialog offen');
+    await realClick('dialog button[value="ok"]'); await sleep(500);
+    assert(await G('state.focus') === 'gold' && await G('state.focusNext') === '', `focus ${await G('state.focus')} / next ${await G('state.focusNext')}`);
+  });
+  await step('Herausforderung: Starten sperrt die anderen, Abbrechen kostet nichts', async () => {
+    await prep(); await tab('prestige');
+    const before = await G('JSON.stringify([state.prestige, state.gens])');
+    await clickText('#prestige-root .challenges li', 'Starten');
+    assert(await G('state.challenges.active?.id') === 'noclick', 'Herausforderung nicht aktiv: ' + await G('JSON.stringify(state.challenges)'));
+    assert(await G('state.challenges.active.goal > 0 && F.rates().click === 0'), 'Ziel/Klickmod falsch');
+    const dis = await ev(`[...document.querySelectorAll('#prestige-root .challenges li button')].map(b => b.disabled)`);
+    assert(J(dis) === '[false,true,true]', 'Knopfzustand: ' + J(dis));
+    await shot('o-challenge');
+    await clickText('#prestige-root .challenges li', 'Abbrechen');
+    assert(await G('state.challenges.active') === null, 'Abbruch ohne Wirkung');
+    assert(await G('JSON.stringify(state.challenges.done)') === '{}', 'Abbruch zählt als geschafft');
+    assert(await G('JSON.stringify([state.prestige, state.gens])') === before, 'Abbruch änderte Spielstand');
+  });
+  await step('Willkommen-Dialog bei simuliertem Offline-Spielstand (2 h): Dauer, Ertrag, 60 %, Tagesbonus-Zeile', async () => {
+    await prep();
+    await G('(state.gens.mine = 5, state.daily = { last: "", streak: 0 }, true)');
+    await tab('settings'); await clickText('#settings-root', 'Jetzt speichern');
+    await ev(`(() => { window.__eisenwerk.state.settings.autosave = false; const k = 'eisenwerk-idle-save-v2'; const d = JSON.parse(localStorage.getItem(k)); d.t -= 7200000; d.state.daily = { last: '', streak: 0 }; localStorage.setItem(k, JSON.stringify(d)); return true; })()`);
+    const ore0 = await G('state.res.ore');
+    await reload({ welcome: true });
+    await waitFor(() => ev(`!!document.querySelector('dialog[open] #dlg-welcome')`), 3000, 'Willkommen-Dialog');
+    const txt = await ev(`document.querySelector('dialog[open]').textContent`);
+    assert(/Du warst/.test(txt) && /60 %/.test(txt) && /Tagesbonus/.test(txt) && /erz/.test(txt), 'Dialogtext: ' + txt);
+    assert(await G('state.res.ore') > ore0, 'Offline-Erz fehlt');
+    await shot('o-welcome');
+    await realClick('dialog[open] button[value="ok"]'); await sleep(200);
+    assert(!(await isVisible('dialog[open]')), 'Dialog nach Weiter noch offen');
+  });
+  await step('Keine Konsolenfehler im Szenario o', async () => noNewErrors(errStart));
 });
 
 // ---------- Abschluss ----------

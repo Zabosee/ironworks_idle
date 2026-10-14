@@ -20,7 +20,8 @@ export function describeGoal(g, rates = {}) {
   switch (g.kind) {
     case 'firstcast': {
       const cur = state.stats.run.ore;
-      return { name: t('Erster Neuguss'), text: t('Erz {cur} von {at}', { cur: fmt(cur), at: fmt(g.at) }), left: g.at - cur };
+      // Ankündigung: ab PRESTIGE.divisor Erz im Durchlauf gibt es die erste Gussform (bei aktivem Spiel nach ca. 45 min), danach Zeitalter, Shop und Schwerpunkt
+      return { name: g.progress >= 1 ? t('Erster Neuguss bereit: Gussformen, Zeitalter und Shop') : t('Erster Neuguss (Gussformen, Zeitalter, Shop)'), text: t('Erz {cur} von {at}', { cur: fmt(cur), at: fmt(g.at) }), left: g.at - cur };
     }
     case 'milestone':
       return { name: t('Hochofen-Meilenstein: {at} Gussformen', { at: fmtInt(g.at) }), text: t('Gussformen {cur} von {at}', { cur: fmtInt(Math.floor(g.progress * g.at)), at: fmtInt(g.at) }), left: null };

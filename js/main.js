@@ -12,6 +12,9 @@ import * as autobuyers from './systems/autobuyers.js';
 import * as timers from './systems/timers.js';
 import * as F from './core/formulas.js';
 import * as golden from './systems/golden.js';
+import * as revents from './systems/events-random.js';
+import * as challenges from './systems/challenges.js';
+import { initReventUI } from './ui/revent.js';
 import * as achievements from './systems/achievements.js';
 import * as eras from './systems/eras.js';
 import * as corp from './systems/corp.js';
@@ -19,12 +22,16 @@ import * as industry from './systems/industry.js';
 import { initRender, frame, refresh } from './ui/render.js';
 import { initTabs } from './ui/tabs.js';
 import { initWorks } from './ui/works.js';
+import { claimDaily } from './systems/daily.js';
+import { showWelcome } from './ui/welcome.js';
 import { initToasts } from './ui/toast.js';
 import { initCollect, initGoldenUI, initFlash } from './ui/effects.js';
+import { initHelp } from './ui/help.js';
 import { initSettings, applySettings } from './ui/settings.js';
 import { resetHistory } from './ui/charts.js';
 import { $ } from './ui/dom.js';
 
+const WELCOME_MIN_SECONDS = 60;   // ab dieser Abwesenheit beim Laden ein Dialog statt Toast
 const OFFLINE_MIN_SECONDS = 10;   // Lücken größer als dies (z. B. Tab im Hintergrund) zählen als Offline-Zeit
 
 function announceOffline(info) {
@@ -47,9 +54,12 @@ function boot() {
   initLang();   // Sprache aus localStorage-Fallback bzw. Spielstand; schreibt state.settings.lang
   applyStaticTexts();
   applySettings();
+  let welcomeOff = null, welcomeDaily = null;
   if (loaded.loaded) {
-    if (state.savedAt > 0) announceOffline(applyOffline((Date.now() - state.savedAt) / 1000));
+    if (state.savedAt > 0) welcomeOff = applyOffline((Date.now() - state.savedAt) / 1000);
+    if (welcomeOff && welcomeOff.away < WELCOME_MIN_SECONDS) { announceOffline(welcomeOff); welcomeOff = null; }
     if (loaded.migrated) { toast(t('Spielstand der alten Version wurde übernommen.'), 'good'); save(); }
+    welcomeDaily = claimDaily();
   } else if (loaded.error) {
     toast(loaded.backedUp
       ? t('Der Spielstand ist unlesbar oder stammt aus einer neueren Version. Eine Kopie liegt im Browser-Speicher (…-backup). Speichern ist gesperrt, bis du einen Spielstand importierst oder zurücksetzt.')
@@ -60,20 +70,24 @@ function boot() {
   initWorks();
   initTabs($('#tabs'));
   initSettings();
+  initHelp();
   initCollect($('#collect'), $('#click-zone'), refresh);
   initGoldenUI($('#goldenLayer'));
   initFlash();
+  initReventUI($('#revent'));
   golden.init();
+  revents.init();
   achievements.check(0, true);
   eras.reset();
   corp.reset();
   industry.reset();
   // Zeitgeber beim Laden/Import/Reset und beim Neuguss zurücksetzen
   const resetTimers = () => { golden.init(); autobuyers.reset(); achievements.reset(); eras.reset(); corp.reset(); industry.reset(); };
-  on('loaded', () => { resetTimers(); resetHistory(); });
+  on('loaded', () => { resetTimers(); revents.init(); resetHistory(); });
   on('prestige', resetTimers);
   on('corp', resetTimers);
   refresh();
+  showWelcome(welcomeOff, welcomeDaily);
 
   let last = performance.now(), sinceSave = 0;
   const loop = now => {
@@ -84,6 +98,8 @@ function boot() {
     const r = tick(dt);
     autobuyers.tick(dt);
     golden.tick(dt);
+    revents.tick(dt);   // Zufallsereignisse: nur aktive Spielzeit (dt ist bei Offline-Lücken 0)
+    challenges.tick(dt);
     achievements.check(dt);
     eras.check(dt);
     industry.check(dt);   // Event 'industry' bei neuer Leisten-Stufe

@@ -8,15 +8,16 @@ import { RES_IDS } from '../data/resources.js';
 import { GENS, MAX_LEVEL } from '../data/generators.js';
 import { CLICKS, BOOSTS } from '../data/upgrades.js';
 import { RESEARCH } from '../data/research.js';
-import { SHOP, AUTOBUYERS } from '../data/prestige.js';
+import { SHOP, AUTOBUYERS, FOCUS_MAP } from '../data/prestige.js';
 import { CORP_SHOP, CORP_HISTORY_MAX, AUTOCAST } from '../data/corp.js';
 import { HISTORY_MAX } from '../data/prestige.js';
 import { EVO_MAX } from '../data/eras.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { BUFFS } from '../data/golden.js';
-import { QUEUES, QUEUE_IDS, MAX_ENTRIES } from '../data/timers.js';
+import { CHALLENGE_MAP } from '../data/challenges.js';
+import { QUEUES, QUEUE_IDS, MAX_ENTRIES, OFFLINE_EFFICIENCY } from '../data/timers.js';
 
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 9;
 // Der Schlüssel bleibt bewusst 'v2': die Formatversion steckt im Spielstand selbst (Feld v), so lädt der alte Spielstand ohne Umkopieren.
 export const SAVE_KEY = 'eisenwerk-idle-save-v2';
 export const BACKUP_KEY = SAVE_KEY + '-backup';
@@ -97,6 +98,8 @@ export function sanitize(d) {
       s.corp.history.push({ gain, gussformen: num(e.gussformen), time: num(e.time, 0, 0, 1e10), at: num(e.at, 0, 0, 8.64e15) });
     }
   }
+  s.focus = typeof d.focus === 'string' && Object.hasOwn(FOCUS_MAP, d.focus) ? d.focus : '';
+  s.focusNext = typeof d.focusNext === 'string' && Object.hasOwn(FOCUS_MAP, d.focusNext) ? d.focusNext : '';
   const ac = isObj(d.autoCast) ? d.autoCast : {};
   s.autoCast.on = bool(ac.on, false);
   s.autoCast.mode = AUTOCAST.modes.includes(ac.mode) ? ac.mode : 'gain';
@@ -111,8 +114,10 @@ export function sanitize(d) {
   if (Array.isArray(d.buffs)) {
     for (const b of d.buffs.slice(0, 10)) {
       const def = isObj(b) ? BUFFS[b.id] : null;
-      const left = def ? num(b.left, 0, 0, def.duration * 3) : 0;
-      if (def && left > 0) s.buffs.push({ id: def.id, left });
+      const left = def ? num(b.left, 0, 0, def.duration * 4) : 0;
+      if (!def || !(left > 0)) continue;
+      if (def.kind === 'res') { if (RES_IDS.includes(b.res)) s.buffs.push({ id: def.id, left, res: b.res }); }   // Rohstoffengpass braucht eine gültige Ressource
+      else s.buffs.push({ id: def.id, left });
     }
   }
 
@@ -122,6 +127,19 @@ export function sanitize(d) {
     const src = isObj(st[grp]) ? st[grp] : {};
     for (const k of RES_IDS) s.stats[grp][k] = num(src[k]);
   }
+
+  // Herausforderungen: nur bekannte IDs; ein ungültiger oder unvollständiger aktiver Lauf wird verworfen (ohne Folgen)
+  const ch = isObj(d.challenges) ? d.challenges : {};
+  const chDone = isObj(ch.done) ? ch.done : {};
+  for (const id of Object.keys(CHALLENGE_MAP)) if (chDone[id] === true) s.challenges.done[id] = true;
+  const ca = ch.active;
+  if (isObj(ca) && typeof ca.id === 'string' && Object.hasOwn(CHALLENGE_MAP, ca.id) && Number.isFinite(ca.goal) && ca.goal > 0 && Number.isFinite(ca.left) && ca.left > 0) {
+    s.challenges.active = { id: ca.id, left: num(ca.left, 0, 0, CHALLENGE_MAP[ca.id].time), goal: num(ca.goal, 1, 1, 1e300), base: num(ca.base), gen: GENS.some(g => g.id === ca.gen) ? ca.gen : '' };
+  }
+
+  const dl = isObj(d.daily) ? d.daily : {};
+  s.daily.last = typeof dl.last === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dl.last) ? dl.last : '';
+  s.daily.streak = s.daily.last ? int(dl.streak, 10000) : 0;
 
   const se = isObj(d.settings) ? d.settings : {};
   s.settings.format = FORMAT_IDS.includes(se.format) ? se.format : 'standard';
@@ -168,6 +186,21 @@ export function migrateV5toV6(old) {
   return { ...old, corp: { points: 0, total: 0, count: 0, shop: {}, history: [] }, autoCast: { on: false, mode: 'gain', value: 0 } };
 }
 
+/** v6 -> v7: Tagesbonus (`daily`) kommt neu hinzu, leer. */
+export function migrateV6toV7(old) {
+  return { ...old, daily: { last: '', streak: 0 } };
+}
+
+/** v7 -> v8: Neuguss-Schwerpunkt (`focus`, `focusNext`) kommt neu hinzu, leer (kein Fokus). */
+export function migrateV7toV8(old) {
+  return { ...old, focus: '', focusNext: '' };
+}
+
+/** v8 -> v9: Herausforderungen (`challenges`) kommen neu hinzu, leer (nichts geschafft, nichts aktiv). */
+export function migrateV8toV9(old) {
+  return { ...old, challenges: { done: {}, active: null } };
+}
+
 /** Bringt beliebige bekannte Formate auf die aktuelle Version: { v, t, state }. */
 export function migrate(data) {
   if (!isObj(data)) throw new Error('Spielstand hat kein gültiges Format.');
@@ -188,6 +221,9 @@ export function migrate(data) {
   if (v < 4) st = migrateV3toV4(st);
   if (v < 5) st = migrateV4toV5(st);
   if (v < 6) st = migrateV5toV6(st);
+  if (v < 7) st = migrateV6toV7(st);
+  if (v < 8) st = migrateV7toV8(st);
+  if (v < 9) st = migrateV8toV9(st);
   return { v: SAVE_VERSION, t: num(data.t, Date.now(), 0, 8.64e15), state: st };
 }
 
@@ -303,13 +339,15 @@ export function importSave(text) {
 
 // ---------- Offline-Fortschritt ----------
 /**
- * Schreibt Offline-Erträge gut. Gibt { seconds, capped, gains } zurück oder null.
+ * Schreibt Offline-Erträge gut. Gibt { seconds, away, efficiency, capped, gains } zurück oder null.
  * Beim Laden (Standard) verfallen Buffs; im Laufzeitpfad (Tab war im Hintergrund, runtime:true) wird ihre
- * Restzeit um die vergangene Zeit gekürzt. Die Erträge werden in beiden Fällen ohne Buffs berechnet.
+ * Restzeit um die vergangene Zeit gekürzt. Die Erträge werden in beiden Fällen ohne Buffs berechnet; OFFLINE_EFFICIENCY gilt nur beim Laden,
+ * im Laufzeitpfad (Spiel lief nur im Hintergrund weiter) mit 1,0. Offline-Stahl zählt nicht für eine aktive Herausforderung.
  */
 export function applyOffline(seconds, { runtime = false } = {}) {
   if (!Number.isFinite(seconds) || seconds < 10) return null;
   const cap = offlineCapSeconds();
+  const eff = runtime ? 1 : OFFLINE_EFFICIENCY;
   const sec = Math.min(seconds, cap);
   const buffs = state.buffs;
   state.buffs = [];
@@ -319,21 +357,23 @@ export function applyOffline(seconds, { runtime = false } = {}) {
   for (let guard = 0; rem > 1e-9 && guard < 100; guard++) {
     const r = rates();
     const step = Math.min(rem, timeToNext());
-    for (const k of RES_IDS) { const g = safe(r[k] * step); addResource(k, g); gains[k] += g; }
+    for (const k of RES_IDS) { const g = safe(r[k] * step * eff); addResource(k, g); gains[k] += g; }
     timersTick(step);
     rem -= step;
   }
   if (rem > 1e-9) {   // Sicherheitsnetz: Rest mit den letzten Raten
     const r = rates();
-    for (const k of RES_IDS) { const g = safe(r[k] * rem); addResource(k, g); gains[k] += g; }
+    for (const k of RES_IDS) { const g = safe(r[k] * rem * eff); addResource(k, g); gains[k] += g; }
   }
   if (seconds > sec) timersTick(seconds - sec);   // Timer laufen auch über das Offline-Maximum hinaus weiter
   if (runtime) {
     state.buffs = buffs.map(b => ({ ...b, left: b.left - seconds })).filter(b => b.left > 0);
     if (state.buffs.length !== buffs.length) emit('buffs');
   }
+  const ch = state.challenges.active;
+  if (ch) ch.base += gains.steel;   // Offline-Stahl zählt nicht für Herausforderungen
   state.stats.playTime += sec;
   state.stats.runTime += sec;
   state.stats.corpRunTime += sec;
-  return { seconds: sec, capped: seconds > cap, gains };
+  return { seconds: sec, away: seconds, efficiency: eff, capped: seconds > cap, gains };
 }

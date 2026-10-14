@@ -50,6 +50,8 @@ export function initRender() {
     if (card) restartAnim(card.root, 'done-flash');
   });
   on('prestige', refresh);
+  on('focus', refresh);
+  on('challenge', refresh);
   for (const ev of ['corp', 'corpshop', 'autocastset']) on(ev, refresh);
   on('industry', e => {   // Leisten-Stufe erreicht (systems/industry.js)
     const tr = INDUSTRY_TRACKS.find(x => x.id === e.track);

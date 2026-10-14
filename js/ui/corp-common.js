@@ -28,5 +28,6 @@ export function renderCorpTab() {
   setAttr(tabEls.btn, 'aria-disabled', locked);
   if (locked) tabEls.lock.removeAttribute('hidden'); else tabEls.lock.setAttribute('hidden', '');   // SVG-Element: kein .hidden
   setText(tabEls.status, locked ? t('Nach {n} Neugüssen, aktuell {cur}', { n: CORP.unlockCount, cur: state.prestige.count }) : '');
+  setAttr(tabEls.btn, 'title', locked ? `${t('Konzern')}: ${t('Nach {n} Neugüssen, aktuell {cur}', { n: CORP.unlockCount, cur: state.prestige.count })}` : t('Konzern'));
   tabEls.dot.hidden = !canCorp();
 }
