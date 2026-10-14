@@ -1,9 +1,10 @@
 // Einstieg der UI: verdrahtet Panels, Ereignisse und den Frame-Takt. Die Teile liegen in sidebar/cards/queues/panels.
 import { state } from '../core/state.js';
 import { on, toast } from '../core/events.js';
-import { t, locale } from '../core/i18n.js';
+import { t, tName, locale } from '../core/i18n.js';
 import { rates } from '../core/formulas.js';
-import { fmtInt } from '../core/format.js';
+import { fmtInt, decimal } from '../core/format.js';
+import { INDUSTRY_TRACKS } from '../data/industry.js';
 import { buy } from '../systems/production.js';
 import { $, setText } from './dom.js';
 import { activeTab } from './tabs.js';
@@ -50,6 +51,11 @@ export function initRender() {
   });
   on('prestige', refresh);
   for (const ev of ['corp', 'corpshop', 'autocastset']) on(ev, refresh);
+  on('industry', e => {   // Leisten-Stufe erreicht (systems/industry.js)
+    const tr = INDUSTRY_TRACKS.find(x => x.id === e.track);
+    if (tr) toast(t('{name}: Stufe {step}! Produktion ×{mult}', { name: tName('industry', tr), step: e.step, mult: decimal(e.mult) }), 'gold');
+    refresh();
+  });
   on('corpunlock', () => { const b = document.getElementById('tabbtn-corp'); if (b) restartAnim(b, 'tab-pulse'); refresh(); });
   let lastAuto = 0;
   on('autocast', e => {   // höchstens ein Toast je 10 s

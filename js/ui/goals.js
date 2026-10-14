@@ -1,6 +1,6 @@
 // Zielleiste (nextGoals), Neuguss-Vorschau (castPreview) und Auto-Neuguss-Schalter. DOM einmal gebaut, danach nur Werte.
 import { state } from '../core/state.js';
-import { fmt, fmtInt, fmtTime } from '../core/format.js';
+import { fmt, fmtInt, fmtEta } from '../core/format.js';
 import { t, tName } from '../core/i18n.js';
 import { nextGoals, castPreview, prestigeGain, corpLevel } from '../core/formulas.js';
 import { ERAS } from '../data/eras.js';
@@ -46,7 +46,7 @@ export function describeGoal(g, rates = {}) {
 /** Zielleiste als Karte: Name + Restzeit (Button, springt in den passenden Reiter), darunter Balken. */
 export function buildGoalBar(extraClass = '') {
   const name = h('span', { class: 'goal-name' }), eta = h('span', { class: 'goal-eta' });
-  const fill = h('i');
+  const fill = h('div', { class: 'bar-fill' });
   const bar = h('div', { class: 'bar goal-barline', role: 'progressbar', 'aria-label': t('Fortschritt zum nächsten Ziel'), 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0' }, fill);
   const go = h('button', { class: 'goal-go', type: 'button' }, symSvg('flag', 'goal-ico'), h('span', { class: 'goal-k', text: t('Nächstes Ziel:') + ' ' }), name, eta);
   const el = h('div', { class: ('goal-bar ' + extraClass).trim(), role: 'group', 'aria-label': t('Nächstes Ziel') }, go, bar);
@@ -70,7 +70,7 @@ export function buildGoalBar(extraClass = '') {
     if (key !== o.key) { o.key = key; restartAnim(el, 'goal-in'); }
     setText(name, d.name);
     const rate = rates?.ore || 0;
-    setText(eta, d.left != null && d.left > 0 && rate > 0 ? t('ca. {time}', { time: fmtTime(d.left / rate) }) : t('Rate unbekannt'));
+    setText(eta, d.left != null && d.left > 0 && rate > 0 ? fmtEta(d.left / rate, 'ca. {time}') : t('Rate unbekannt'));
     const pct = Math.round(g.progress * 100);
     fill.style.transform = `scaleX(${g.progress.toFixed(3)})`;
     setAttr(bar, 'aria-valuenow', pct);

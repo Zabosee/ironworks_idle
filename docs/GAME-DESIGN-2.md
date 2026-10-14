@@ -1,6 +1,6 @@
 # Eisenwerk Idle – Spieldesign 2 (Idle-Kreislauf, Industrie-Ausbau, Konzerngründung, 3-Wochen-Ziel)
 
-Design-Spezifikation (Schritt 1 des Plans `docs/PLAN-ausbau-3wochen.md`). Es wurde noch kein Code und keine Datendatei geändert. Alle Zahlen sind Startwerte, die in Schritt 6 (Kalibrierung) per Simulation nachgezogen werden; die Formeln und Gleichungen in Abschnitt 6 sagen, welche Stellschraube welchen Zeitpunkt bewegt. Referenz für alle Ist-Werte: `docs/GAME-DESIGN.md` (Abschnitte 1 bis 4 und 8) und der kalibrierte Sim-Lauf `node tools/balance-sim.mjs 175 4 1 30 rate`; zusätzlich wurde für dieses Dokument ein 200-h-Lauf mit denselben Parametern gemessen (siehe 6.1).
+Design-Spezifikation (Schritt 1 des Plans `docs/PLAN-ausbau-3wochen.md`), umgesetzt, in Schritt 6 kalibriert und in Runde 2 (Schritte 12 und 13, Entscheidungen D10 bis D13) überarbeitet. **Stand der Zahlen (Runde 2):** Konzernforschung 49 statt 36 Einträge, Patente konkav und gedeckelt (D = 1500, 0,68 Patente je Stunde), Konzern-Shop 351 Patente, K1 bis K7 = 10/30/70/135/210/290/351, Industrie-Leisten spät angehoben. Abschnitte, die noch den Stand von Schritt 6 beschreiben (Linearität, D = 52.000, Summe 205, 591,3 h), sind unten korrigiert oder als überholt markiert. **Stand der Zahlen (Schritt 6):** Die Datentabellen (Zeitalter-Schwellen, Konzernstufen, Fördermenge, `D_CORP`) nennen jetzt die kalibrierten Werte aus dem Code. Zeiten sind als **gemessen** (Bot `rate`, `node tools/balance-full.mjs`, Gründung alle 40 h) oder als **Modell** gekennzeichnet; Modellwerte sind nicht nachgemessen. Die Abweichungen der Umsetzung vom ursprünglichen Design stehen in `docs/PLAN-ausbau-3wochen.md`, Entscheidungen D8 bis D10, und sind hier nicht übernommen. Die Formeln und Gleichungen in Abschnitt 6 sagen, welche Stellschraube welchen Zeitpunkt bewegt. Referenz für alle Ist-Werte: `docs/GAME-DESIGN.md` (Abschnitte 1 bis 4 und 8) und der kalibrierte Sim-Lauf `node tools/balance-sim.mjs 175 4 1 30 rate`; zusätzlich wurde für dieses Dokument ein 200-h-Lauf mit denselben Parametern gemessen (siehe 6.1).
 
 ## 0. Kernentscheidungen auf einen Blick
 
@@ -8,13 +8,13 @@ Design-Spezifikation (Schritt 1 des Plans `docs/PLAN-ausbau-3wochen.md`). Es wur
 |---|---|
 | Zweite Reset-Ebene | "Konzerngründung", Währung "Patente" (Annahme A2 bleibt) |
 | Freischaltung | `prestige.count >= N` mit **N = 100** Neugüssen (A2 schlug 25 vor, begründet geändert: Abschnitt 3.1) |
-| Patente-Formel | `floor(Gussformen_im_Konzernlauf / D)`, linear, **D = 34.000** (Start), mal `1 + 0,1 × Stufe "Lizenzgebühren"` |
+| Patente-Formel (D12) | `min( floor( sqrt(Gussformen_im_Konzernlauf / D) × (1 + 0,1 × Stufe "Lizenzgebühren") ), floor(0,68 × Stunden seit der letzten Gründung) )`, konkav (Wurzel) und gedeckelt, **D = 1500**. Ersetzt die lineare Formel (D4, D = 52.000) |
 | Zurückgesetzt / bleibt | Gussformen, Hochofen-Shop, Neuguss-Chronik und alles, was ein Neuguss zurücksetzt, **gehen**; Zeitalter, Erfolge, Statistik, Neuguss-Zähler, Patente, Konzernforschung **bleiben** (A3 bestätigt) |
 | Neue Materialien | 7 (Kobalt, Molybdän, Hartmetall, Platin, Vanadium, Iridium, Superlegierung), 7 Generatoren, 4 Rezepte |
-| Neue Forschung | 36 (Konzernforschung), Boosts +8, Klick-Upgrades +3 |
-| Industrie | Zeitalter 6 bis 8, Ausbau VI bis VIII, zwei Meilenstein-Leisten (Fördermenge 8 Stufen, Materialvielfalt 7 Stufen) |
-| Gesamtzeitplan (Bot `rate`, aktiv) | Konzern sichtbar ca. 13 h, 1. Konzerngründung ca. 34 h, letztes Material ca. 440 h, **alles frei ca. 600 h** (Korridor 504 bis 700 h) |
-| Neuer Gesamtumfang | 112 Forschungen, 39 Boosts, 9 Klick-Upgrades, 21 Generatoren, 19 Materialien, 10 Rezepte, 9 Zeitalter |
+| Neue Forschung | 49 (Konzernforschung: 36 aus Schritt 5 plus 13 aus Runde 2), Boosts +12, Klick-Upgrades +4 |
+| Industrie | Zeitalter 6 bis 8 (8e26 / 8e27 / 8e28), Ausbau VI bis VIII, zwei Meilenstein-Leisten (Fördermenge 8 Stufen, Materialvielfalt 7 Stufen; späte Stufen in D13 angehoben) |
+| Gesamtzeitplan (Bot `rate`, aktiv, **gemessen**) | Konzern-Reiter 13,4 h, 1. Konzerngründung 34 h, letztes Material (Superlegierung) 527 h, **alles frei 602,3 h** (Korridor 504 bis 700 h); schnellste gefundene Spielweise 538,4 h (>= 504 h, D11 erfüllt) |
+| Neuer Gesamtumfang | 125 Forschungen (49 Konzern), 43 Boosts, 10 Klick-Upgrades, 21 Generatoren, 19 Materialien, 10 Rezepte, 9 Zeitalter |
 
 ## 1. Idle-Kreislauf-Analyse
 
@@ -49,13 +49,13 @@ Bewusst nicht aufgenommen: Soft-Caps, Challenges, Ressourcen-Verfall, zusätzlic
 ## 2. Industrie-Ausbau
 
 ### 2.1 Zeitalter 6 bis 8
-Weiterhin abgeleitet aus `stats.total.ore`, kumulativer Bonus, wirksam ab dem 1. Neuguss. Die Schwellen sind aus der Zielkurve in 6.3 abgeleitet (Zeitpunkt, an dem der Bot das kumulierte Erz erreicht).
+Weiterhin abgeleitet aus `stats.total.ore`, kumulativer Bonus, wirksam ab dem 1. Neuguss. Die Schwellen wurden in Schritt 6 kalibriert (Startwerte des Designs: 5e24 / 8e25 / 4e26, siehe 6.3); die Zeiten sind gemessen.
 
-| Zeitalter | Name | Schwelle (Erz) | Bonus | Ziel-Zeit (Bot) | Freischaltung |
+| Zeitalter | Name | Schwelle (Erz, kalibriert) | Bonus | Zeit (Bot, gemessen) | Freischaltung |
 |---|---|---|---|---|---|
-| 6 | Atomzeitalter (`atomic`, Symbol `atom`) | 5e24 | ×1,5 | ca. 300 h | Ausbau VI, Konzernforschung "Iridium-Abscheidung" und "Orbitalfertigung" |
-| 7 | Raumfahrt (`space`, Symbol `rocket`) | 8e25 | ×1,5 | ca. 430 h | Ausbau VII, Konzernforschung "Superlegierungs-Guss" |
-| 8 | Kosmische Schmiede (`cosmic`, Symbol `star`) | 4e26 | ×2,0 | ca. 540 h | Ausbau VIII, Konzernforschung "Weltkonzern-Charta" |
+| 6 | Atomzeitalter (`atomic`, Symbol `atom`) | 8e26 | ×1,5 | 258 h | Ausbau VI, Konzernforschung "Iridium-Abscheidung" und "Orbitalfertigung" |
+| 7 | Raumfahrt (`space`, Symbol `rocket`) | 8e27 | ×1,5 | 344 h | Ausbau VII, Konzernforschung "Superlegierungs-Guss" |
+| 8 | Kosmische Schmiede (`cosmic`, Symbol `star`) | 8e28 | ×2,0 | 462 h | Ausbau VIII, Konzernforschung "Weltkonzern-Charta" |
 
 Kumulativer Zeitalter-Bonus nach Zeitalter 8: 7,02 (bisher) × 1,5 × 1,5 × 2 = 31,6.
 
@@ -69,7 +69,7 @@ Kumulativer Zeitalter-Bonus nach Zeitalter 8: 7,02 (bisher) × 1,5 × 1,5 × 2 =
 | 8 | 8 | 345 | ×3 | ×4.000 |
 
 - Kumulativer Multiplikator aller 8 Stufen: ×27 × 12 = ×324.
-- Die Generatorstufen sind so gewählt, dass die billigen Generatoren (Wachstum 1,15 bis 1,17: Eisenmine, Bohrturm, Schmelzofen, Zeche) die Stufen zu ca. 1 bis 15 % der Zeitalter-Schwelle erreichen (Beispiel Eisenmine: Stufe 300 kostet 15 × 1,15^300 × 2.000 = 4,8e22 Erz bei Zeitalter 6 mit 5e24). Teure Generatoren (Wachstum >= 1,25) erreichen sie praktisch nie; das ist gewollt: Ausbau VI bis VIII ist **offen** und zählt **nicht** zu "alles freigeschaltet" (siehe 6.5, Entscheidung D2).
+- Die Generatorstufen sind so gewählt, dass die billigen Generatoren (Wachstum 1,15 bis 1,17: Eisenmine, Bohrturm, Schmelzofen, Zeche) die Stufen zu ca. 1 bis 15 % der Zeitalter-Schwelle erreichen (Beispiel Eisenmine: Stufe 300 kostet 15 × 1,15^300 × 2.000 = 4,8e22 Erz bei Zeitalter 6 mit 5e24 im Start-Design, kalibriert 8e26). Teure Generatoren (Wachstum >= 1,25) erreichen sie praktisch nie; das ist gewollt: Ausbau VI bis VIII ist **offen** und zählt **nicht** zu "alles freigeschaltet" (siehe 6.5, Entscheidung D2).
 - Daten: `EVO_AT = [10,25,50,100,200,300,325,345]`, `EVO_MULT = [1.5,1.5,2,2,3,2,2,3]`, `EVO_COST = [25,60,150,400,1000,2000,3000,4000]`. Der Auto-Buyer "Generatoren" kauft die neuen Stufen mit (bestehende Logik, keine Änderung).
 
 ### 2.3 Industrie-Meilensteine (neue Meilenstein-Ebene)
@@ -77,49 +77,57 @@ Zwei Leisten, automatisch, kostenlos, global multiplikativ auf alle Ausgaben (ne
 
 **Leiste A "Fördermenge"** (Wert = `stats.total.ore`, kumuliertes Erz):
 
-| Stufe | Schwelle | Bonus | Kosten | Freischaltung | Ziel-Zeit (Bot) |
+| Stufe | Schwelle (kalibriert) | Bonus | Kosten | Freischaltung | Zeit (Bot) |
 |---|---|---|---|---|---|
-| A1 | 1e12 | ×1,05 | – | – | ca. 2,5 h |
-| A2 | 1e15 | ×1,05 | – | – | ca. 5 h |
-| A3 | 1e18 | ×1,05 | – | – | ca. 20 h |
-| A4 | 1e21 | ×1,10 | – | – | ca. 70 h |
-| A5 | 1e24 | ×1,10 | – | Titel "Montan-Imperium" (Erfolg `industry_a5`) | ca. 240 h |
-| A6 | 1e25 | ×1,10 | – | – | ca. 320 h |
-| A7 | 1e26 | ×1,15 | – | – | ca. 440 h |
-| A8 | 1e27 | ×1,15 | – | Erfolg "Erzgott" (letzte Leiste A) | ca. 600 h |
+| A1 | 1e12 | ×1,05 | – | – | ca. 2,5 h (Modell) |
+| A2 | 1e15 | ×1,05 | – | – | ca. 5 h (Modell) |
+| A3 | 1e18 | ×1,05 | – | – | ca. 20 h (Modell) |
+| A4 | 1e21 | ×1,10 | – | – | ca. 70 h (Modell) |
+| A5 | 2e25 | ×1,20 | – | Titel "Montan-Imperium" (Erfolg `industry_a5`) | 176 h |
+| A6 | 5e27 | ×1,25 | – | – | 371 h |
+| A7 | 5e28 | ×1,35 | – | – | 474 h |
+| A8 | 1e30 | ×1,50 | – | Erfolg "Erzgott" (letzte Leiste A) | 539 h |
 
-Produkt: 2,04.
+Produkt: 2,04. Die Schwellen A5 bis A8 sind in Schritt 6 angehoben worden (Start-Design: 1e24 / 1e25 / 1e26 / 1e27). A1 bis A4 sind unverändert; ihre Zeiten sind Modellwerte, nicht gemessen.
 
 **Leiste B "Materialvielfalt"** (Wert = Anzahl der Ressourcen `k` mit `stats.total[k] > 0`; derzeit 12 mögliche, nach Ausbau 19):
 
-| Stufe | Schwelle | Bonus | Kosten | Freischaltung | Ziel-Zeit (Bot) |
+| Stufe | Schwelle | Bonus | Kosten | Freischaltung | Zeit (Bot, Modell) |
 |---|---|---|---|---|---|
 | B1 | 6 | ×1,05 | – | – | ca. 1 h |
 | B2 | 9 | ×1,05 | – | – | ca. 2 h |
 | B3 | 12 | ×1,10 | – | – (alle Materialien des Grundspiels) | ca. 3 h |
-| B4 | 14 | ×1,10 | – | – (Kobalt, Molybdän) | ca. 43 h |
-| B5 | 16 | ×1,15 | – | – (Hartmetall, Platin) | ca. 160 h |
-| B6 | 18 | ×1,15 | – | – (Vanadium, Iridium) | ca. 320 h |
-| B7 | 19 | ×1,25 | – | Erfolg "Alle Materialien" | ca. 440 h |
+| B4 | 14 | ×1,15 | – | – (Kobalt, Molybdän) | ca. 43 h |
+| B5 | 16 | ×1,20 | – | – (Hartmetall, Platin) | ca. 160 h |
+| B6 | 18 | ×1,25 | – | – (Vanadium, Iridium) | ca. 320 h |
+| B7 | 19 | ×1,35 | – | Erfolg "Alle Materialien" | ca. 440 h |
 
-Produkt: 2,2. Gesamtbeitrag der Industrie-Meilensteine bei ca. 560 h: ca. ×3,2 (A bis A7, B komplett).
+Produkt aller Stufen nach D13: ca. ×10,9 (vorher ca. ×4,9). D13 hob nur die späten Stufen an (A5 bis A8 von 1,10/1,10/1,15/1,15 auf 1,20/1,25/1,35/1,50, B4 bis B7 von 1,10/1,15/1,15/1,25 auf 1,15/1,20/1,25/1,35); A1 bis A4 und B1 bis B3 blieben unverändert. Grund: Die Leisten waren zu schwach für die Wahrnehmung (höchstens ca. 4 % des Gesamtmultiplikators, logarithmisch gemessen). Gemessene Wirkung: Bot ca. 31 h früher, schnelle Spielweisen unverändert, weil sie an den Patenten hängen.
 
-Begründung gegen die bestehenden Boni: Zeitalter ×31,6 und Hochofen-Meilensteine ×562 sind große, seltene Sprünge; die Leisten liefern viele kleine Schritte (14 Stufen), also das "Pling"-Gefühl in den langen Phasen zwischen den Zeitaltern (z. B. A4 bis A7 liegen in den Lücken 70 h bis 440 h).
+Begründung gegen die bestehenden Boni: Zeitalter ×31,6 und Hochofen-Meilensteine ×562 sind große, seltene Sprünge; die Leisten liefern viele kleine Schritte (14 Stufen), also das "Pling"-Gefühl in den langen Phasen zwischen den Zeitaltern (z. B. A5 bis A7 liegen gemessen bei 177 h bis 470 h).
 
 ## 3. Zweite Reset-Ebene: Konzerngründung
 
 ### 3.1 Freischaltung
 - Sichtbar/aktiv ab `state.prestige.count >= N`, **N = 100** (Neuguss-Zähler, bleibt über die Konzerngründung erhalten, sonst wäre die Bedingung nach jedem Konzern erneut zu erfüllen).
 - Begründung N = 100 (Sim-Werte aus GAME-DESIGN.md 3b und dem 200-h-Lauf: Neuguss 40 bei 6,5 h, 280 bei 34,5 h, ca. 8,6 Neugüsse/h dazwischen): Neuguss 100 liegt bei ca. 13,5 h, nach Zeitalter 1 (7,5 h) und weit vor Zeitalter 2 (37,9 h). Der Spieler hat die Hochofen-Schleife verstanden (6 Meilensteine erreichen 5 bis 10.000 Gussformen bis 4,3 h), das Wissensarchiv ist längst gekauft, aber der Langzeitmeilenstein 250.000 (34,5 h) ist noch offen und gibt für die nächsten 20 h ein Ziel. N = 25 (A2-Vorschlag, ca. 5,3 h) wäre noch vor Zeitalter 1: zu früh, zwei Reset-Ebenen konkurrierten um dieselbe Aufmerksamkeit. N = 250 (ca. 31 h) wäre erst mit dem letzten Hochofen-Meilenstein fällig und ließe 20 h bis zur ersten Konzerngründung leer. Zudem existiert bereits ein Erfolg für 100 Neugüsse (`prestige_100`), der als Auslöser-Toast taugt.
-- Zwischen Neuguss 100 und der ersten Konzerngründung zeigt der Konzern-Reiter eine **Vorschau** (Patente-Gewinn aktuell, nötige Gussformen für die erste Patente, Liste der Belohnungen). Die erste Patente gibt es ab `Gussformen >= D` (34.000), erste Konzerngründung des Bots bei 250.000 Gussformen (ca. 34 h) mit 7 Patenten.
+- Zwischen Neuguss 100 und der ersten Konzerngründung zeigt der Konzern-Reiter eine **Vorschau** (Patente-Gewinn aktuell, nötige Gussformen für die erste Patente, Liste der Belohnungen). Die erste Patente gibt es ab `Gussformen >= D` (kalibriert 1500, Wurzelformel; im Code `corpThreshold` über `corpGainParts().raw`). Die erste Konzerngründung des Bots liegt gemessen bei 34 h und erreicht K1 (10 Patente).
 
-### 3.2 Gewinnformel
+### 3.2 Gewinnformel (D12, Runde 2: konkav und gedeckelt)
 ```
 Gc            = state.prestige.total              // Gussformen seit der letzten Konzerngründung (wird dort auf 0 gesetzt)
-corpGain(Gc)  = floor( Gc / D_CORP × (1 + 0,1 × Stufe c_gain) )
-D_CORP        = 34.000                             // Start, Stellschraube
+raw           = floor( sqrt(Gc / D_CORP) × (1 + 0,1 × Stufe c_gain) )
+cap           = floor( CAP_PRO_STUNDE × Stunden seit der letzten Gründung )   // stats.corpRunTime, zählt Offline-Zeit mit
+corpGain      = min(raw, cap)
+D_CORP        = 1500                               // CORP.divisor
+CAP_PRO_STUNDE = 0,68                              // CORP.capPerHour
 ```
-- **Linear**, nicht konkav: Der Patente-Gewinn pro Stunde ist dann praktisch unabhängig davon, wie oft man gründet (nur die Wiederaufbauzeit kostet). Eine konkave Formel (z. B. Wurzel) würde häufiges Gründen belohnen und den A1-Zeitplan von der Spielweise abhängig machen (Überschlag im Entwurf, nicht simuliert: Bei Wurzel-Formel brächte eine Gründung alle 6 h statt alle 40 h ca. 1,5- bis 1,7-fach schnelleren Fortschritt, der Korridor 504 bis 700 h wäre nicht mehr einzuhalten). Mit linearer Formel gilt eine harte Obergrenze: `Patente_gesamt(t) <= Gussformen_gesamt(t) / D_CORP`, egal wie gespielt wird. Das ist die zentrale Handhabe für A1 (siehe 6.2).
+Im Code: `corpGainParts(gc, sec)` in `js/core/formulas.js` liefert `{ raw, cap, capped, gain }`, `corpGain` ist `gain`.
+
+- **Warum konkav und gedeckelt (D11/D12, ersetzt D4):** Die lineare Formel aus Schritt 1 (`floor(Gc / 52.000)`) hielt die Patente-Summe an die Gussformen, nicht aber an die Spielzeit. Die A1-Robustheitsprüfung zeigte, dass schnelle Spielweisen (frühe Boosts, kurze Güsse, häufiges Gründen) die Gussformen-Rate stark erhöhen und ALLES schon bei 319 bis 370 h freischalten. Die Wurzel bremst große Gussformen-Mengen je Lauf; der Zeitdeckel setzt eine harte Untergrenze: Die Shop-Summe von 351 Patenten braucht mindestens 351 / 0,68 = 516 h, egal wie gespielt wird (Ziel A1: schnellste Spielweise >= 504 h).
+- **Deckel zählt Offline-Zeit mit:** `stats.corpRunTime` wächst auch offline (`save.js`). Der Deckel ist deshalb nicht umgehbar und Offline-Spiel ist in Wandzeit nie schneller als Online-Spiel.
+- **Folge für das Spielverhalten:** Sehr seltene Gründungen werden bestraft (Bot mit gemessen 80 h Takt: 762,2 h, nur Info), sehr häufige bringen wenig, weil der Deckel bindet. Der Konzern-Reiter erklärt Wurzel und Deckel dem Spieler (Schritt 13a, `js/ui/corp.js`; `corpThreshold` nutzt `corpGainParts().raw`).
+- Die frühere Aussage "`Patente_gesamt(t) <= Gussformen_gesamt(t) / D`" gilt nicht mehr. Stattdessen gilt `Patente_gesamt(t) <= CAP_PRO_STUNDE × Zeit seit Beginn` (Summe der Deckel, nur die Laufzeiten zählen).
 - Mindestgewinn: Konzerngründung nur bei `corpGain >= 1`. Bestätigungsdialog zeigt Gewinn, die Liste "geht/bleibt" und die neue Konzernstufe.
 - Auswirkung auf die Wirtschaft: Patente erhöhen die Produktion (3.4), schalten Konzernforschung frei (Abschnitt 5) und werden im Konzern-Shop ausgegeben (3.5).
 
@@ -142,35 +150,38 @@ Geht als weiterer Faktor in `globalMult()` ein. Patente_gesamt = `corp.total` (v
 
 **Konzern-Meilensteine** (auf `corp.total`, analog zu `MILESTONES`; "Stufe" = Konzernstufe K):
 
-| Stufe K | Schwelle (Patente gesamt) | Bonus | Freischaltung | Ziel-Zeit (Bot) |
+| Stufe K | Schwelle (Patente gesamt, kalibriert) | Bonus | Freischaltung | Zeit (Bot, gemessen) |
 |---|---|---|---|---|
-| K1 | 5 | ×1,1 | Konzernforschung I: Kobalt, Molybdän; Konzern-Shop komplett sichtbar | ca. 34 h |
-| K2 | 20 | ×1,1 | Konzernforschung II: Hartmetall, Werkzeug | ca. 74 h |
-| K3 | 45 | ×1,15 | Konzernforschung III: Platin, Edelmetall-Netzwerk | ca. 154 h |
-| K4 | 75 | ×1,15 | Konzernforschung IV: Vanadium, Laborautomatisierung II | ca. 234 h |
-| K5 | 110 | ×1,2 | Konzernforschung V: Iridium (zusätzlich Zeitalter 6), Quantenfertigung | ca. 314 h |
-| K6 | 150 | ×1,2 | Konzernforschung VI: Superlegierung (zusätzlich Zeitalter 7), Orbitalfertigung | ca. 434 h |
-| K7 | 205 | ×1,5 | Konzernforschung VII: Weltkonzern-Charta (zusätzlich Zeitalter 8) | ca. 554 h |
+| K1 | 10 | ×1,1 | Konzernforschung I: Kobalt, Molybdän; Konzern-Shop komplett sichtbar | 34 h |
+| K2 | 30 | ×1,1 | Konzernforschung II: Hartmetall, Werkzeug | 114 h |
+| K3 | 70 | ×1,15 | Konzernforschung III: Platin, Edelmetall-Netzwerk | 194 h |
+| K4 | 135 | ×1,15 | Konzernforschung IV: Vanadium, Laborautomatisierung II | 274 h |
+| K5 | 210 | ×1,2 | Konzernforschung V: Iridium (zusätzlich Zeitalter 6), Quantenfertigung | 394 h |
+| K6 | 290 | ×1,2 | Konzernforschung VI: Superlegierung (zusätzlich Zeitalter 7), Orbitalfertigung | 514 h |
+| K7 | 351 | ×1,5 | Konzernforschung VII: Weltkonzern-Charta (zusätzlich Zeitalter 8) | 594 h |
 
-Produkt aller Stufen: 3,45 (bis K6: 2,30).
+Die Schwellen K1 bis K7 (10/30/70/135/210/290/351) stammen aus Schritt 13 (D11/D12). Frühere Stände: Start-Design 5 / 20 / 45 / 75 / 110 / 150 / 205, Schritt 6 3 / 7 / 21 / 46 / 80 / 139 / 205. K7 = Shop-Summe (351 Patente). Die Konzernforschung je Stufe wurde in Runde 2 um 13 Einträge ergänzt (5.3); die Zuordnung zu K-Stufen steht dort.
+
+Produkt aller Stufen: 3,45 (bis K6: 2,30). Bei Patente_gesamt = 351 (ohne `c_eff`) zusätzlich der lineare Teil 1 + 0,02 × 351 = 8,02.
 
 ### 3.5 Konzern-Shop (Patente)
 Gleiches Datenformat wie `SHOP` (`cost × growth^Stufe`, abgerundet/`ceil` wie `shopCost`), eigenes Objekt `CORP_SHOP` in `js/data/corp.js`.
 
-| id | Name | Wirkung | Kosten Stufe 1 | Wachstum | Max | Summe |
+| id | Name | Wirkung | Kosten je Stufe | Wachstum | Max | Summe |
 |---|---|---|---|---|---|---|
-| `c_eff` | Aktienmehrheit | +20 % Wirkung der Patente je Stufe | 3 | ×1,5 | 4 | 26 |
-| `c_gain` | Lizenzgebühren | +10 % Patente je Konzerngründung je Stufe | 2 | ×1,5 | 4 | 17 |
-| `c_cast` | Gussformen-Fabrik | +15 % Gussformen je Neuguss je Stufe (multiplikativ zu `pp_gain`) | 4 | ×1,5 | 4 | 33 |
-| `c_heir` | Hochofen-Erbe | Der Gussformen-Stand für Multiplikator und Meilensteine beginnt jeden Konzernlauf bei mindestens 5 / 150 / 1.000 / 10.000 / 250.000 (Stufe 1 bis 5); `prestige.total` bleibt unverändert, zählt also nicht für Patente | 2, 4, 7, 12, 20 (feste Liste) | – | 5 | 45 |
-| `c_archive` | Konzernarchiv | Normale Forschung bleibt beim **Neuguss** erhalten (ersetzt das durch die Konzerngründung verlorene Wissensarchiv) | 6 | – | 1 | 6 |
-| `c_auto` | Konzern-Automatisierung | Je Stufe ein Auto-Buyer dauerhaft freigeschaltet (Reihenfolge Generatoren, Spitzhacke, Forschung, Boosts) | 4 | ×1,3 | 4 | 26 |
-| `c_offline` | Nachtschicht II | +4 h maximaler Offline-Ertrag je Stufe | 3 | ×2 | 3 | 21 |
-| `c_autocast` | Auto-Neuguss | Schaltet den automatischen Neuguss frei (M3) | 10 | – | 1 | 10 |
-| `c_click` | Konzern-Schmiedehand | +50 % Klickwert je Stufe | 2 | ×1,6 | 4 | 21 |
-| | | | | | **Summe** | **205** |
+| `c_eff` | Aktienmehrheit | +20 % Wirkung der Patente je Stufe | 6, 8, 12, 18 | ×1,5 | 4 | 44 |
+| `c_gain` | Lizenzgebühren | +10 % Patente je Konzerngründung je Stufe (wirkt auf die Wurzel, nicht auf den Deckel) | 4, 6, 8, 12 | ×1,5 | 4 | 30 |
+| `c_cast` | Gussformen-Fabrik | +15 % Gussformen je Neuguss je Stufe (multiplikativ zu `pp_gain`) | 7, 11, 16, 24 | ×1,5 | 4 | 58 |
+| `c_heir` | Hochofen-Erbe | Der Gussformen-Stand für Multiplikator und Meilensteine beginnt jeden Konzernlauf bei mindestens 5 / 150 / 1.000 / 10.000 / 250.000 (Stufe 1 bis 5); `prestige.total` bleibt unverändert, zählt also nicht für Patente | 3, 7, 12, 20, 34 (feste Liste) | – | 5 | 76 |
+| `c_archive` | Konzernarchiv | Normale Forschung bleibt beim **Neuguss** erhalten (ersetzt das durch die Konzerngründung verlorene Wissensarchiv) | 11 | – | 1 | 11 |
+| `c_auto` | Konzern-Automatisierung | Je Stufe ein Auto-Buyer dauerhaft freigeschaltet (Reihenfolge Generatoren, Spitzhacke, Forschung, Boosts) | 7, 9, 12, 15 | ×1,3 | 4 | 43 |
+| `c_offline` | Nachtschicht II | +4 h maximaler Offline-Ertrag je Stufe | 6, 11, 21 | ×2 | 3 | 38 |
+| `c_autocast` | Auto-Neuguss | Schaltet den automatischen Neuguss frei (M3) | 18 | – | 1 | 18 |
+| `c_click` | Konzern-Schmiedehand | +50 % Klickwert je Stufe | 4, 6, 9, 14 | ×1,6 | 4 | 33 |
+| | | | | | **Summe** | **351** |
 
-- Die Summe 205 ist bewusst gleich der Schwelle K7 (205): Der Konzern-Shop ist erst vollständig, wenn die letzte Konzernstufe erreicht ist (Ziel ca. 554 h).
+- Die Summe 351 ist bewusst gleich der Schwelle K7 (351): Der Konzern-Shop ist erst vollständig, wenn die letzte Konzernstufe erreicht ist (Bot gemessen 594 h). Sie bestimmt zusammen mit dem Deckel die Untergrenze 351 / 0,68 = 516 h (D11, Hebel 2).
+- Die Kosten sind die Schritt-6-Kosten (Summe 205) mal 1,705; Dezimalwerte in `js/data/corp.js` (z. B. `c_eff` 5,115) werden in `corpCost` mit `ceil` gerundet. Die Liste oben ist aus dem Code berechnet.
 - `c_heir` Stufe 5 (250.000) stellt den größten Hochofen-Multiplikator (×562 in Meilensteinen) wieder her; die Stufe wird deshalb zuletzt gekauft.
 - Technisch: `prestigeMult(total = Math.max(state.prestige.total, heirFloor()))`; `heirFloor()` = `[0,5,150,1000,10000,250000][Stufe c_heir]`.
 - Reihenfolge des Bots (Sim): `c_archive`, `c_heir` 1, `c_gain` 1, `c_cast` 1, `c_auto` 1, `c_eff` 1, `c_heir` 2, `c_gain` 2 ... (Wachstum von Patenten und Gussformen zuerst, Komfort danach); `c_heir` 5 und die letzten `c_offline` zuletzt.
@@ -193,15 +204,15 @@ Hartmetall + Iridium + Vanadium ──(6:1:3 → 1)──► Superlegierung
 
 | id | Name | Farbe | Icon (Fallback) | Sichtbar durch | Zeit (Bot) | Konzernstufe | Zeitalter |
 |---|---|---|---|---|---|---|---|
-| `cobalt` | Kobalt | #3b82f6 | 🔵 | `c_cobalt` | ca. 40 h | K1 | – |
-| `molybdenum` | Molybdän | #94a3b8 | ⚙️ | `c_moly` | ca. 43 h | K1 | – |
-| `carbide` | Hartmetall | #cbd5e1 | 🔶 | `c_sinter` | ca. 80 h | K2 | – |
-| `platinum` | Platin | #e2e8f0 | ⚪ | `c_platin` | ca. 160 h | K3 | – |
-| `vanadium` | Vanadium | #34d399 | 🟢 | `c_vanadium` | ca. 240 h | K4 | – |
-| `iridium` | Iridium | #fb7185 | 💠 | `c_iridium` | ca. 320 h | K5 | 6 |
-| `superalloy` | Superlegierung | #22d3ee | 🔷 | `c_super` | ca. 440 h | K6 | 7 |
+| `cobalt` | Kobalt | #60a5fa | 🔵 | `c_cobalt` | 52 h (Schritt 6, nicht neu gemessen) | K1 | – |
+| `molybdenum` | Molybdän | #94a3b8 | ⚙️ | `c_moly` | ca. 43 h (Modell) | K1 | – |
+| `carbide` | Hartmetall | #cbd5e1 | 🔶 | `c_sinter` | 118 h (gemessen) | K2 | – |
+| `platinum` | Platin | #e2e8f0 | ⚪ | `c_platin` | 202 h (gemessen) | K3 | – |
+| `vanadium` | Vanadium | #34d399 | 🟢 | `c_vanadium` | 290 h (gemessen) | K4 | – |
+| `iridium` | Iridium | #fb7185 | 💠 | `c_iridium` | 408 h (gemessen) | K5 | 6 |
+| `superalloy` | Superlegierung | #22d3ee | 🔷 | `c_super` | 527 h (gemessen) | K6 | 7 |
 
-Farben sind gegen die vorhandenen Material- und Flüssigkeitsfarben (`#475569`, `#78716c`, `#ea8a52`, `#a78bfa`, `#5eead4`, `#a3e635`, `#38bdf8`, `#f472b6`, `#fbbf24`) abgegrenzt. Icons/Sprites (SVG, `assets/sprites/items.svg` Symbol `sym-<id>`) liefert Schritt 2/5; bis dahin Emoji-Fallback.
+Kobalt hat #60a5fa statt des Entwurfswerts #3b82f6 (Kontrast, Entscheidung D6). Farben sind gegen die vorhandenen Material- und Flüssigkeitsfarben (`#475569`, `#78716c`, `#ea8a52`, `#a78bfa`, `#5eead4`, `#a3e635`, `#38bdf8`, `#f472b6`, `#fbbf24`) abgegrenzt. Icons/Sprites (SVG, `assets/sprites/items.svg` Symbol `sym-<id>`) liefert Schritt 2/5; bis dahin Emoji-Fallback.
 
 ### 4.2 Generatoren
 
@@ -235,7 +246,7 @@ Keine Zyklen: Jede Freischalt-Forschung kostet nur Vormaterialien (Abschnitt 5.2
 
 ### 5.1 Neue Felder und Regeln
 - Forschung/Boost/Klick-Upgrade erhalten das optionale Feld `corp: k` (Mindest-Konzernstufe, 1 bis 7), neben `era`. `lockReason` liefert "Benötigt Konzernstufe: K{k}" (Reihenfolge der Prüfungen: Voraussetzungen, Zeitalter, Konzernstufe, Queue).
-- Alle 36 neuen Forschungen tragen `corp` und sind **permanent** (3.3). Boosts und Klick-Upgrades bleiben normal (Reset beim Neuguss).
+- Alle 49 neuen Forschungen (36 aus Schritt 5, 13 aus Runde 2) tragen `corp` und sind **permanent** (3.3). Boosts und Klick-Upgrades bleiben normal (Reset beim Neuguss).
 - Neue Wirkungs-Schlüssel in `mult`: alle Ressourcen-IDs der neuen Materialien (sonst unverändert). Neuer Sondereffekt `timeMult2` (Forschung `c_lab2`): zusätzlicher Faktor ×0,85 in `timeMult()`.
 
 ### 5.2 Kosten- und Dauerformeln (per Skript erzeugbar)
@@ -260,7 +271,7 @@ Dauer  (s)  = 1800 × 1,4^(k-1) × g(Art)                              // 30, 42
 - Beispielreihenfolge der Größenordnung: K1: Erz 5e18, Stahl 1,25e19; K4: 3e22 / 7,5e22; K7: 5,6e25 / 1,4e26 (konsistent mit der bestehenden Regel "größter Posten 0,2 bis 1,0 × Zeitalter-Schwelle", dort bei 0,1 × kumuliertem Erz im Zeitalter-5-Bereich: Erz 1e22 bis 1e23).
 - Effektive Dauer: Zeitraffer (×0,61) und Laborautomatisierung (×0,75, mit `c_lab2` ×0,64) verkürzen. Beispiel K7-Spezial: 226 min × 1,2 = 271 min × ca. 0,46 = ca. 2,1 h.
 
-### 5.3 Die 36 Forschungen
+### 5.3 Die 36 Forschungen aus Schritt 5 (plus 13 aus Runde 2)
 `(U)` Freischaltung, `(A)` Anreicherung I, `(B)` Anreicherung II (Konzernstufe = Stufe des Materials + 1, höchstens 7), `(P)` Konzernprozess, `(S)` Spezial. Kategorie/Flüssigkeit: Material-Forschung `chem` mit Materialfarbe, `(P)` `tech` #fbbf24, `(S)` `tech`/`metal`.
 
 | id | Name | Art | K | Zeitalter | Voraussetzung | Wirkung |
@@ -302,7 +313,26 @@ Dauer  (s)  = 1800 × 1,4^(k-1) × g(Art)                              // 30, 42
 | `c_proc_7` | Konzernprozess VII | P | 7 | – | Konzernprozess VI | +5 % aller Materialien. |
 | `c_charta` | Weltkonzern-Charta | S | 7 | 8 | Orbitalfertigung, Superlegierungs-Veredelung II, Konzernprozess VII | +50 % Produktion aller Materialien. Letzte Forschung des Spiels. |
 
-Zählung: 7 U + 7 A + 7 B + 7 P + 8 S = 36. Gesamt 112 Forschungen.
+Zählung: 7 U + 7 A + 7 B + 7 P + 8 S = 36. Dazu kommen in Runde 2 (Schritt 12a) 13 weitere Konzernforschungen, zusammen 49 Konzernforschungen und 125 Forschungen insgesamt (76 Grundspiel + 49):
+
+| id | Name | K | Zeitalter | Wirkung |
+|---|---|---|---|---|
+| `c_carbide_c` | Sinteroptimierung III | 4 | – | +15 % Hartmetallproduktion |
+| `c_cobalt_c` | Kobalt-Verbundanlage | 4 | – | +20 % Kobalt und Molybdän |
+| `c_night` | Konzern-Schichtbetrieb | 4 | – | Maximaler Offline-Ertrag +2 h (`NIGHT_HOURS`, `js/data/timers.js`) |
+| `c_platin_c` | Platin-Raffination III | 5 | – | +15 % Platin |
+| `c_lab3` | Laborautomatisierung III | 5 | 6 | Forschungs- und Werkbank-Zeiten weitere 10 % kürzer (`LAB3_MULT`) |
+| `c_atomic` | Atomlagen-Abscheidung | 5 | 6 | +10 % aller Materialien |
+| `c_vanadium_c` | Vanadium-Aufschluss III | 6 | – | +15 % Vanadium |
+| `c_iridium_c` | Iridium-Reinigung III | 6 | – | +15 % Iridium |
+| `c_asteroid` | Asteroidenbergbau | 6 | 7 | +50 % Erz |
+| `c_drones` | Prospektor-Drohnen | 6 | 7 | Klickwert ×2, Autoklick-Ertrag ×1,5; schaltet die Asteroiden-Spitzhacke frei |
+| `c_super_c` | Superlegierungs-Veredelung III | 7 | – | +15 % Superlegierung |
+| `c_proc_8` | Konzernprozess VIII | 7 | – | +5 % aller Materialien |
+| `c_cosmic` | Kosmische Schmiede | 7 | 8 | +25 % aller Materialien; **letzte Forschung des Spiels** |
+
+Die Weltkonzern-Charta (`c_charta`) ist damit nicht mehr die letzte Forschung; `c_cosmic` verlangt `c_charta`, `c_super_c` und `c_proc_8`. Die Spalte K gibt `corp` im Code an (geprüft gegen `js/data/research.js`).
+
 Multiplikatoren-Budget bei ca. 560 h: Konzernprozess ×1,34 (bis VI), `c_patent` ×1,08, `c_quantum` ×1,2, `c_orbital` (Erz/Stahl) ×1,3 → ca. ×2,3 auf Erz, davor die `c_charta` ×1,5 als End-Belohnung.
 
 ### 5.4 Neue Boosts (Werkbank, einmalig, Reset beim Neuguss)
@@ -319,7 +349,16 @@ Kosten: Art "Boost" = Stahl (0,25 × Rate_ref(steel) × 1800 s) plus 1 bis 2 Mat
 | `cb_line` | Konzern-Fließbandsystem | 6 | 6 | Orbitalfertigung | Erzproduktion ×2, Stahlproduktion ×2. |
 | `cb_center` | Weltkonzern-Rechenzentrum | 7 | 8 | Weltkonzern-Charta | Alle Materialien ×1,25. |
 
-Insgesamt 39 Boosts. Globale Boosts: ×1,1 · ×1,15 · ×1,25 = ×1,58 (im Budget).
+Insgesamt 39 Boosts nach Schritt 5. In Runde 2 kamen 4 Boosts dazu (43 insgesamt):
+
+| id | Name | K | Zeitalter | Freigabe | Wirkung |
+|---|---|---|---|---|---|
+| `cb_moly` | Molybdän-Stahlveredelung | 4 | – | `c_moly_b` | Molybdän ×2, Hartmetall ×1,5 |
+| `cb_redox` | Vanadium-Redox-Speicher | 5 | – | `c_vanadium_b` | Vanadium ×2, alle Materialien ×1,1 |
+| `cb_atomic` | Atomlagen-Beschichtung | 5 | 6 | `c_atomic` | Platin ×2, Iridium ×1,5 |
+| `cb_cosmic` | Kosmischer Hochofen | 7 | 8 | `c_super_c` | Superlegierung ×2, alle Materialien ×1,2 |
+
+Globale Boosts der Schritt-5-Tabelle: ×1,1 · ×1,15 · ×1,25 = ×1,58 (im Budget); die neuen `cb_redox` (×1,1) und `cb_cosmic` (×1,2) kommen darauf.
 
 ### 5.5 Neue Klick-Upgrades (Werkbank, wiederholbar)
 Format wie `CLICKS` (`costs`, `time`, `perLevel`, `base 0`); Zeit `base 600 s, growth 1,15, max 2400 s`; Kostenwachstum 1,6 bis 1,7 (Stahl) und 1,5 bis 1,55 (Material).
@@ -330,7 +369,7 @@ Format wie `CLICKS` (`costs`, `time`, `perLevel`, `base 0`); Zeit `base 600 s, g
 | `iridiumram` | Iridium-Ramme | 5 | 6 | Iridium-Abscheidung | +5e14 | Stahl 3e24 (×1,7), Iridium wie oben (×1,55) |
 | `superhammer` | Superlegierungs-Schlägel | 6 | 7 | Superlegierungs-Guss | +2e18 | Stahl 1e26 (×1,7), Superlegierung wie oben (×1,55) |
 
-Insgesamt 9 Klick-Upgrades; Klickwert-Vergleich zu bisher: Plasmalanze +5e8 je Stufe, Hydraulikramme +2e5. Der Konzern-Shop-Eintrag `c_click` skaliert alle (+50 % je Stufe).
+Insgesamt 9 Klick-Upgrades nach Schritt 5; in Runde 2 kam `asteroidpick` (Asteroiden-Spitzhacke, K6, Zeitalter 7, Freigabe `c_drones`, +1e19 Klickwert je Stufe, Stahl 4e26 ×1,7 und Superlegierung 3e12 ×1,55) dazu, zusammen 10. Klickwert-Vergleich zu bisher: Plasmalanze +5e8 je Stufe, Hydraulikramme +2e5. Der Konzern-Shop-Eintrag `c_click` skaliert alle (+50 % je Stufe).
 
 ### 5.6 Erfolge (klein)
 7 Erfolge "Produziere insgesamt X {Material}" (Schwellen 100 bis 1e6 je Material, additiver Bonus +0,01 bis 0,03 wie bestehende Materialerfolge), 3 für Konzerngründungen (1 / 5 / 15), 3 für Patente gesamt (50 / 100 / 200), 2 aus der Industrie (A5, B7). Gesamtbonus der neuen Erfolge höchstens +0,25, also weniger als die bestehende Erfolgsschicht.
@@ -341,112 +380,115 @@ Insgesamt 9 Klick-Upgrades; Klickwert-Vergleich zu bisher: Plasmalanze +5e8 je S
 - Neugüsse: Nr. 1 bei 1,8 h, 40 bei 6,5 h, Nr. 280 bei 34,5 h (250.000 Gussformen), 1.698 in 200 h; Durchlauf ca. 7 min, ca. 800 Gussformen je Durchlauf bei 6,5 h, ca. 1.200 ab ca. 100 h.
 - Gussformen kumuliert: 20.554 bei 5,8 h, 2,0 Mio. bei 200 h, das sind ca. 7.000 bis 10.000 je Stunde (stetig, nahezu linear).
 - Zeitalter: 1 bei 7,5 h, 2 bei 37,9 h, 3 bei 96,5 h, 4 bei 127,6 h, 5 bei 192,1 h; kumuliertes Erz lokal ca. `T(t) = 3e23 × (t/192)^2,7`.
-- Dauer des Sim-Laufs: 200 h bei dt 30 brauchen ca. 4 min Rechenzeit; ein 600-h-Lauf braucht mit 21 Generatoren hochgerechnet ca. 12 bis 15 min (siehe 7.4).
+- Dauer des Sim-Laufs: 200 h bei dt 30 brauchen ca. 4 min Rechenzeit; der volle Lauf `node tools/balance-full.mjs` (ca. 600 h, dt 30) brauchte in Schritt 6 gemessen ca. 6 min (nach Runde 2 nicht neu gemessen; `tests/balance.test.mjs` mit 12 Tests braucht ca. 163 s).
 
-### 6.2 Modell Patente (Zeitplan der Konzernstufen)
-Zentrale Ungleichung (lineare Formel, 3.2): `Patente_gesamt(t) <= G(t) / D_CORP`, wobei G(t) die kumulierten Gussformen sind. Mit der Näherung `G(34 h) = 2,5e5` und `r(t) ≈ 10.500/h` (Start) steigend auf ca. 13.700/h durch `c_cast`/`c_gain`/Zeitalter und `D = 34.000` ergibt sich bei einer Gründung alle 40 h (Standardrhythmus des Bots):
+### 6.2 Patente und Konzernstufen (gemessen, Stand Runde 2)
+Zeitdeckel (3.2): `Patente_gesamt(t) <= 0,68 × t` mit t = Zeit seit Spielbeginn. Die Shop-Summe 351 braucht daher mindestens 351 / 0,68 = 516 h. Das ist die rechnerische Untergrenze für jede Spielweise; der Wurzelteil (D = 1500) bremst zusätzlich, wenn der Deckel nicht bindet.
 
-| Gründung Nr. | Zeit (h) | Patente gesamt (nach Gründung) | Konzernstufe erreicht |
-|---|---|---|---|
-| 1 | 34 | 7 | K1 (5) |
-| 2 | 74 | 20 | K2 (20) |
-| 3 | 114 | 34 | |
-| 4 | 154 | 48 | K3 (45) |
-| 5 | 194 | 63 | |
-| 6 | 234 | 79 | K4 (75) |
-| 7 | 274 | 95 | |
-| 8 | 314 | 111 | K5 (110) |
-| 9 | 354 | 127 | |
-| 10 | 394 | 143 | |
-| 11 | 434 | 159 | K6 (150) |
-| 12 | 474 | 175 | |
-| 13 | 514 | 191 | |
-| 14 | 554 | 207 | K7 (205), Konzern-Shop komplett (205) |
+Gemessen im Lauf `node tools/balance-full.mjs` (Bot `rate`, Gründung alle 40 h, erste bei 34 h, D = 1500, Deckel 0,68):
 
-Näherung je Gründung: Patente = (verdiente Gussformen im Lauf, ca. 40 h minus ca. 3 h Wiederaufbau) / 34.000. Wiederaufbau ca. 3 h begründet aus der Sim: ohne Hochofen-Boni braucht der Bot 4,3 h bis 10.000 Gussformen; mit Zeitalter-Bonus ×7 und Patente-Bonus verkürzt sich das auf ca. 1 bis 3 h.
-
-**Grenzen für A1:** Schnellste mögliche Spielweise (sofort gründen, keine Wiederaufbauzeit, Boni voll) ist durch `G(t)/D` begrenzt und erreicht 205 Patente bei ca. 520 h (`G` aus der obigen Näherung, `D = 34.000`); der Standardrhythmus (alle 40 h, Rundungsverlust bis 1 Patent je Gründung) bei ca. 554 h. Beide liegen im Korridor 504 bis 700 h. Das Ergebnis hängt durch die lineare Formel kaum vom Rhythmus ab (schlechtester Fall: alle 150 h, ca. 600 h).
-
-### 6.3 Modell kumuliertes Erz (Zeitalter 6 bis 8, Industrie-Meilensteine A)
-`T(t) = 3e23 × (t/192)^2,7 × B(t)` für `t >= 192 h`, mit dem Zusatzfaktor B(t) durch Konzern- und Industrie-Inhalte (B(192) = 1). Budget B(560 h) ca. 120:
-
-| Faktor bei 560 h | Wert |
-|---|---|
-| Patente `1 + 0,02 × 170` (ohne `c_eff`) | 4,4 |
-| Konzern-Meilensteine bis K6 | 2,30 |
-| Neue Forschung/Boosts (Prozess, Patentwesen, Quantenfertigung, Orbital, Boosts) | ca. 2,0 |
-| Zeitalter 6 und 7 | 2,25 |
-| Industrie-Meilensteine | ca. 3,2 |
-
-Produkt ca. 145 (Ziel 120; die Differenz fängt die höhere Wiederaufbauzeit durch Konzerngründungen auf). Stützstellen von B(t): 192 h: 1; 250 h: 2,5; 350 h: 12; 450 h: 40; 560 h: 120; 650 h: 250. Daraus:
-
-| t (h) | T(t) kumuliertes Erz | Ableitung |
+| Konzernstufe | Patente gesamt | Zeit (Bot, gemessen) |
 |---|---|---|
-| 250 | 1,5e24 | A5 (1e24) bei ca. 240 h |
-| 300 | 5,5e24 | **Zeitalter 6 (5e24)** |
-| 350 | 1,8e25 | A6 (1e25) bei ca. 320 h |
-| 430 | 8e25 | **Zeitalter 7 (8e25)** |
-| 450 | 1,2e26 | A7 (1e26) bei ca. 440 h |
-| 540 | 4,4e26 | **Zeitalter 8 (4e26)** |
-| 560 | 6,5e26 | |
-| 650 | 2e27 | A8 (1e27) bei ca. 590 bis 610 h |
+| K1 | 10 | 34 h |
+| K2 | 30 | 114 h |
+| K3 | 70 | 194 h |
+| K4 | 135 | 274 h |
+| K5 | 210 | 394 h |
+| K6 | 290 | 514 h |
+| K7, Konzern-Shop komplett | 351 | 594 h |
+
+Die Gründungszeitpunkte folgen dem Bot-Rhythmus (erste Gründung bei 34 h, danach alle 40 h); die Stufen-Zeiten sind aus dem Lauf gemessen. Summen je Gründung sind nicht dokumentiert.
+
+**A1-Robustheit (D11, erfüllt):** Ziel ist, dass der Bot im Korridor 504 bis 700 h liegt und die schnellste Spielweise mindestens 504 h braucht. Gemessene Ergebnisse (`balance-full`, aktive Spielzeit bis ALLES; bei allen ist das letzte Tor der Konzern-Shop bzw. K7):
+
+| Spielweise | ALLES |
+|---|---|
+| Bot `rate` (Gründung alle 40 h) | **602,3 h** |
+| `workHold`, `minRun` 15 s, `hold` 7200 s, Gründung alle 17,7 h (schnellste gefundene) | **538,4 h** |
+| dieselbe Spielweise, Takt 14,7 h | 552,0 h |
+| dieselbe Spielweise, Takt 12,5 h | 557,5 h |
+| Bot, Gründung nur alle 80 h (nur Info) | 762,2 h |
+
+Der Deckel erklärt, warum schnellere Gründungstakte nichts mehr bringen: Bei Takt 12,5 h gibt der Deckel höchstens 8 bis 9 Patente je Gründung. Die rechnerische Untergrenze 516 h wird nicht unterschritten. Spreizung (Bot gegen schnellste Spielweise: 602,3 / 538,4) ca. 1,12; vor der Umstellung (lineare Formel, 52.000) lag sie bei 1,85. Historie der Schritte (alle gemessen, Entscheidungen im PLAN): linear 52.000: Bot 591,3 h, schnelle Spielweisen 319 bis 370 h; Zwischenstand Schritt 13 mit Deckel 0,72 und Offline-Lücke: schnellste Spielweise 494,9 h (< 504 h); nach Nachmessung Deckel 0,72 -> 0,68 (D11 erfüllt). Hebel und Begründung: D11 bis D13 in `docs/PLAN-ausbau-3wochen.md`.
+
+### 6.3 Kumuliertes Erz (Zeitalter 6 bis 8, Industrie-Leiste A)
+Das Start-Design modellierte `T(t) = 3e23 × (t/192)^2,7 × B(t)` mit einem Zusatzfaktor B(t) für Konzern- und Industrie-Inhalte. Dieses Modell traf die gemessene Erz-Kurve nicht. Maßgeblich sind die kalibrierten Schwellen und die gemessenen Zeitpunkte:
+
+| Schwelle | Start-Design | Kalibriert | Zeit (Bot, gemessen) |
+|---|---|---|---|
+| Zeitalter 6 | 5e24 | 8e26 | 301 h |
+| Zeitalter 7 | 8e25 | 8e27 | 386 h |
+| Zeitalter 8 | 4e26 | 8e28 | 498 h |
+| Fördermenge A5 | 1e24 | 2e25 | 177 h |
+| Fördermenge A6 | 1e25 | 5e27 | 371 h |
+| Fördermenge A7 | 1e26 | 5e28 | 474 h |
+| Fördermenge A8 | 1e27 | 1e30 | 590 h |
+
+Hinweis aus dem Plan (Schritt 6): Ein Durchlauf von 20 bis 60 min bringt ca. 1e5-mal so viel Erz wie ein 6-min-Zyklus. Die Erz-Tore sind deshalb gegen lange Durchläufe schwach (PLAN, D9).
 
 ### 6.4 ZEITPLAN-TABELLE (aktive Bot-Stunden, kalibrierter Bot `rate`)
-Die Spalte "Quelle" verweist auf die Gating-Art: SIM = gemessener Sim-Wert (GAME-DESIGN.md 3b), MOD = Modell aus 6.2/6.3.
+Spalte "Quelle": GEM = gemessen im Lauf `node tools/balance-full.mjs` (Gründung alle 40 h) oder im Test `tests/balance.test.mjs` (ohne Konzern), SIM = gemessen im Grundspiel-Sim (`docs/GAME-DESIGN.md` 3b), MOD = Modellwert des Designs, nicht nachgemessen. "GEM (alt)" = in Schritt 6 gemessen, seit Runde 2 nicht neu gemessen.
 
 | Zeit (h) | Ereignis | Gate | Quelle |
 |---|---|---|---|
 | 1,8 | 1. Neuguss, Hochofen-Meilensteine 5 und 25 | Erz 1e7 | SIM |
 | 2,4 / 4,3 | 1.000 / 10.000 Gussformen (Meilensteine ×3, ×5) | Neuguss 5 / 21 | SIM |
 | 2,5 bis 5 | Industrie A1, A2 (Erz 1e12, 1e15); B1 bis B3 (Materialvielfalt 6, 9, 12) | stats.total | MOD |
-| 7,5 | Zeitalter 1 | Erz 1e17 | SIM |
-| 13,5 | **Konzern-Reiter freigeschaltet** (Neuguss 100) | N = 100 | SIM |
+| 7,5 | Zeitalter 1 (Grundspiel) | Erz 1e17 | SIM |
+| **13,4** | **Konzern-Reiter freigeschaltet** (Neuguss 100) | N = 100 | GEM |
 | 20 | A3 (1e18) | | MOD |
 | 34,5 | Hochofen-Meilenstein 250.000 (Neuguss 280) | Gussformen | SIM |
-| **34** | **1. Konzerngründung (7 Patente), K1** | `Gc >= 34.000`, Bot-Rhythmus | MOD |
-| 40 / 43 | Kobalt, Molybdän (Konzernforschung I), B4 | K1 | MOD |
-| 37,9 | Zeitalter 2 | Erz 1e20 | SIM |
+| **34** | **1. Konzerngründung, K1 (10 Patente)** | Wurzelformel, D = 1500, Bot-Rhythmus | GEM |
+| 36 / 69 / 99 / 153 | Zeitalter 2 / 3 / 4 / 5 **ohne Konzern** (balance.test) | Erz 1e20 / 1e22 / 1e23 / 3e23 | GEM |
+| 43 | Molybdän, B4 | K1 | MOD |
+| 52 | Kobalt (Konzernforschung I), Schritt 6, nicht neu gemessen | K1 | GEM (alt) |
+| 55 / 106 / 114 / 114 | Zeitalter 2 / 3 / 4 / 5 **mit Konzern**, Schritt 6, nicht neu gemessen | Erz | GEM (alt) |
 | 70 | A4 (1e21) | | MOD |
-| 74 | Gründung 2, K2 (20 Patente) | | MOD |
-| 80 | Hartmetall, Hartmetall-Meißel, Werkzeugtechnik, `cb_sinter` | K2 | MOD |
-| 96,5 | Zeitalter 3 | Erz 1e22 | SIM |
-| 127,6 | Zeitalter 4 | Erz 1e23 | SIM |
-| 154 | Gründung 4, K3 (45) | | MOD |
-| 160 | Platin, Edelmetall-Netzwerk, B5 (16 Materialien) | K3 | MOD |
-| 192 | Zeitalter 5 | Erz 3e23 | SIM |
-| 234 | K4 (75) | | MOD |
-| 240 | Vanadium, Laborautomatisierung II; A5 (1e24) | K4 | MOD |
-| 300 | **Zeitalter 6** (5e24) | Erz | MOD |
-| 314 | K5 (110) | | MOD |
-| 320 | Iridium (braucht Zeitalter 6), Quantenfertigung, B6 (18), A6 (1e25) | K5 + Z6 | MOD |
-| 430 | **Zeitalter 7** (8e25) | Erz | MOD |
-| 434 | K6 (150) | | MOD |
-| 440 | Superlegierung (braucht Zeitalter 7), Orbitalfertigung, `cb_line`, B7 (19), A7 (1e26) | K6 + Z7 | MOD |
-| 540 | **Zeitalter 8** (4e26) | Erz | MOD |
-| 554 | K7 (205 Patente), Konzern-Shop komplett | Patente | MOD |
-| 557 | Weltkonzern-Charta (Dauer 2,1 h effektiv) | K7 + Z8 | MOD |
-| 590 bis 610 | **Industrie A8 (1e27)** = letzter Inhalt | Erz | MOD |
+| 114 | Gründung 3, K2 (30 Patente) | | GEM |
+| 118 | Hartmetall (Konzernforschung II) | K2 | GEM |
+| 176 | Fördermenge A5 (2e25) | Erz | GEM |
+| 194 | K3 (70) | | GEM |
+| 202 | Platin | K3 | GEM |
+| 258 | **Zeitalter 6** (8e26) | Erz | GEM |
+| 274 | K4 (135) | | GEM |
+| 290 | Vanadium | K4 | GEM |
+| 344 | **Zeitalter 7** (8e27) | Erz | GEM |
+| 371 | A6 (5e27) | Erz | GEM |
+| 394 | K5 (210) | | GEM |
+| 408 | Iridium (braucht Zeitalter 6) | K5 + Z6 | GEM |
+| 462 | **Zeitalter 8** (8e28) | Erz | GEM |
+| 474 | A7 (5e28) | Erz | GEM |
+| 514 | K6 (290) | | GEM |
+| 527 | Superlegierung (braucht Zeitalter 7) | K6 + Z7 | GEM |
+| 539 | **Fördermenge A8 (1e30)** | Erz | GEM |
+| 594 | K7 (351 Patente), Konzern-Shop komplett | Patente (Deckel 0,68/h) | GEM |
+| **602,3** | **ALLES FREIGESCHALTET** (letzter Erstkauf: Konzern-Shop bzw. K7) | | GEM |
 
-**Gesamt: alle Inhalte (112 Forschungen, 39 Boosts, 9 Klick-Upgrades, 19 Materialien, beide Reset-Ebenen, alle Meilensteine) frühestens ca. 520 h (schnellste Spielweise), Bot-Standard ca. 600 h, Obergrenze Korridor 700 h.** Ausbau VI bis VIII und weitere Klick-/Shop-Stufen nach Maximum sind offen und zählen nicht zu "alles" (Entscheidung D2).
+**Gesamt: alle Inhalte (125 Forschungen, 43 Boosts, 10 Klick-Upgrades, 19 Materialien, beide Reset-Ebenen, alle Meilensteine) bei 602,3 h gemessen (Bot `rate`, Korridor 504 bis 700 h).** Die schnellste gefundene Spielweise braucht 538,4 h (6.2). Ausbau VI bis VIII und weitere Klick-/Shop-Stufen nach Maximum sind offen und zählen nicht zu "alles" (Entscheidung D2). Die Erzkosten der Konzernforschung sind seit D10 nach Konzernstufe skaliert (5.2).
 
-Rechnerische Prüfung der Mindestdauer: Die Kette ist auf drei unabhängigen Toren aufgebaut, von denen jedes allein >= 504 h verlangt: (1) Patente 205 braucht `G >= 205 × 34.000 = 7,0e6` Gussformen, bei <= 13.700/h also > 504 h; (2) Zeitalter 8 (4e26) wird bei ca. 540 h erreicht; (3) A8 bei ca. 600 h. Wenn die Kalibrierung eines der Tore zu früh liefert, halten die anderen beiden die Untergrenze.
+Die Zeitalter 2 bis 5 liegen mit Konzern später als ohne (55 / 106 / 114 / 114 h gegen 36 / 69 / 99 / 153 h); die Ursache ist hier nicht untersucht. Gegenüber dem Grundspiel (7,5 / 37,9 / 96,5 / 127,6 / 192 h) sind die Zeiten ohne Konzern durch die Industrie-Boni nach vorn verschoben (PLAN, D7 und D9).
 
-### 6.5 Stellschrauben für Schritt 6 (Kalibrierung)
+### 6.5 Stellschrauben (kalibrierter Stand)
 
-| Stellschraube | Startwert | Bewegt | Hinweis |
+| Stellschraube | Start-Design | Kalibriert | Hinweis |
 |---|---|---|---|
-| `D_CORP` | 34.000 | Patente-Rate, damit K1 bis K7 und Konzern-Shop-Ende (1 : 1 proportional zur Zeit) | Erste Stellgröße. Zeit bis 205 Patente ≈ proportional zu D |
-| `corp.gainMult` je `c_gain`/`c_cast` | 10 % / 15 % | Beschleunigung ab ca. 80 h | |
-| Konzern-Meilenstein-Schwellen | 5 / 20 / 45 / 75 / 110 / 150 / 205 | Zeitpunkt der Materialien | Aus der 6.2-Tabelle (Gründung-Rhythmus) ableiten |
-| Zeitalter-Schwellen 6 bis 8 | 5e24 / 8e25 / 4e26 | Zeitpunkte Zeitalter 6 bis 8 | Per `simulate({stopAtEra})`: Schwelle = gemessenes `T(t_Ziel)` |
-| Industrie A-Schwellen | 1e12 bis 1e27 | Pling-Abstände | Folgen den Zeitalter-Schwellen |
-| Forschungs-Kostenfaktoren f (5.2), Dauer 1800 s und 1,4^(k-1) | siehe 5.2 | Zeit bis Material bezahlbar; Warteschlangen | Aus `runRates` skripten |
-| Generator-Basen/Wachstum der 7 neuen Materialien (4.2) | siehe 4.2 | Produktionsrate Material | Ziel: Material k ist ca. 10 bis 30 min nach Forschungsende bezahlbar |
-| Bonus-Größen (K-Bonus, Patent-Bonus 0,02, Prozess +5 %, Industrie) | siehe oben | Gesamtwachstum B(t) | Budget aus 6.3 prüfen |
-| Wiederaufbau-Zeit nach Gründung (aus `c_heir` etc.) | ca. 3 h | Obergrenze | |
-| N | 100 | Sichtbarkeit | nur Dramaturgie, nicht Zeitplan |
+| `CORP.divisor` (`D_CORP`) | 34.000 (linear) | **1500** (Wurzelformel, D12) | Stellgröße des Wurzelteils; D = 2250 ließ den Bot bei 842 h |
+| `CORP.capPerHour` | – | **0,68** Patente je Stunde (zuerst 0,72) | Zeitdeckel; Untergrenze = Shop-Summe / 0,68 = 516 h (D11). 0,72 ergab eine schnellste Spielweise von 494,9 h (< 504 h) |
+| Konzern-Shop-Summe | 205 | **351** (Kosten ×1,705, Hebel 2) | Gleich K7 |
+| Konzern-Meilensteine K1 bis K7 (Patente) | 5 / 20 / 45 / 75 / 110 / 150 / 205 (Schritt 6: 3 / 7 / 21 / 46 / 80 / 139 / 205) | **10 / 30 / 70 / 135 / 210 / 290 / 351** | K7 = Shop-Summe |
+| Zeitalter 6 bis 8 (Erz) | 5e24 / 8e25 / 4e26 | **8e26 / 8e27 / 8e28** | Bonus ×1,5 / ×1,5 / ×2 unverändert |
+| Fördermenge A5 bis A8 (Erz) | 1e24 / 1e25 / 1e26 / 1e27 | **2e25 / 5e27 / 5e28 / 1e30** | A1 bis A4 unverändert |
+| `c_gain` / `c_cast` je Stufe | 10 % / 15 % | unverändert | |
+| Konzernforschungs-Kosten (D10) | Modellformel 5.2, gegenüber späten Raten billig | Faktor je Konzernstufe auf die Basiskosten: Erz/Stahl `CORP_COST_ORE` = 1 / 1 / 54 / 360 / 360 / 340 / 360, Materialien `CORP_COST_MAT` = 1 / 1 / 2 / 3 / 4 / 5 / 6 (je K1 bis K7, `js/data/research.js`) | Erz geeicht auf ca. 14 / 30 / 20 / 25 / 30 / 40 / 50 min Spitzen-Erzrate je K1 bis K7; K4 >= 1e25, K7 >= 1e28 Erz. Dauer 1800 s mal 1,4^(k-1) bleibt (Test: Dauer <= 22000 s) |
+| Generator-Basen/Wachstum der 7 neuen Materialien (4.2) | siehe 4.2 | unverändert | |
+| Bonus-Größen (K-Bonus, Patent-Bonus 0,02, Prozess +5 %, Industrie) | siehe oben | unverändert | |
+| N | 100 | 100 | nur Dramaturgie, nicht Zeitplan |
+| Industrie-Stufen (D13) | A5 bis A8 1,10 / 1,10 / 1,15 / 1,15; B4 bis B7 1,10 / 1,15 / 1,15 / 1,25 | A5 bis A8 **1,20 / 1,25 / 1,35 / 1,50**; B4 bis B7 **1,15 / 1,20 / 1,25 / 1,35** | Produkt beider Leisten ca. ×4,9 -> ×10,9 |
+| Bot-Einstellung | | Gründung alle 40 h (erste bei 34 h), Hold 3600 s, dt 30 | `tools/balance-full.mjs`; kein Auto-Neuguss, Boosts erst im Endspiel (PLAN, D10) |
 
-Kalibrierreihenfolge: (1) Sim erweitern (7.4) mit Policy `corp40` (alle 40 h) und `corpFast` (Gründung, sobald `corpGain >= 3`). (2) `D_CORP` so setzen, dass `corpFast` K7 und Shop-Ende erst nach >= 520 h erreicht und `corp40` nach <= 640 h. (3) Zeitalter-Schwellen und A-Leiste aus `T(t)` des Sim übernehmen. (4) Forschungskosten aus `runRates` per Skript erzeugen. (5) `tests/balance.test.mjs` auf die neuen Zeiten anpassen.
+Neu kalibrieren: `node tools/balance-full.mjs` (Laufzeit nach Runde 2 nicht neu gemessen, Exitcode 0 im Korridor 504 bis 700 h), danach die Schranken in `tests/balance.test.mjs` anpassen. Reihenfolge: `capPerHour`, Shop-Summe und K-Stufen zuerst (Patente-Tor), dann `D_CORP`, dann Zeitalter-Schwellen und Fördermenge aus den gemessenen Erz-Werten.
+
+Andere Spielweisen messen (Optionen in `tools/balance-full.mjs`, Name=Wert oder positionell): `workHold=1` (Werkbank-Erstaufträge früh abwarten), `minRun=<s>` (kürzester Durchlauf je Neuguss, Standard 300), `corpEvery=<h>` (Gründungstakt, Standard 40), `hold=<s>` (Standard 3600), `maxHours=<h>` (Standard 800); Konstanten überschreiben mit `Name.Pfad=Wert`, z. B. `CORP.divisor=2000` oder `CORP.capPerHour=0.7`. Beispiel der schnellsten gefundenen Spielweise: `node tools/balance-full.mjs workHold=1 minRun=15 hold=7200 corpEvery=17.7`. Der Exitcode ist nur für den Bot aussagekräftig (Obergrenze 700 h); für andere Spielweisen zählt nur >= 504 h. Die erste Gründung (`corpFirst`) kennt `balance-full.mjs` nicht (nur `tools/balance-sim.mjs`).
 
 ## 7. Technische Hinweise für die Umsetzung
 
@@ -475,15 +517,15 @@ state.autoCast = { on: false, mode: 'gain', value: 0 }                // M3
 
 ### 7.4 Simulation (Schritt 6)
 - `tools/balance-sim.mjs` erweitern: Konzern-Policy (`corp40`, `corpFast`, Option `corpEvery` in Stunden), Konzern-Shop-Kaufliste (3.5), Industrie-Leisten in den Rückgabewerten, neue `W`-Werte: Kobalt 2e6, Molybdän 3e6, Hartmetall 2e7, Platin 3e8, Vanadium 5e7, Iridium 5e9, Superlegierung 1e11 (grob je Stufe ×10 bis ×100 über Gold 2e5); Seltene-Material-Regel in `buyGens` um die sieben neuen Generatoren erweitern (Anteil an der Mixer-Stufe: 0,5 bis 0,2).
-- Laufzeit: 600 h bei dt 30 brauchen ca. 12 bis 15 min. Für Tests ein schneller Pfad: Nur die Schritte bis zur 1. Gründung simulieren (ca. 40 h) und den Rest über das Patente-Modell prüfen (Ungleichung aus 6.2), die vollen Läufe gehören in ein separates Skript (`npm run balance:full`) mit Timeout >= 1.800 s. A5 gilt weiter: bestehende `balance.test.mjs` braucht ca. 265 s (Timeout >= 300 s), ein zusätzlicher Konzern-Lauf bis 80 h ca. 2 min mehr.
+- Laufzeit (Schätzung des Designs, überholt): 600 h bei dt 30 brauchen ca. 12 bis 15 min. Gemessen: `node tools/balance-full.mjs` braucht ca. 6 min. Für Tests ein schneller Pfad: Nur die Schritte bis zur 1. Gründung simulieren (ca. 40 h) und den Rest über das Patente-Modell prüfen (Ungleichung aus 6.2), die vollen Läufe gehören in ein separates Skript (`npm run balance:full`) mit Timeout >= 1.800 s. A5 gilt weiter: bestehende `balance.test.mjs` braucht ca. 265 s (Timeout >= 300 s), ein zusätzlicher Konzern-Lauf bis 80 h ca. 2 min mehr.
 - Hinweis aus GAME-DESIGN.md 3b: Die Ergebnisse hängen stark von `dt` ab (dt 60 statt 30 verschiebt Zeitalter 1 von 7,5 h auf 31 h). Die Kalibrierung bleibt bei dt 30.
 
 ### 7.5 Tests
-1. **Erreichbarkeits-Test** (`tests/progression-graph.test.mjs` erweitern): Fixpunkt über Ressourcen, Forschungen, Boosts, Klick-Upgrades, Generatoren, Rezepte mit "unendlich" großen Beständen, Zeitalter 8 und Konzernstufe 7: Jede der 19 Ressourcen ist produzierbar, jede der 112 Forschungen/39 Boosts/9 Klick-Upgrades kaufbar, keine Zyklen in `req`, `corp` und `era` jeder Forschung <= Stufe der Voraussetzungen (eine Forschung darf nicht früher freigeschaltet sein als ihre Voraussetzung), jedes `corp` ∈ 1..7, jeder Konzern-Meilenstein erreichbar, Konzern-Shop-Summe = Schwelle K7.
+1. **Erreichbarkeits-Test** (`tests/progression-graph.test.mjs` erweitern): Fixpunkt über Ressourcen, Forschungen, Boosts, Klick-Upgrades, Generatoren, Rezepte mit "unendlich" großen Beständen, Zeitalter 8 und Konzernstufe 7: Jede der 19 Ressourcen ist produzierbar, jede der 125 Forschungen/43 Boosts/10 Klick-Upgrades kaufbar, keine Zyklen in `req`, `corp` und `era` jeder Forschung <= Stufe der Voraussetzungen (eine Forschung darf nicht früher freigeschaltet sein als ihre Voraussetzung), jedes `corp` ∈ 1..7, jeder Konzern-Meilenstein erreichbar, Konzern-Shop-Summe (351) = Schwelle K7.
 2. `tests/corp.test.mjs`: `corpGain`-Formel (Grenzen 0/1, `c_gain`), Freischaltung bei `prestige.count = 100`, Reset-Umfang (Tabelle 3.3: `prestige.shop`/`points`/`total` weg, `count`, `corp`, Zeitalter, Erfolge, Konzernforschung bleiben), `c_heir`-Boden, `c_archive`, `c_auto`, `c_offline`, `c_autocast`, `corpMult` im `globalMult`, Patente-Ungleichung.
 3. `tests/industry.test.mjs`: beide Leisten ableitbar und monoton, `industryMult` im Stapel, EVO 6 bis 8, Zeitalter 6 bis 8.
 4. Save: Roundtrip v6, v5 laden (neue Felder leer), unbekannte `corp.shop`-IDs, `NaN`/negative Patente, zu große `evo`, korrupte `autoCast`.
-5. `tests/balance.test.mjs`: bestehende Tests bleiben (A5), neue Schranken: Konzern-Reiter ab 13,5 h ± 3 h im Sim, erste Gründung <= 40 h, `corpFast` erreicht K7 nicht vor 520 h (siehe 7.4).
+5. `tests/balance.test.mjs`: bestehende Tests bleiben (A5), Schranken auf die kalibrierten Zeiten (Zeitalter-Fenster, Konzern-Block); der volle A1-Lauf liegt in `tools/balance-full.mjs`.
 6. E2E (Schritt 9): Konzern-Reiter, Dialog, Shop-Kauf, Industrie-Panel, Zielleiste, neue Materialien in der Seitenleiste.
 
 ### 7.6 Hinweise für die UI (Schritt 2)
@@ -491,7 +533,7 @@ state.autoCast = { on: false, mode: 'gain', value: 0 }                // M3
 - API für die UI (reine Lesefunktionen in `core/formulas.js`): `corpUnlocked()`, `corpGain()`, `corpStage()` (0 bis 7), `corpMult()`, `corpLevel(id)`, `corpCost(id)`, `industryProgress()` → `[{ id, value, next, progress, reached, mult }]`, `heirFloor()`; Events `corp` (`{ gain }`), `corpshop` (`{ id }`), `industry` (`{ track, step }`); Systeme `doCorp()`, `buyCorpShop(id)`.
 
 ## 8. Offene Punkte dieses Designs
-- Alle Zeiten und Größenordnungen der Kosten sind Modellwerte; erst Schritt 6 bestätigt sie. Größtes Risiko: die Erz-Kurve `T(t)` in 6.3 (Unsicherheit ca. ±30 % in der Zeit, ±1 Größenordnung in den Schwellen).
-- Der Wiederaufbau nach der Konzerngründung (3 h) ist geschätzt; er bestimmt, wie oft ein Spieler sinnvollerweise gründet, hat aber wegen der linearen Formel nur geringen Einfluss auf die Mindestdauer.
+- Die Zeiten in 6.4 sind für den Bot gemessen, die Kosten der Konzerninhalte bleiben Modellwerte (5.2). Die Erz-Kurve `T(t)` des Start-Designs traf nicht; die Schwellen wurden deshalb um 1 bis 3 Größenordnungen angehoben (6.3).
+- Der Wiederaufbau nach der Konzerngründung (3 h) ist geschätzt; er bestimmt, wie oft ein Spieler sinnvollerweise gründet, hat wegen des Zeitdeckels (3.2) nur geringen Einfluss auf die Mindestdauer (516 h).
 - Kein echter Spieler gemessen (wie in GAME-DESIGN.md 8): Reale Spieler sind schneller (Offline-Ertrag, bessere Entscheidungen); A1 misst bewusst nur den Bot.
 - Ausbau VI bis VIII ist nur auf billigen Generatoren erreichbar. Falls das als Lücke wirkt, könnten Schritt 6 oder 7 die Stufen-Schwellen je Generator staffeln (z. B. `EVO_AT` abhängig vom Wachstum des Generators).

@@ -152,13 +152,13 @@ describe('Zeitalter: Neuguss und Speicherstand', () => {
 describe('Zeitalter 6 bis 8 (Industrie-Ausbau)', () => {
   test('9 Zeitalter, Namen/Schwellen/Boni laut Design, kumulativ x31,6', () => {
     assert.equal(ERAS.length, 9);
-    assert.deepEqual(ERAS.slice(6).map(e => [e.id, e.at, e.mult]), [['atomic', 5e24, 1.5], ['space', 8e25, 1.5], ['cosmic', 4e26, 2]]);
+    assert.deepEqual(ERAS.slice(6).map(e => [e.id, e.at, e.mult]), [['atomic', 8e26, 1.5], ['space', 8e27, 1.5], ['cosmic', 8e28, 2]]);
     assert.ok(Math.abs(F.eraMult(8) - 7.02 * 4.5) < 0.01);
   });
   test('Schwellen 6 bis 8 greifen', () => {
-    setEra(5); state.stats.total.ore = 4.9e24; assert.equal(F.eraIndex(), 5);
-    state.stats.total.ore = 5e24; assert.equal(F.eraIndex(), 6);
-    state.stats.total.ore = 4e26; assert.equal(F.eraIndex(), 8); assert.equal(F.nextEra(), null);
+    setEra(5); state.stats.total.ore = 7.9e26; assert.equal(F.eraIndex(), 5);
+    state.stats.total.ore = 8e26; assert.equal(F.eraIndex(), 6);
+    state.stats.total.ore = 8e28; assert.equal(F.eraIndex(), 8); assert.equal(F.nextEra(), null);
   });
   test('Spielstand: evo bis EVO_MAX = 8 bleibt, darüber wird geklemmt', () => {
     assert.equal(EVO_MAX, 8);

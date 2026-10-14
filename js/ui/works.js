@@ -136,8 +136,7 @@ export function initWorks() {
     updateAll(false);   // schaltet ggf. weitere Spuren frei
   });
   on('gen:evolve', ({ id, tier }) => evolve(id, tier));
-  on('loaded', () => { for (const L of lanes) { L.lv = -1; L.shown = -1; } updateAll(false); });
-  on('prestige', () => { for (const L of lanes) { L.lv = -1; L.shown = -1; } updateAll(false); });
+  for (const ev of ['loaded', 'prestige', 'corp']) on(ev, () => { for (const L of lanes) { L.lv = -1; L.shown = -1; } updateAll(false); });
   on('timer:done', e => { if (e.kind === 'research') updateAll(false); });   // neue Generatoren werden freigeschaltet
   // Animationen pausieren, solange der Browser-Tab verborgen ist
   const sync = () => root.classList.toggle('paused', document.hidden);

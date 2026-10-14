@@ -10,10 +10,10 @@ export const ERAS = [
   { id: 'electric', name: 'Elektrifizierung', sym: '⚡', ico: 'bolt', at: 1e22, mult: 1.5, desc: 'Ausbau III, Dynamo, Elektrostahl' },
   { id: 'automation', name: 'Automatisierung', sym: '🤖', ico: 'robot', at: 1e23, mult: 1.5, desc: 'Ausbau IV, Fließband, Robotik' },
   { id: 'digital', name: 'Digitalisierung', sym: '💾', ico: 'chip', at: 3e23, mult: 2.0, desc: 'Ausbau V, Mikrochips, Nanotech' },
-  // Zeitalter 6 bis 8: Schwellen sind Startwerte aus GAME-DESIGN-2.md 2.1 (Kalibrierung in Schritt 6). ico atom/rocket/cosmic: Sprites aus Schritt 2.
-  { id: 'atomic', name: 'Atomzeitalter', sym: '⚛️', ico: 'atom', at: 5e24, mult: 1.5, desc: 'Ausbau VI' },
-  { id: 'space', name: 'Raumfahrt', sym: '🚀', ico: 'rocket', at: 8e25, mult: 1.5, desc: 'Ausbau VII' },
-  { id: 'cosmic', name: 'Kosmische Schmiede', sym: '⭐', ico: 'cosmic', at: 4e26, mult: 2.0, desc: 'Ausbau VIII' },
+  // Zeitalter 6 bis 8: Schwellen kalibriert in Schritt 6 (Bot: Zeitalter 6/7/8 bei ca. 300/390/500 h; Design-Startwerte 5e24/8e25/4e26 lagen weit unter dem gemessenen Erz). ico atom/rocket/cosmic: Sprites aus Schritt 2.
+  { id: 'atomic', name: 'Atomzeitalter', sym: '⚛️', ico: 'atom', at: 8e26, mult: 1.5, desc: 'Ausbau VI' },
+  { id: 'space', name: 'Raumfahrt', sym: '🚀', ico: 'rocket', at: 8e27, mult: 1.5, desc: 'Ausbau VII' },
+  { id: 'cosmic', name: 'Kosmische Schmiede', sym: '⭐', ico: 'cosmic', at: 8e28, mult: 2.0, desc: 'Ausbau VIII' },
 ];
 
 export const EVO_MAX = 8;

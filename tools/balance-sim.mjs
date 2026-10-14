@@ -107,12 +107,18 @@ function buyEvos() {
 
 /**
  * Hält den Neuguss zurück, solange eine freischaltbare Forschung oder ein Boost in höchstens maxSec Sekunden bezahlbar wird
- * (wie ein Spieler, der für ein Ziel noch ein Stück weiterspielt). Der Neuguss setzt den Bestand auf 0; ohne diese Regel könnte der
+ * (wie ein Spieler, der für ein Ziel noch ein Stück weiterspielt; Ressourcen ohne Produktion, aber mit freigeschaltetem Generator, zählen als "in maxSec bezahlbar", höchstens bis cap Sekunden Durchlauf). Der Neuguss setzt den Bestand auf 0; ohne diese Regel könnte der
  * Bot Posten, die mehr als einen kurzen Durchlauf an Produktion kosten, nie bezahlen.
  */
-function wantsHold(maxSec) {
+function wantsHold(maxSec, cap = 43200, seen = { boosts: new Set(), clicks: new Set(), endgame: false }) {
+  if (state.stats.runTime >= cap) return false;   // Obergrenze der Durchlauflänge: kein endloses Warten auf ein nie erreichbares Ziel
+  // Ein laufender Werkbank-Auftrag (Boost, Klick-Upgrade), der noch nie abgeschlossen wurde, ginge beim Neuguss verloren (bezahlt, Dauer bis 97 min): der Spieler wartet ihn ab
+  // Nur im Endspiel (sonst alles andere schon freigeschaltet): ein langer Durchlauf bringt ca. 1e5-mal so viel Erz wie ein 6-min-Zyklus und würde die Erzkurve (Zeitalter, Industrie-Leiste A) verzerren.
+  if ((seen.endgame || seen.workHold) && state.timers.workshop.some(e => (e.kind === 'boost' && !seen.boosts.has(e.id)) || (e.kind === 'click' && !seen.clicks.has(e.id)))) return true;
   const r = F.rates();
-  const wait = c => Object.keys(c).reduce((m, k) => Math.max(m, state.res[k] >= c[k] ? 0 : r[k] > 0 ? (c[k] - state.res[k]) / r[k] : Infinity), 0);
+  // Rate 0, aber ein freigeschalteter Generator liefert die Ressource: der Spieler baut ihn auf (Bot: buyGens 'need'), also halten statt neu gießen
+  const buildable = k => GENS.some(g => g.res === k && !F.lockReason('gen', g.id));
+  const wait = c => Object.keys(c).reduce((m, k) => Math.max(m, state.res[k] >= c[k] ? 0 : r[k] > 0 ? (c[k] - state.res[k]) / r[k] : buildable(k) ? maxSec : Infinity), 0);
   for (const [list, owned, kind] of [[RESEARCH, state.research, 'research'], [BOOSTS, state.boosts, 'boost']]) {
     for (const d of list) if (!owned[d.id] && !F.lockReason(kind, d.id) && wait(d.cost) <= maxSec) return true;
   }
@@ -148,18 +154,20 @@ function spendShop(log) {
  *       Konzern: corp (Bot spielt die 2. Ebene, Vorgabe true), corpFirst (Stunde der 1. Gründung), corpEvery (Stunden zwischen Gründungen;
  *       0 = sobald Gewinn >= minCorpGain), corpFrac (zusätzlich gründen, wenn Gewinn >= corpFrac * bisherige Patente, 0 = aus), minCorpGain.
  *       hold (Sekunden: Neuguss/Gründung zurückhalten, solange eine freischaltbare Forschung/ein Boost in <= hold s bezahlbar wird, 0 = aus),
- *       progressEvery (simulierte Stunden zwischen Fortschrittszeilen auf stderr, 0 = still).
+ *       workHold (true: laufende Werkbank-Erstaufträge schon vor dem Endspiel abwarten, Vorgabe false = unverändert),
+ *       progressEvery (simulierte Stunden zwischen Fortschrittszeilen auf stderr, 0 = still), onProgress(t) (Rückruf dabei, Diagnose).
  * Rückgabe zusätzlich: eraTimes, snaps (Raten/Bestand beim Zeitalter-Eintritt), runRates (Raten kurz vor jedem Neuguss, Grundlage der
  *       Kostenkalibrierung der Zeitalter-Forschung), events { corpUnlock, firstCorp, stage[1..7], mat{id}, industry{track:[t je Stufe]},
  *       corpShopDone, all } (Sekunden aktiver Spielzeit), foundings [{ t, gain, total, stage }].
  */
 export function simulate({ hours = 48, clicksPerSec = 4, frac = 0.5, policy = 'rate', minGain = 3, minRun = 300, dt = 2, stopAtAll = false, stopAtEra = 0, stopAtDone = false, probe = [],
-  corp = true, corpFirst = 34, corpEvery = 40, corpFrac = 0, minCorpGain = 1, hold = 0, progressEvery = 0 } = {}) {
+  corp = true, corpFirst = 34, corpEvery = 40, corpFrac = 0, minCorpGain = 1, hold = 0, workHold = false, holdCap = 43200, progressEvery = 0, onProgress = null } = {}) {
   replaceState(defaultState());
   state.settings.autosave = false;
   const milestones = {}, prestiges = [], shopLog = [], eraTimes = {}, probes = {}, snaps = {}, runRates = [], foundings = [];
   const ev = { corpUnlock: null, firstCorp: null, stage: {}, mat: {}, industry: Object.fromEntries(INDUSTRY_TRACKS.map(tr => [tr.id, []])), corpShopDone: null, all: null };
   const everR = new Set(), everB = new Set(), everC = new Set();
+  const seen = { boosts: everB, clicks: everC, endgame: false, workHold };
   let t = 0, lastCorpT = 0, nextProgress = progressEvery * 3600;
   const wall0 = Date.now();
   const hist = [], WIN = 120;
@@ -168,8 +176,9 @@ export function simulate({ hours = 48, clicksPerSec = 4, frac = 0.5, policy = 'r
     { const n = Math.round(clicksPerSec * dt); if (n > 0) { addResource('ore', F.rates().click * n); state.stats.clicks += n; state.stats.runClicks += n; } }
     P.tick(dt); t += dt;
     for (const r of RESEARCH) if (!state.research[r.id] && !F.lockReason('research', r.id)) P.buy('research', r.id);
-    for (const b of BOOSTS) if (!state.boosts[b.id] && !F.lockReason('boost', b.id)) P.buy('boost', b.id);
-    for (const c of CLICKS) if (!F.lockReason('click', c.id) && worth(F.bulkPlan('click', c.id, 1).cost) < 0.3 * state.res.ore) P.buy('click', c.id);
+    // Endspiel: nur noch Erstkäufe in die Werkbank (Wiederholungen füllen sonst die Warteschlange und blockieren die langen Aufträge)
+    for (const b of BOOSTS) if (!state.boosts[b.id] && !(seen.endgame && everB.has(b.id)) && !F.lockReason('boost', b.id)) P.buy('boost', b.id);
+    for (const c of CLICKS) if (!(seen.endgame && everC.has(c.id)) && !F.lockReason('click', c.id) && worth(F.bulkPlan('click', c.id, 1).cost) < 0.3 * state.res.ore) P.buy('click', c.id);
     buyGens();
     buyEvos();
     for (let i = 1; i < ERAS.length; i++) if (!(i in eraTimes) && F.eraIndex() >= i) { eraTimes[i] = t; const q = F.rates(); delete q.flows; snaps[i] = { t, rates: q, res: { ...state.res } }; }
@@ -184,12 +193,15 @@ export function simulate({ hours = 48, clicksPerSec = 4, frac = 0.5, policy = 'r
     for (const r of RESEARCH) if (state.research[r.id]) everR.add(r.id);
     for (const b of BOOSTS) if (state.boosts[b.id]) everB.add(b.id);
     for (const c of CLICKS) if (state.clicks[c.id] > 0) everC.add(c.id);
-    if (ev.all === null && ev.corpShopDone !== null && everR.size === RESEARCH.length && everB.size === BOOSTS.length && everC.size === CLICKS.length
+    // Kern = alles außer Boosts und Erstkauf der Klick-Upgrades (die Werkbank-Aufträge dauern bis 97 min, der Bot holt sie im Endspiel nach)
+    seen.endgame = ev.corpShopDone !== null && everR.size === RESEARCH.length
       && Object.keys(ev.mat).length === RES_IDS.length && Object.keys(milestones).length === MILESTONES.length && F.corpStage() === CORP_MILESTONES.length
-      && F.eraIndex() === ERAS.length - 1 && INDUSTRY_TRACKS.every(tr => ev.industry[tr.id].length === tr.steps.length)) ev.all = t;
+      && F.eraIndex() === ERAS.length - 1 && INDUSTRY_TRACKS.every(tr => ev.industry[tr.id].length === tr.steps.length);
+    if (ev.all === null && seen.endgame && everB.size === BOOSTS.length && everC.size === CLICKS.length) ev.all = t;
     if (stopAtDone && ev.all !== null) break;
     if (progressEvery && t >= nextProgress) {
       nextProgress += progressEvery * 3600;
+      onProgress?.(t);
       console.error(`[sim] ${(t / 3600).toFixed(0)} h  Rechenzeit ${((Date.now() - wall0) / 60000).toFixed(1)} min  Zeitalter ${F.eraIndex()}  Neugüsse ${state.prestige.count}  Konzern ${state.corp.count}x K${F.corpStage()} (${state.corp.total} Patente)`);
     }
 
@@ -197,7 +209,7 @@ export function simulate({ hours = 48, clicksPerSec = 4, frac = 0.5, policy = 'r
     if (corp && F.corpUnlocked() && state.stats.runTime >= minRun) {
       const g = F.corpGain();
       const timeOk = state.corp.count === 0 ? t >= corpFirst * 3600 : t - lastCorpT >= corpEvery * 3600;
-      if (g >= minCorpGain && g >= 1 && !(hold && wantsHold(hold)) && (timeOk || (corpFrac > 0 && g >= corpFrac * state.corp.total))) {
+      if (g >= minCorpGain && g >= 1 && !(hold && wantsHold(hold, holdCap, seen)) && (timeOk || (corpFrac > 0 && g >= corpFrac * state.corp.total))) {
         const gussformen = state.prestige.total;
         doCorp();
         hist.length = 0; lastCorpT = t;
@@ -221,7 +233,7 @@ export function simulate({ hours = 48, clicksPerSec = 4, frac = 0.5, policy = 'r
         go = state.stats.runTime - t0 >= WIN * 0.9 && (gain - g0) / (state.stats.runTime - t0) < frac * gain / state.stats.runTime;
       }
     }
-    if (go && hold && wantsHold(hold)) go = false;
+    if (go && hold && wantsHold(hold, holdCap, seen)) go = false;
     if (go) {
       hist.length = 0;
       const runTime = state.stats.runTime;
@@ -233,7 +245,8 @@ export function simulate({ hours = 48, clicksPerSec = 4, frac = 0.5, policy = 'r
       if (stopAtAll && Object.keys(milestones).length === MILESTONES.length) break;
     }
   }
-  return { probes, eraTimes, snaps, runRates, milestones, prestiges, foundings, events: ev, shop: Object.fromEntries(SHOP.map(s => [s.id, F.shopLevel(s.id)])),
+  const missing = { research: RESEARCH.filter(r => !everR.has(r.id)).map(r => r.id), boosts: BOOSTS.filter(b => !everB.has(b.id)).map(b => b.id), clicks: CLICKS.filter(c => !everC.has(c.id)).map(c => c.id) };
+  return { missing, probes, eraTimes, snaps, runRates, milestones, prestiges, foundings, events: ev, shop: Object.fromEntries(SHOP.map(s => [s.id, F.shopLevel(s.id)])),
     corpShop: Object.fromEntries(CORP_SHOP.map(s => [s.id, F.corpLevel(s.id)])), shopLog, hours: t / 3600, total: state.prestige.total, wallSeconds: (Date.now() - wall0) / 1000 };
 }
 
@@ -261,6 +274,7 @@ export function report(r) {
   L.push('Konzernstufen: ' + CORP_MILESTONES.map((_, k) => `K${k + 1} ${fh(e.stage[k + 1])}`).join(', '));
   L.push('Materialien: ' + RES_IDS.slice(12).map(k => `${k} ${fh(e.mat[k])}`).join(', '));
   for (const tr of INDUSTRY_TRACKS) L.push(`Leiste ${tr.id}: ` + tr.steps.map((_, i) => fh(e.industry[tr.id][i])).join(', '));
+  if (e.all === null) L.push('Fehlt noch: ' + JSON.stringify(r.missing));
   L.push(`Konzern-Shop komplett: ${fh(e.corpShopDone)}, ALLES FREIGESCHALTET: ${fh(e.all)}`);
   L.push('Gründungen: ' + r.foundings.map(f => `${fh(f.t)} +${f.gain}`).join(', '));
   L.push(`Rechenzeit ${(r.wallSeconds / 60).toFixed(1)} min`);

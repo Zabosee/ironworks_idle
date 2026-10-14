@@ -76,7 +76,7 @@ describe('Review 13: safe(), Tooltip', () => {
   test('Erz-Erfolge nennen lesbare Zahlen statt 1·10^3', () => {
     assert.ok(!ACHIEVEMENT_MAP.ore_1000.desc.includes('·'));
     assert.match(ACHIEVEMENT_MAP.ore_1000.desc, /1\.000 Erz/);
-    assert.match(ACHIEVEMENT_MAP['ore_' + 1e20].desc, /10\^20/);
+    assert.match(ACHIEVEMENT_MAP['ore_' + 1e20].desc, /100\.000\.000\.000\.000\.000\.000 Erz/);
   });
   test('Forschungs-/Boost-Erfolge folgen den Daten', () => {
     state.research = Object.fromEntries(RESEARCH.slice(0, -1).map(r => [r.id, 1]));

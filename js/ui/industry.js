@@ -1,7 +1,7 @@
 // Industrie-Tab: Meilenstein-Leisten, Zeitleiste der Zeitalter (9) und Generator-Ausbau (8 Stufen je Generator).
 // Das DOM wird einmal gebaut; renderIndustry() (ca. 10x/s, nur bei aktivem Tab) ändert nur Text/Klassen.
 import { state } from '../core/state.js';
-import { fmt, fmtInt, fmtTime, decimal } from '../core/format.js';
+import { fmt, fmtInt, fmtEta, decimal } from '../core/format.js';
 import { t, tName, tDesc } from '../core/i18n.js';
 import { ERAS, EVO_MAX, EVO_MULT } from '../data/eras.js';
 import { INDUSTRY_TRACKS } from '../data/industry.js';
@@ -87,8 +87,8 @@ export function buildIndustry(root) {
     h('section', { class: 'panel-box wide' },
       h('div', { class: 'evo-head' }, h('h2', { text: t('Generator-Ausbau') }), allNote, allBtn),
       h('p', { class: 'hint', text: t('Jede Ausbaustufe vervielfacht die Produktion eines Generators. Stufe k braucht Zeitalter k und eine Mindeststufe des Generators. Ausbauten gehen beim Neuguss verloren, die Zeitalter nicht.') }),
-      h('table', { class: 'evo-table' },
-        h('thead', {}, h('tr', {}, ...[t('Generator'), t('Ausbau'), t('Nächste Stufe'), t('Kosten'), ''].map(label => h('th', { scope: 'col', text: label })))), tbody)));
+      h('div', { class: 'evo-scroll' }, h('table', { class: 'evo-table' },
+        h('thead', {}, h('tr', {}, ...[t('Generator'), t('Ausbau'), t('Nächste Stufe'), t('Kosten'), ''].map(label => h('th', { scope: 'col', text: label })))), tbody))));
 }
 
 function costChips(r, cost) {
@@ -130,7 +130,7 @@ function renderTracks(r) {
     else if (def.log) {
       txt = t('{cur} / {at} Erz', { cur: fmt(p.value), at: fmt(p.next) });
       const rate = r?.ore || 0;
-      if (rate > 0) txt += ' · ' + t('in ca. {time}', { time: fmtTime((p.next - p.value) / rate) });
+      if (rate > 0) txt += ' · ' + fmtEta((p.next - p.value) / rate, 'in ca. {time}');
     } else txt = t('{cur}/{at} Materialien', { cur: fmtInt(p.value), at: fmtInt(p.next) });
     setText(o.text, txt);
     setAttr(o.bar, 'aria-valuenow', Math.round(p.progress * 100));

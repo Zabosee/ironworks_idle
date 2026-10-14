@@ -61,3 +61,35 @@ Dieser Ordner ist ein Git-Repository (Remote `origin`, Branch `main`). Zwischens
   - Leere Forschungsebenen ausblenden: gegenstandslos. Die Forschungskarte hat keine Ebenen/Regale; Knoten werden per `hidden` ausgeblendet.
   - Emoji-Fallbacks entfernen: teilweise erledigt. Die Oberfläche zeigt SVG; die Datenfelder `icon` (und `sym` als SVG-Name) bleiben als Textfallback in den Daten und werden z. B. in `cards.js`, `panels.js`, `research-map.js` genutzt, wenn kein `sym`/Bild existiert.
   - Werk-Hinweis max. 10 Sprites: unklar/offen, im Code nicht geprüft.
+
+## Ausbau "2. Reset-Ebene, 3 Wochen Spielzeit" (2026-10-12/13)
+Auftrag: klarer Idle-Kreislauf, Industrie ausbauen, 2. Reset-Ebene nach einer Anzahl Neugüsse, mindestens 3 Wochen bis alles freigeschaltet ist. Plan, Zwischenstände und Entscheidungen D1 bis D13: `docs/PLAN-ausbau-3wochen.md`. Design: `docs/GAME-DESIGN-2.md`. UI-Spec: `docs/SPEC-design-2.md`.
+
+- Plan-Schritte 0 bis 8 erledigt. Schritt 9: Browser-Abnahme erledigt (11 Befunde behoben: Werk-Lanes nach Gründung, Zielleisten-Balken, Mobil-Tabelle Industrie, Texte, Restzeit "> 1 Jahr", Zahlenformat Erfolge, Zeitalter-Raster, EN Lost/Kept, Sperrtext Auto-Buyer; Nachprüfung im Browser grün).
+- **2. Reset-Ebene**: Konzerngründung mit Patenten (Runde 2: `CORP.divisor` 1500, Wurzelformel mit Zeitdeckel 0,68 Patente/h, siehe unten; Schritt 6: linear 52.000), Konzern-Reiter ab Neuguss 25 gesperrt sichtbar, nutzbar ab 100. Konzernstufen K1 bis K7 (Runde 2: 10 / 30 / 70 / 135 / 210 / 290 / 351 Patente; Schritt 6: 3 / 7 / 21 / 46 / 80 / 139 / 205), Konzern-Shop mit 9 Einträgen (Runde 2: Summe 351; Schritt 6: 205), Auto-Neuguss, Zielleiste, Neuguss-Vorschau. Save-Version 6 (`state.corp`, `state.autoCast`).
+- **Industrie**: Zeitalter 6 -> 9 (neu: Atomzeitalter, Raumfahrt, Kosmische Schmiede bei 8e26 / 8e27 / 8e28 Erz), Generator-Ausbau VI bis VIII, zwei Meilenstein-Leisten (Fördermenge 8 Stufen, Materialvielfalt 7 Stufen).
+- **Umfang (Code-Werte geprüft)**: Forschungen 76 -> 125 (49 Konzernforschung; Schritt 6: 112 mit 36), Boosts 31 -> 43 (Schritt 6: 39), Klick-Upgrades 6 -> 10 (Schritt 6: 9), Materialien 12 -> 19, Generatoren 14 -> 21, Rezepte 6 -> 10, Zeitalter 6 -> 9, Ausbaustufen 5 -> 8.
+- **Kalibrierung (Schritt 6, überholt durch Runde 2, siehe unten)**: Bot `rate`, Gründung alle 40 h, `node tools/balance-full.mjs` (ca. 6 min, Exitcode 0): ALLES FREIGESCHALTET bei 591,3 h (Korridor 504 bis 700 h). Konzern-Reiter 13,4 h, K1 bis K7 bei 34 / 74 / 154 / 234 / 314 / 434 / 554 h, Zeitalter 6 / 7 / 8 bei 301 / 386 / 498 h, Fördermenge A5 bis A8 bei 177 / 370 / 470 / 590 h. Zeitalter 2 bis 5: 55 / 106 / 114 / 114 h mit Konzern, 36 / 69 / 99 / 153 h ohne (balance.test). Volle Zeitleiste: `docs/GAME-DESIGN-2.md` 6.4.
+- **Tests**: Unit 423 -> 525 (Schritt 6), nach Runde 2 531/531 (519 ohne balance + 12 balance, `node --test tests/*.test.mjs`); neu `corp.test.mjs`, `corp-ext.test.mjs`. E2E sichtbar 87 -> 99 (Szenario n: Konzern-Reiter); E2E sichtbar (ohne `--fast`, Chrome :9222) 99 PASS / 0 WARN / 0 FAIL, Szenarien a-n (2026-10-14). Befehl: `node --test --test-timeout=900000 tests/*.test.mjs`.
+
+## Runde 2 (2026-10-13/14): Konzern konkav und gedeckelt, mehr Forschung, Industrie stärker
+Auftrag Lukas: A1 robuster machen (D11), Konzernforschung teurer (D10), mehr Forschung, Industrie prüfen, Goldbarren-Popup nur als Silhouette. Schritte 11 bis 13 in `docs/PLAN-ausbau-3wochen.md`.
+
+- **Goldbarren-Popup (Schritt 11)**: `.golden` ohne Hintergrund, Rahmen und box-shadow; Glow per `drop-shadow` an der Silhouette, Glanzstreifen per `mask` auf die Barrenform begrenzt, Fokus als blauer `drop-shadow` (`:focus-visible`). Button, aria-label und reduced-motion unverändert. Der Glanz ist nur als Standbild geprüft.
+- **Umfang (Schritt 12a)**: +13 Konzernforschungen (jetzt 125 Forschungen, davon 49 Konzern), +4 Boosts (43), +1 Klick-Upgrade (`asteroidpick`, 10). Letzte Forschung ist `c_cosmic` (Kosmische Schmiede). Neue Effektkonstanten in `js/data/timers.js` (`timeMult`, `offlineCapSeconds`).
+- **D10 Kosten**: Konzernforschungs-Kosten nach Konzernstufe skaliert (`CORP_COST_ORE` = 1 / 1 / 54 / 360 / 360 / 340 / 360 für Erz und Stahl, `CORP_COST_MAT` = 1 / 1 / 2 / 3 / 4 / 5 / 6 für Materialien, `js/data/research.js`). K4 mindestens 1e25 Erz, K7 mindestens 1e28 Erz. Test: Erzkosten je Stufe mindestens x5, Dauer <= 22000 s.
+- **D11/D12 Patente**: `corpGain = min( floor( sqrt(Gussformen / D) × (1 + 0,1 × c_gain) ), floor(capPerHour × Stunden seit der letzten Gründung) )` mit `CORP.divisor` = 1500 und `CORP.capPerHour` = 0,68 (zuerst 0,72, nach Nachmessung gesenkt). Ersetzt die lineare Formel (D4). Der Deckel zählt Offline-Zeit mit (`stats.corpRunTime`) und ist nicht umgehbar. Shop-Summe 351, K1 bis K7 = 10 / 30 / 70 / 135 / 210 / 290 / 351. Der Konzern-Reiter erklärt Wurzel und Deckel.
+- **D13 Industrie**: späte Stufen angehoben, A5 bis A8 = 1,20 / 1,25 / 1,35 / 1,50, B4 bis B7 = 1,15 / 1,20 / 1,25 / 1,35 (Produkt beider Leisten ca. x4,9 -> x10,9).
+- **Gemessene Zeiten** (`tools/balance-full.mjs`, aktive Spielzeit bis ALLES FREIGESCHALTET; nach Runde 2 neu gemessen, schnellste Spielweise 538,4 h, vom release-gatekeeper unabhängig mit 537,2 h reproduziert; release-gatekeeper Runde 2 am 2026-10-14: Freigabe 8/10, Unit 532/532): Bot `rate` (Gründung alle 40 h) **602,3 h** (Korridor 504 bis 700 h). K1 bis K7 bei 34 / 114 / 194 / 274 / 394 / 514 / 594 h, Zeitalter 6 / 7 / 8 bei 258 / 344 / 462 h, Superlegierung 527 h, Fördermenge A8 539 h. Letztes Tor ist überall der Konzern-Shop (K7).
+
+  | Spielweise | ALLES |
+  |---|---|
+  | Bot `rate`, Gründung alle 40 h | 602,3 h |
+  | `workHold`, `minRun` 15, `hold` 7200, Gründung alle 17,7 h (schnellste gefundene) | **538,4 h** |
+  | dieselbe Spielweise, Takt 14,7 h | 552,0 h |
+  | dieselbe Spielweise, Takt 12,5 h | 557,5 h |
+  | Bot, Gründung nur alle 80 h (nur Info) | 762,2 h |
+
+  Rechnerische Untergrenze: 351 / 0,68 = 516 h. A1 und D11 sind erfüllt (schnellste Spielweise >= 504 h, Bot <= 700 h). Frühere Stände zum Vergleich: Schritt 6 (linear 52.000) Bot 591,3 h, schnelle Spielweisen 319 bis 520 h.
+- **Einschränkungen**: A1 ist weiter nur für den Bot und einige gesuchte Spielweisen gemessen, kein echter Spieler. Sehr seltene Gründungen werden bestraft (80 h Takt: 762 h). Zeitalter 2 bis 5 (Schritt 6: 55 / 106 / 114 / 114 h mit Konzern) und die Zeit der Kobalt-Forschung wurden nach Runde 2 nicht neu gemessen. Offen laut Plan: Titan und Legierung in Konzernprozessen billig, Forschungskarte im Browser ungeprüft.
+- **UI offen (Stand Schritt 9, nicht neu geprüft)**: Einklapp-Zustand der Materialgruppen nicht gespeichert; Konzern-Ast zeigt K1 bis K7 als Knoten-Abzeichen statt Zwischenüberschriften; Kartenansicht nach "Konzernforschung öffnen" wird teils vom Auto-Fit überschrieben; E2E deckt Mobil-Layout des Konzern-Reiters, Chronik-Tabelle und v5-Import-Migration nicht ab.

@@ -3,14 +3,14 @@
 //
 //   node tools/e2e.mjs                 alles ausführen, langsam (Pausen, damit man zusehen kann)
 //   node tools/e2e.mjs --fast          ohne Pausen
-//   node tools/e2e.mjs --only=c,d,e    nur diese Szenarien (Buchstaben a..m); a (Neustart) läuft immer zuerst
+//   node tools/e2e.mjs --only=c,d,e    nur diese Szenarien (Buchstaben a..n); a (Neustart) läuft immer zuerst
 //   node tools/e2e.mjs --strict        WARN (visuelle Heuristiken) zählen als Fehler
 //   node tools/e2e.mjs --keep          am Ende NICHT auf einen frischen Spielstand zurücksetzen
 //
 // Umgebung: CDP_PORT (9222), GAME_URL (http://localhost:8080), E2E_PAUSE_MS (Pause je Schritt, Standard 700),
 //           E2E_DIR (Ordner für Sicherung/Screenshots/Ergebnis, Standard: <tmpdir>/eisenwerk-e2e)
 //
-// Ablauf: aktuellen localStorage sichern -> frischer Spielstand (Autosave aus, localStorage leeren, Reload) -> Szenarien a..m.
+// Ablauf: aktuellen localStorage sichern -> frischer Spielstand (Autosave aus, localStorage leeren, Reload) -> Szenarien a..n.
 // Exit-Code 1 bei mindestens einem FAIL. Der gesicherte Spielstand wird NICHT zurückgespielt.
 // Ist document.hidden true (Fenster nicht sichtbar), pausiert requestAnimationFrame; dann wird die Spielzeit über
 // __eisenwerk.timers.tick simuliert (im Bericht vermerkt).
@@ -528,7 +528,7 @@ await scenario('i', 'Speichern/Reload und Offline-Simulation', async () => {
     const st = await ev(`document.querySelector('#settings-root .status').textContent`);
     assert(st === 'Spielstand gespeichert.', 'Status: ' + st);
     const raw = await ev(`localStorage.getItem('eisenwerk-idle-save-v2')`);
-    assert(raw && JSON.parse(raw).v === 5, 'Kein v5-Spielstand im localStorage');
+    assert(raw && JSON.parse(raw).v === 6, 'Kein v6-Spielstand im localStorage');
     snap = await G('JSON.parse(JSON.stringify(state))');
   });
   await step('Reload: Ressourcen, Generatoren, Forschung, Queue-Reihenfolge und Timer erhalten', async () => {
@@ -668,12 +668,12 @@ await scenario('k', 'Export/Import Roundtrip', async () => {
   await tab('gens'); await realClick(card('gen', 'mine'), 3);
   let exported, snap;
   await tab('settings');
-  await step('Exportieren liefert gültigen Base64-Spielstand (v5)', async () => {
+  await step('Exportieren liefert gültigen Base64-Spielstand (v6)', async () => {
     await clickText('#settings-root', 'Exportieren');
     exported = await ev(`document.getElementById('set-export').value`);
     assert(exported.length > 100, 'Export leer');
     const parsed = JSON.parse(Buffer.from(exported, 'base64').toString('utf8'));
-    assert(parsed.v === 5 && parsed.state.prestige.points === 4 && parsed.state.gens.mine === 3, `Export-Inhalt: v=${parsed.v}, Gussformen=${parsed.state.prestige.points}, mine=${parsed.state.gens.mine}`);
+    assert(parsed.v === 6 && parsed.state.prestige.points === 4 && parsed.state.gens.mine === 3, `Export-Inhalt: v=${parsed.v}, Gussformen=${parsed.state.prestige.points}, mine=${parsed.state.gens.mine}`);
     snap = parsed.state;
   });
   await step('Stand ändern, Import per echter Texteingabe + Bestätigung: Zustand = Export', async () => {
@@ -883,6 +883,119 @@ await scenario('m', 'Performance: 30 s Laufzeit, DOM stabil, Partikel aufgeräum
     assert(await G('state.settings.particles') === true, 'Partikel nicht wieder aktiviert');
   });
   await step('Keine Konsolenfehler während des gesamten Laufs', async () => noNewErrors(errStart));
+});
+
+await scenario('n', 'Konzern-Reiter: Sperre, Gründen-Dialog, Shop, Auto-Neuguss', async () => {
+  // Zahlen kommen aus den Datenmodulen (Kalibrierung ändert sie noch), nicht aus dem Test
+  const D = await ev(`import('/js/data/corp.js').then(m => ({ unlock: m.CORP.unlockCount, divisor: m.CORP.divisor, shop: Object.fromEntries(m.CORP_SHOP.map(s => [s.id, s.costs ? s.costs[0] : Math.ceil(s.cost)])) }))`);
+  const SHOW = 25;   // Reiter erscheint ab Neuguss 25 (corp-common.js CORP_SHOW_AT, Entscheidung D6)
+  const prep = (count, total = 0) => G(`(Object.assign(state.prestige, { count: ${count}, total: ${total}, points: 0, shop: {}, history: [] }), state.corp = { points: 0, total: 0, count: 0, shop: {}, history: [] }, state.stats.corpRunTime = 36000,
+    state.autoCast = { on: false, mode: 'gain', value: 0 }, state.research = { geology: 1, c_cobalt: 1 }, state.gens.mine = 3, window.__eisenwerk.refresh(), true)`);
+  const tabState = () => ev(`(() => { const b = document.getElementById('tabbtn-corp'); return { hidden: b.hidden, disabled: b.getAttribute('aria-disabled') === 'true' }; })()`);
+  const snap = () => G('JSON.stringify({ g: state.gens, r: state.research, p: state.prestige, c: state.corp })');
+
+  await step(`Unter ${SHOW} Neugüssen ist der Konzern-Reiter nicht sichtbar`, async () => {
+    await tab('works');
+    await prep(SHOW - 1); await sleep(300);
+    const s = await tabState();
+    assert(s.hidden === true, 'Reiter sichtbar: ' + J(s));
+  });
+  await step(`Ab ${SHOW} Neugüssen: Reiter sichtbar, aber gesperrt; Panel zeigt Fortschritt statt Inhalt`, async () => {
+    await prep(SHOW); await sleep(300);
+    const s = await tabState();
+    assert(s.hidden === false && s.disabled === true, 'Reiter-Zustand: ' + J(s));
+    await tab('corp');
+    await sleep(300);
+    const p = await ev(`({ lock: !document.querySelector('#corp-root .corp-lock').hidden, main: !document.querySelector('#corp-root .corp-main').hidden, txt: document.querySelector('#corp-root .lock-count').textContent })`);
+    assert(p.lock && !p.main, 'Sperr-Box/Inhalt: ' + J(p));
+    assert(p.txt.includes(String(SHOW)) && p.txt.includes(String(D.unlock)), 'Fortschrittstext: ' + p.txt);
+    await shot('n-gesperrt');
+  });
+  await step(`Knapp unter der Schwelle (${D.unlock - 1} Neugüsse) bleibt gesperrt trotz vieler Gussformen`, async () => {
+    await prep(D.unlock - 1, D.divisor * 3); await sleep(300);
+    assert(await ev(`!document.querySelector('#corp-root .corp-lock').hidden`), 'Sperr-Box nicht sichtbar');
+    assert(await G('F.corpUnlocked()') === false, 'corpUnlocked trotz Sperre');
+  });
+
+  await prep(D.unlock, D.divisor * 9); await sleep(400);   // Wurzelformel: sqrt(9) = 3 Patente, Zeitdeckel 7 bei 10 h
+  await step('Schwelle erreicht: Inhalt sichtbar, Gründen-Knopf aktiv, Vorschau +3 Patente', async () => {
+    const p = await ev(`({ lock: document.querySelector('#corp-root .corp-lock').hidden, main: !document.querySelector('#corp-root .corp-main').hidden, dis: document.getElementById('corp-found').getAttribute('aria-disabled'), gain: document.querySelector('#corp-root .corp-gain').textContent })`);
+    assert(p.lock && p.main && p.dis === 'false', 'Zustand: ' + J(p));
+    assert(/\+3\b/.test(p.gain), 'Vorschau: ' + p.gain);
+    await shot('n-frei');
+  });
+  await step('Dialog: Abbrechen ändert nichts', async () => {
+    const before = await snap();
+    await realClick('#corp-found');
+    await waitFor(() => isVisible('dialog[open]'), 3000, 'Dialog offen');
+    await shot('n-dialog');
+    await realClick('dialog button[value="cancel"]');
+    await sleep(300);
+    assert(!(await isVisible('dialog[open]')), 'Dialog noch offen');
+    assert(await snap() === before, 'Zustand nach Abbrechen verändert');
+  });
+  await step('Dialog bestätigen: Patente gutgeschrieben, Lauf und normale Forschung weg, Konzernforschung und Neuguss-Zähler bleiben', async () => {
+    await realClick('#corp-found');
+    await waitFor(() => isVisible('dialog[open]'), 3000, 'Dialog offen');
+    await realClick('dialog button[value="ok"]');
+    await sleep(500);
+    const s = await G(`({ pts: state.corp.points, tot: state.corp.total, cnt: state.corp.count, hist: state.corp.history.length, gens: state.gens.mine, geo: !!state.research.geology, cob: !!state.research.c_cobalt,
+      gussformen: state.prestige.total, neu: state.prestige.count, shown: document.querySelector('#corp-root .corp-points').textContent })`);
+    assert(s.pts === 3 && s.tot === 3 && s.cnt === 1 && s.hist === 1, 'Patente: ' + J(s));
+    assert(s.gens === 0 && s.geo === false && s.gussformen === 0, 'Lauf nicht zurückgesetzt: ' + J(s));
+    assert(s.cob === true && s.neu === D.unlock, 'Konzernforschung/Zähler: ' + J(s));
+    assert(s.shown.includes('3'), 'Anzeige: ' + s.shown);
+    await shot('n-gegruendet');
+  });
+  await step('Zweite Gründung sofort danach nicht möglich (Knopf gesperrt)', async () => {
+    assert(await ev(`document.getElementById('corp-found').getAttribute('aria-disabled')`) === 'true', 'Knopf aktiv ohne Gussformen');
+  });
+  await step('Shop-Kauf per Klick: Kosten aus den Daten abgezogen, Stufe steigt; ohne Guthaben passiert nichts', async () => {
+    const cost = D.shop.c_eff;
+    await G(`(state.corp.points = ${cost - 1}, window.__eisenwerk.refresh(), true)`); await sleep(250);
+    await realClick('[data-corpshop="c_eff"]');
+    assert(await G('F.corpLevel("c_eff")') === 0, 'Kauf trotz fehlender Patente');
+    await G(`(state.corp.points = ${cost + 2}, window.__eisenwerk.refresh(), true)`); await sleep(250);
+    await realClick('[data-corpshop="c_eff"]');
+    await sleep(250);
+    const s = await G('({ lvl: F.corpLevel("c_eff"), pts: state.corp.points })');
+    assert(s.lvl === 1 && s.pts === 2, 'Nach Kauf: ' + J(s));
+    await shot('n-shop');
+  });
+  await step('Auto-Neuguss: vor dem Kauf verborgen, nach dem Kauf Schalter sichtbar und per Klick umschaltbar', async () => {
+    assert(await ev(`document.querySelector('#corp-root .autocast').hidden`) === true, 'Auto-Neuguss-Widget vor Kauf sichtbar');
+    await G(`(state.corp.points = ${D.shop.c_autocast}, window.__eisenwerk.refresh(), true)`); await sleep(250);
+    await realClick('[data-corpshop="c_autocast"]');
+    await sleep(250);
+    assert(await G('F.corpLevel("c_autocast")') === 1, 'c_autocast nicht gekauft');
+    assert(await isVisible('#corp-root .autocast'), 'Widget nach Kauf nicht sichtbar');
+    await realClick('#corp-root .autocast .switch');
+    await sleep(250);
+    assert(await G('state.autoCast.on') === true && await ev(`document.querySelector('#corp-root .autocast .switch').getAttribute('aria-checked')`) === 'true', 'Schalter an');
+    await realClick('#corp-root .autocast .seg[data-mode="time"]');
+    assert(await G('state.autoCast.mode') === 'time', 'Modus Zeit nicht gesetzt');
+    await realClick('#corp-root .autocast .seg[data-mode="gain"]');
+    await realClick('#corp-root .autocast .switch');
+    await sleep(250);
+    assert(await G('state.autoCast.on') === false, 'Schalter nicht wieder aus');
+    await shot('n-autocast');
+  });
+  await step('Auto-Neuguss löst bei laufendem Spiel aus (Gewinn-Modus, Vorgabe 1); Patente und Gründungszähler bleiben', async () => {
+    if (HIDDEN) return 'übersprungen: Fenster verborgen, Spielschleife pausiert (Logik in tests/corp.test.mjs)';
+    const pre = await G('({ n: state.prestige.count, corp: state.corp.count, pts: state.corp.points })');
+    await G(`(state.autoCast = { on: true, mode: 'gain', value: 1 }, state.stats.run.ore = 1e12, state.stats.runTime = 600, true)`);
+    await waitFor(async () => (await G('state.prestige.count')) > pre.n, 6000, 'automatischer Neuguss');
+    const post = await G('({ n: state.prestige.count, corp: state.corp.count, pts: state.corp.points })');
+    assert(post.corp === pre.corp && post.pts === pre.pts, 'Konzern verändert: ' + J(post));
+    await G('(state.autoCast.on = false, true)');
+  });
+  await step('Konzernstand überlebt Speichern + Reload', async () => {
+    await G('(state.settings.autosave = true, window.__eisenwerk.save(), true)');
+    const exp = await G('JSON.stringify({ c: state.corp, a: state.autoCast })');
+    await reload();
+    assert(await G('JSON.stringify({ c: state.corp, a: state.autoCast })') === exp, 'Konzernstand nach Reload anders');
+  });
+  await step('Keine Konsolenfehler im Konzern-Szenario', async () => noNewErrors(errStart));
 });
 
 // ---------- Abschluss ----------

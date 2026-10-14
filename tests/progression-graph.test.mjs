@@ -58,9 +58,9 @@ describe('Fortschrittsgraph: Erreichbarkeit', () => {
 
 describe('Konzern-Inhalte (Ausbau 2)', () => {
   const { R, P } = fixpoint();
-  test('Umfang laut Design: 112 Forschungen (36 Konzern), 39 Boosts, 9 Klick-Upgrades, 21 Generatoren, 19 Materialien, 10 Rezepte', () => {
-    assert.equal(RESEARCH.length, 112); assert.equal(RESEARCH.filter(r => r.corp).length, 36);
-    assert.equal(BOOSTS.length, 39); assert.equal(CLICKS.length, 9); assert.equal(GENS.length, 21);
+  test('Umfang laut Design: 125 Forschungen (49 Konzern), 43 Boosts, 10 Klick-Upgrades, 21 Generatoren, 19 Materialien, 10 Rezepte', () => {
+    assert.equal(RESEARCH.length, 125); assert.equal(RESEARCH.filter(r => r.corp).length, 49);
+    assert.equal(BOOSTS.length, 43); assert.equal(CLICKS.length, 10); assert.equal(GENS.length, 21);
     assert.equal(RES_IDS.length, 19); assert.equal(RECIPES.length, 10);
   });
   test('corp ist 1..7; eine Forschung ist nie früher freigeschaltet als ihre Voraussetzung (Konzernstufe und Zeitalter)', () => {
@@ -90,11 +90,22 @@ describe('Konzern-Inhalte (Ausbau 2)', () => {
     const sum = CORP_SHOP.reduce((a, it) => a + (it.costs ? it.costs.reduce((x, y) => x + y, 0) : Array.from({ length: it.max }, (_, l) => Math.ceil(it.cost * it.growth ** l)).reduce((x, y) => x + y, 0)), 0);
     assert.equal(sum, CORP_MILESTONES.at(-1).at);
   });
-  test('Konzernforschung: Kosten steigen mit der Konzernstufe (größter Posten), Dauer bis ca. 4,5 h', () => {
-    const maxCost = r => Math.max(...Object.values(r.cost));
-    const minBy = k => Math.min(...RESEARCH.filter(r => r.corp === k).map(maxCost));
-    for (let k = 2; k <= 7; k++) assert.ok(minBy(k) > minBy(k - 1), 'Staffelung K' + k);
-    for (const r of RESEARCH.filter(r => r.corp)) assert.ok(r.time >= 1000 && r.time <= 17000, r.id);
+  test('Konzernforschung: Erzkosten steigen je Konzernstufe mindestens um Faktor 5 (D10), Dauer bis 6 h', () => {
+    const minBy = k => Math.min(...RESEARCH.filter(r => r.corp === k).map(r => r.cost.ore));
+    for (let k = 2; k <= 7; k++) assert.ok(minBy(k) >= 5 * minBy(k - 1), `Staffelung K${k}: ${minBy(k)} vs ${minBy(k - 1)}`);
+    assert.ok(minBy(7) >= 1e28 && minBy(4) >= 1e25, 'Spätspiel kostet spürbar Produktion');
+    for (const r of RESEARCH.filter(r => r.corp)) assert.ok(r.time >= 1000 && r.time <= 22000, r.id);
+  });
+  test('neue Konzernforschungen (Ausbau 3): je Stufe teurer und länger als die ältere Forschung desselben Materials, Tor nie vor den Eltern', () => {
+    const NEW = ['c_carbide_c', 'c_cobalt_c', 'c_night', 'c_platin_c', 'c_lab3', 'c_atomic', 'c_vanadium_c', 'c_iridium_c', 'c_asteroid', 'c_drones', 'c_super_c', 'c_proc_8', 'c_cosmic'];
+    const m = Object.fromEntries(RESEARCH.map(r => [r.id, r]));
+    for (const id of NEW) {
+      const r = m[id], old = RESEARCH.filter(o => o.corp === r.corp && !NEW.includes(o.id));
+      assert.ok(r.corp >= 4, id);
+      assert.ok(r.cost.ore > Math.max(...old.map(o => o.cost.ore)), id + ' Erzkosten');
+      assert.ok(r.time > Math.min(...old.map(o => o.time)), id + ' Dauer');
+    }
+    assert.deepEqual(RESEARCH.filter(r => r.corp && r.time === Math.max(...RESEARCH.map(x => x.time))).map(r => r.id), ['c_cosmic']);
   });
 });
 

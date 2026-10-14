@@ -114,6 +114,6 @@ export function renderAutobuyers() {
     setAttr(btn, 'aria-disabled', !unlocked);
     setClass(btn, 'locked', !unlocked);
     setClass(btn, 'on', on);
-    setText(status, unlocked ? (on ? t('An') : t('Aus')) : t('Gesperrt (Hochofen-Shop)'));
+    setText(status, unlocked ? (on ? t('An') : t('Aus')) : t('Gesperrt (Hochofen-Shop oder Konzern-Automatisierung)'));
   }
 }

@@ -4,7 +4,7 @@ import { BOOSTS } from './upgrades.js';
 import { INDUSTRY_TRACKS } from './industry.js';
 
 const ACH = [];
-const fmtBig = n => (n >= 1e15 ? `10^${Math.round(Math.log10(n))}` : n.toLocaleString('de-DE'));
+const fmtBig = n => n.toLocaleString('de-DE');   // einheitlich mit Tausenderpunkt (auch 1e15, 1e20)
 // Emoji (Fallback) -> Symbol-ID im Sprite assets/sprites/items.svg
 const SYM = { '👆': 'finger', '🪨': 'rock', '🏭': 'factory', '⭐': 'star', '🔩': 'nut', '💎': 'gem', '⚫': 'coal', '🟫': 'brick', '🟧': 'ingot', '🔗': 'chain', '🧿': 'target',
   '🥇': 'medal', '🔬': 'microscope', '🧠': 'brain', '🚀': 'rocket', '⏱️': 'stopwatch', '🔥': 'flame', '🌟': 'sparkle', '⏳': 'hourglass',
@@ -21,7 +21,7 @@ const researchCount = s => Object.keys(s.research).length;
   .forEach(([n, name], i) => add('ore_' + n, '🪨', name, `Produziere insgesamt ${fmtBig(n)} Erz.`, 0.01 * (i + 1), s => s.stats.total.ore >= n));
 
 [[10, 'Kleiner Betrieb'], [50, 'Werkshalle'], [150, 'Industriepark'], [400, 'Konzern'], [1000, 'Weltkonzern']]
-  .forEach(([n, name], i) => add('gens_' + n, '🏭', name, `Besitze insgesamt ${n} Generator-Stufen.`, 0.01 * (i + 1), s => sumGens(s) >= n));
+  .forEach(([n, name], i) => add('gens_' + n, '🏭', name, `Besitze insgesamt ${fmtBig(n)} Generator-Stufen.`, 0.01 * (i + 1), s => sumGens(s) >= n));
 
 [[10, 'Elite-Stufe'], [25, 'Präziser Takt'], [50, 'Meisterbetrieb'], [100, 'Hundertschaft']]
   .forEach(([n, name], i) => add('level_' + n, '⭐', name, `Bringe einen Generator auf Stufe ${n}.`, 0.01 * (i + 1), s => maxGen(s) >= n));

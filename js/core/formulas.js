@@ -2,7 +2,7 @@
 import { state } from './state.js';
 import { t, tName } from './i18n.js';
 import { RES, RES_IDS } from '../data/resources.js';
-import { QUEUES, queueIdOf, SPEED_SHOP, SPEED_PER_LEVEL, AUTOMATION_RESEARCH, AUTOMATION_MULT, LAB2_RESEARCH, LAB2_MULT, MIN_DURATION } from '../data/timers.js';
+import { QUEUES, queueIdOf, SPEED_SHOP, SPEED_PER_LEVEL, AUTOMATION_RESEARCH, AUTOMATION_MULT, LAB2_RESEARCH, LAB2_MULT, LAB3_RESEARCH, LAB3_MULT, NIGHT_RESEARCH, NIGHT_HOURS, MIN_DURATION } from '../data/timers.js';
 import { GENS, GEN_MAP, genTier, tierName, tierPips, MILESTONE_STEP, ELITE_FROM, ELITE_GROWTH, MAX_LEVEL, EXTRA_MILESTONES } from '../data/generators.js';
 import { CLICKS, CLICK_MAP, BOOSTS, BOOST_MAP } from '../data/upgrades.js';
 import { RESEARCH, RESEARCH_MAP } from '../data/research.js';
@@ -106,8 +106,16 @@ export const corpCost = id => {
 };
 /** Konzern-Reiter nutzbar: ab CORP.unlockCount Neugüssen (prestige.count bleibt über die Gründung erhalten). */
 export const corpUnlocked = () => (state.prestige?.count || 0) >= CORP.unlockCount;
-/** Patente bei einer Gründung jetzt: floor(Gussformen im Konzernlauf / divisor × (1 + 0,1 × c_gain)). */
-export const corpGain = (gc = state.prestige.total) => Math.floor(safe(gc / CORP.divisor * (1 + 0.1 * corpLevel('c_gain'))) + 1e-9);
+/**
+ * Patente bei einer Gründung (D12): min(raw, cap). raw = floor(sqrt(Gussformen im Konzernlauf / D) × (1 + 0,1 × c_gain)),
+ * cap = floor(CAP × Stunden seit der letzten Gründung). Rein; sec = stats.corpRunTime. Einzige Quelle für Gründung, Vorschau und Ziele.
+ */
+export function corpGainParts(gc = state.prestige.total, sec = state.stats.corpRunTime) {
+  const raw = Math.floor(safe(Math.sqrt(Math.max(0, gc) / CORP.divisor) * (1 + 0.1 * corpLevel('c_gain'))) + 1e-9);
+  const cap = Math.floor(safe(CORP.capPerHour * Math.max(0, sec) / 3600) + 1e-9);
+  return { raw, cap, capped: cap < raw, gain: Math.min(raw, cap) };
+}
+export const corpGain = (gc, sec) => corpGainParts(gc, sec).gain;
 /** Konzernstufe 0..7 (erreichte Schwellen in corp.total). */
 export const corpStage = (total = state.corp?.total || 0) => CORP_MILESTONES.filter(m => total >= m.at).length;
 export function corpMult(total = state.corp?.total || 0) {
@@ -304,7 +312,7 @@ export const reqList = req => (req == null ? [] : Array.isArray(req) ? req : [re
 export const queueSlots = q => QUEUES[q].slots + shopLevel(QUEUES[q].slotShop);
 export const queueCapacity = q => queueSlots(q) + QUEUES[q].waiting;
 /** Faktor auf alle Dauern: Shop 'Zeitraffer', Forschung 'Laborautomatisierung' (und II, Konzern). */
-export const timeMult = () => SPEED_PER_LEVEL ** shopLevel(SPEED_SHOP) * (state.research[AUTOMATION_RESEARCH] ? AUTOMATION_MULT : 1) * (state.research[LAB2_RESEARCH] ? LAB2_MULT : 1);
+export const timeMult = () => SPEED_PER_LEVEL ** shopLevel(SPEED_SHOP) * (state.research[AUTOMATION_RESEARCH] ? AUTOMATION_MULT : 1) * (state.research[LAB2_RESEARCH] ? LAB2_MULT : 1) * (state.research[LAB3_RESEARCH] ? LAB3_MULT : 1);
 
 /** Dauer in Sekunden vor Zeitverkürzung; Klick-Upgrades wachsen mit ihrer Stufe. */
 export function baseTime(kind, id, lvl = levelOf(kind, id)) {
@@ -481,7 +489,7 @@ export const startOre = () => {
   const l = shopLevel('start');
   return l > 0 ? 500 * 3 ** (l - 1) : 0;
 };
-export const offlineCapSeconds = () => (8 + 2 * shopLevel('offline') + 4 * corpLevel('c_offline')) * 3600;
+export const offlineCapSeconds = () => (8 + 2 * shopLevel('offline') + 4 * corpLevel('c_offline') + (state.research[NIGHT_RESEARCH] ? NIGHT_HOURS : 0)) * 3600;
 
 // ---------- Auto-Buyer ----------
 /** Hochofen-Shop-Kauf oder Konzern-Automatisierung (c_auto: Stufe n schaltet die ersten n Auto-Buyer in Listenreihenfolge frei). */

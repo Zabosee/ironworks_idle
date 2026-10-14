@@ -1,9 +1,9 @@
 // Konzern-Reiter (2. Reset-Ebene): Sperrzustand, Kopf, Gründen mit Vorschau und Bestätigung, Konzern-Shop, Konzernstufen, Zugang zur Konzernforschung, Chronik.
 // DOM einmal gebaut, renderCorp() (ca. 10x/s, nur bei aktivem Reiter) ändert nur Text, Klassen und Füllstände.
 import { state } from '../core/state.js';
-import { fmt, fmtInt, fmtTime } from '../core/format.js';
+import { fmt, fmtInt, fmtTime, fmtEta } from '../core/format.js';
 import { t, tName, tDesc, locale } from '../core/i18n.js';
-import { corpGain, corpStage, corpMult, corpLevel, corpCost, corpUnlocked, heirFloor } from '../core/formulas.js';
+import { corpGain, corpGainParts, corpStage, corpMult, corpLevel, corpCost, corpUnlocked, heirFloor } from '../core/formulas.js';
 import { CORP, CORP_SHOP, CORP_MILESTONES, CORP_HISTORY_MAX } from '../data/corp.js';
 import { RESEARCH } from '../data/research.js';
 import { canCorp, doCorp, buyCorpShop } from '../systems/corp.js';
@@ -30,16 +30,20 @@ const setBar = (b, frac, text) => {
 export function corpThreshold(gain) {
   if (gain <= 0) return 0;
   const m = 1 + 0.1 * corpLevel('c_gain');
-  let g = Math.max(0, Math.ceil((gain - 1e-9) * CORP.divisor / m));
-  while (corpGain(g) < gain) g++;
-  while (g > 0 && corpGain(g - 1) >= gain) g--;
+  let g = Math.max(0, Math.ceil(((gain - 1e-9) / m) ** 2 * CORP.divisor));
+  while (corpGainParts(g).raw < gain) g++;   // ohne Zeitdeckel: Schwelle in Gussformen
+  while (g > 0 && corpGainParts(g - 1).raw >= gain) g--;
   return g;
 }
+
+const capText = (pv, sec) => t('Gedeckelt: höchstens {cap} Patente nach {time} Konzernlauf (ohne Deckel {raw}).', { cap: fmtInt(pv.cap), time: fmtTime(Math.floor(sec / 60) * 60), raw: fmtInt(pv.raw) });
+/** Sekunden Konzernlauf, ab denen der Zeitdeckel mindestens g Patente erlaubt. */
+const capSecFor = g => Math.ceil(g / CORP.capPerHour * 3600 - 1e-6);
 
 /** Daten für Vorschau und Dialog (rein, ohne DOM). */
 export function foundPreview() {
   const gain = corpGain(), total = state.corp.total + gain, stage = corpStage(total);
-  return { gain, total, stage, newStage: stage > corpStage() ? stage : 0, heir: heirFloor() };
+  return { ...corpGainParts(), gain, total, stage, newStage: stage > corpStage() ? stage : 0, heir: heirFloor() };
 }
 
 // ---------- Bestätigungsdialog ----------
@@ -54,8 +58,9 @@ function askFound(pv) {
     const dlg = h('dialog', { class: 'dialog dialog-corp', 'aria-labelledby': 'dlg-corp-title' },
       h('form', { method: 'dialog' },
         h('h2', { id: 'dlg-corp-title', text: t('Konzern gründen?') }),
-        h('p', { class: 'dlg-gain', text: t('+{gain} {currency} (gesamt {total}, Konzernstufe K{stage})', { gain: fmtInt(pv.gain), currency: t(CORP.currency), total: fmtInt(pv.total), stage: pv.stage }) }),
+        h('p', { class: 'dlg-gain', text: t(pv.gain === 1 ? '+{gain} Patent (gesamt {total}, Konzernstufe K{stage})' : '+{gain} Patente (gesamt {total}, Konzernstufe K{stage})', { gain: fmtInt(pv.gain), total: fmtInt(pv.total), stage: pv.stage }) }),
         h('div', { class: 'dlg-cols' }, col('lost', 'cancel', t('Geht verloren'), lost), col('kept', 'check', t('Bleibt'), kept)),
+        pv.capped ? h('p', { class: 'hint dlg-cap', text: capText(pv, state.stats.corpRunTime) }) : null,
         pv.heir > 0 ? h('p', { class: 'hint', text: t('Hochofen-Erbe stellt wieder her: Gussformen-Stand {n} für Multiplikator und Meilensteine.', { n: fmtInt(pv.heir) }) }) : null,
         h('div', { class: 'dialog-actions' },
           h('button', { class: 'btn', type: 'submit', value: 'cancel', text: t('Abbrechen') }),
@@ -88,7 +93,7 @@ export function buildCorp() {
     cv.lockBar.el, cv.lockText,
     h('h3', { text: t('Das erwartet dich') }),
     h('ul', { class: 'expect' },
-      [['patent', t('Patente als zweite Währung')], ['microscope', t('Konzernforschung: 36 dauerhafte Forschungen')], ['variety', t('7 neue Materialien')], ['autocast', t('Auto-Neuguss')]]
+      [['patent', t('Patente als zweite Währung')], ['microscope', t('Konzernforschung: {n} dauerhafte Forschungen', { n: CORP_RESEARCH.length })], ['variety', t('7 neue Materialien')], ['autocast', t('Auto-Neuguss')]]
         .map(([s, text]) => h('li', {}, symSvg(s), ' ' + text))));
 
   // Kopf
@@ -106,6 +111,7 @@ export function buildCorp() {
   cv.gain = h('strong', { class: 'corp-gain' });
   cv.hint = h('p', { class: 'hint' });
   cv.jump = h('p', { class: 'corp-jump' });
+  cv.cap = h('p', { class: 'hint corp-cap' });
   cv.foundBar = bar(t('Fortschritt zur nächsten Patente'));
   cv.btnT = h('span');
   cv.btn = h('button', { class: 'btn btn-primary btn-big', type: 'button', id: 'corp-found' }, symSvg('corp'), ' ', cv.btnT);
@@ -113,7 +119,8 @@ export function buildCorp() {
   const found = h('div', { class: 'panel-box' },
     h('h2', { text: t('Gründen') }),
     h('p', { text: t('Setze den Konzernlauf zurück und erhalte Patente. Patente erhöhen die Produktion dauerhaft und werden im Konzern-Shop ausgegeben.') }),
-    h('p', { class: 'corp-gain-row' }, cv.gain), cv.hint, cv.foundBar.el, cv.jump, cv.btn);
+    h('p', { class: 'hint', text: t('Patente wachsen mit der Wurzel der Gussformen; höchstens {rate} Patente je Stunde Konzernlauf.', { rate: fmt(CORP.capPerHour) }) }),
+    h('p', { class: 'corp-gain-row' }, cv.gain), cv.hint, cv.cap, cv.foundBar.el, cv.jump, cv.btn);
 
   // Konzernstufen K1 bis K7
   cv.ms = CORP_MILESTONES.map((m, i) => {
@@ -205,13 +212,19 @@ export function renderCorp() {
   const pat = 1 + c.total * CORP.perPoint * (1 + 0.2 * corpLevel('c_eff'));
   setText(cv.bonus, t('Patente-Bonus ×{a} · Konzernstufen ×{b}', { a: fmt(pat), b: fmt(corpMult() / pat) }));
   // Gründen
-  const gain = corpGain(), run = state.prestige.total, at = corpThreshold(gain + 1), from = corpThreshold(gain);
-  setText(cv.gain, gain >= 1 ? t('Du erhältst +{gain} {currency}', { gain: fmtInt(gain), currency: t(CORP.currency) }) : t('Noch keine Patente'));
-  setText(cv.hint, gain >= 1
-    ? t('Nächste Patente bei {at} Gussformen im Lauf (aktuell {cur}).', { at: fmtInt(at), cur: fmtInt(run) })
-    : t('Noch {n} Gussformen bis zur ersten Patente.', { n: fmtInt(Math.max(0, at - run)) }));
-  setBar(cv.foundBar, Math.min(1, Math.max(0, (run - from) / Math.max(at - from, 1))), t('Gussformen {cur} von {at}', { cur: fmtInt(run), at: fmtInt(at) }));
-  const pv = foundPreview();
+  const pv = foundPreview(), { gain, capped } = pv, run = state.prestige.total, sec = state.stats.corpRunTime;
+  const at = corpThreshold(gain + 1), from = corpThreshold(gain);
+  const tAt = capSecFor(gain + 1), tFrom = gain >= 1 ? capSecFor(gain) : 0;
+  setText(cv.gain, gain >= 1 ? t(gain === 1 ? 'Du erhältst +{gain} Patent' : 'Du erhältst +{gain} Patente', { gain: fmtInt(gain) }) : t('Noch keine Patente'));
+  setText(cv.hint, capped
+    ? t(gain >= 1 ? 'Nächstes Patent durch Zeit in {time}.' : 'Erstes Patent durch Zeit in {time}.', { time: fmtEta(tAt - sec) })
+    : gain >= 1
+      ? t('Nächste Patente bei {at} Gussformen im Lauf (aktuell {cur}).', { at: fmtInt(at), cur: fmtInt(run) })
+      : t('Noch {n} Gussformen bis zum ersten Patent.', { n: fmtInt(Math.max(0, at - run)) }));
+  setText(cv.cap, capped ? capText(pv, sec) : '');
+  cv.cap.hidden = !capped;
+  if (capped) setBar(cv.foundBar, Math.min(1, Math.max(0, (sec - tFrom) / Math.max(tAt - tFrom, 1))), t('Konzernlauf {cur} von {at}', { cur: fmtTime(sec), at: fmtTime(tAt) }));
+  else setBar(cv.foundBar, Math.min(1, Math.max(0, (run - from) / Math.max(at - from, 1))), t('Gussformen {cur} von {at}', { cur: fmtInt(run), at: fmtInt(at) }));
   setText(cv.jump, gain >= 1 && pv.newStage ? t('Erreicht Konzernstufe K{n}: {desc}', { n: pv.newStage, desc: t(CORP_MILESTONES[pv.newStage - 1].desc) }) : '');
   setText(cv.btnT, gain >= 1 ? t('Konzern gründen') : t('Noch nicht möglich'));
   setAttr(cv.btn, 'aria-disabled', gain < 1);
@@ -228,7 +241,7 @@ export function renderCorp() {
     setText(k.t, tName('corpShop', it));
     setText(k.b, it.max > 1 ? t('Stufe {lvl}/{max}', { lvl, max: it.max }) : (maxed ? t('Gekauft') : ''));
     setText(k.d, tDesc('corpShop', it));
-    setNote(k, maxed ? t('Max') : can ? '' : t('Es fehlen {n} Patente', { n: fmtInt(cost - c.points) }), maxed ? 'check' : 'lock');
+    setNote(k, maxed ? t('Max') : can ? '' : t(cost - c.points === 1 ? 'Es fehlt {n} Patent' : 'Es fehlen {n} Patente', { n: fmtInt(cost - c.points) }), maxed ? 'check' : 'lock');
     setCost(k.c, maxed ? [] : [{ text: `${fmtInt(cost)} ${t(CORP.currency)}`, sym: 'patent', name: t(CORP.currency), ok: can }]);
     setAttr(k.el, 'aria-disabled', !can);
     setClass(k.el, 'can', can);

@@ -127,6 +127,19 @@ export const RESEARCH_COORDS = {
   c_super_b: { x: -1275, y: 2295 },
   c_proc_7: { x: -1785, y: 2295 },
   c_charta: { x: -1530, y: 2295 },
+  c_carbide_c: { x: -2550, y: 1020 },
+  c_cobalt_c: { x: -2550, y: 510 },
+  c_night: { x: -510, y: 1530 },
+  c_platin_c: { x: -2550, y: 1530 },
+  c_lab3: { x: -255, y: 1275 },
+  c_atomic: { x: -1785, y: 1785 },
+  c_vanadium_c: { x: -1020, y: 2040 },
+  c_iridium_c: { x: -2040, y: 1785 },
+  c_asteroid: { x: -1785, y: 2040 },
+  c_drones: { x: -2040, y: 2040 },
+  c_super_c: { x: -1275, y: 2550 },
+  c_proc_8: { x: -1785, y: 2550 },
+  c_cosmic: { x: -1530, y: 2550 },
 };
 
 for (const id of Object.keys(RESEARCH_MAP)) {

@@ -13,11 +13,11 @@ beforeEach(() => reset());
 const track = id => F.industryProgress().find(t => t.id === id);
 
 describe('Industrie-Leisten: Daten', () => {
-  test('Fördermenge 8 Stufen (Produkt ca. 2,04), Materialvielfalt 7 Stufen (Produkt ca. 2,2), Schwellen steigend, Boni > 1', () => {
+  test('Fördermenge 8 Stufen (Produkt ca. 3,87), Materialvielfalt 7 Stufen (Produkt ca. 2,82), Schwellen steigend, Boni > 1', () => {
     const [a, b] = INDUSTRY_TRACKS;
     assert.equal(a.steps.length, 8); assert.equal(b.steps.length, 7);
-    assert.ok(Math.abs(a.steps.reduce((m, s) => m * s.mult, 1) - 2.04) < 0.01);
-    assert.ok(Math.abs(b.steps.reduce((m, s) => m * s.mult, 1) - 2.2) < 0.01);
+    assert.ok(Math.abs(a.steps.reduce((m, s) => m * s.mult, 1) - 3.87) < 0.01);
+    assert.ok(Math.abs(b.steps.reduce((m, s) => m * s.mult, 1) - 2.82) < 0.01);
     for (const t of INDUSTRY_TRACKS) t.steps.forEach((s, i) => { assert.ok(s.mult > 1); if (i) assert.ok(s.at > t.steps[i - 1].at); });
   });
   test('Erreichbarkeit: B1-B3 mit den 12 Grundmaterialien; B4-B7 zählen die 7 Konzern-Materialien (19 gesamt)', () => {

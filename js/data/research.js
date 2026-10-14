@@ -141,6 +141,28 @@ export const RESEARCH = [
   r('c_proc_6', '📊', 'Konzernprozess VI', '+5 % aller Materialien.', { ore: 5e24, steel: 1.3e25, titan: 4.7e16, alloy: 2e15 }, 9680, 'tech', 'all', { corp: 6, req: ['c_proc_5'], mult: { all: 1.05 }, sym: 'chart' }),
   r('c_super_b', '🔷', 'Superlegierungs-Veredelung II', '+12 % Superlegierungsproduktion.', { ore: 5.6e25, steel: 1.4e26, superalloy: 1.1e13 }, 10840, 'chem', 'superalloy', { corp: 7, era: 7, req: ['c_super_a'], mult: { superalloy: 1.12 }, sym: 'superalloy' }),
   r('c_proc_7', '📊', 'Konzernprozess VII', '+5 % aller Materialien.', { ore: 5.6e25, steel: 1.4e26, titan: 4.1e17, alloy: 1.8e16 }, 13550, 'tech', 'all', { corp: 7, req: ['c_proc_6'], mult: { all: 1.05 }, sym: 'chart' }),
-  r('c_charta', '🏢', 'Weltkonzern-Charta', '+50 % Produktion aller Materialien. Letzte Forschung des Spiels.', { ore: 5.6e25, steel: 1.4e26, platinum: 4.1e13, iridium: 2e13, superalloy: 8.2e12 }, 16260, 'tech', 'all', { corp: 7, era: 8, req: ['c_orbital', 'c_super_b', 'c_proc_7'], mult: { all: 1.5 }, sym: 'corp' }),
+  r('c_charta', '🏢', 'Weltkonzern-Charta', '+50 % Produktion aller Materialien.', { ore: 5.6e25, steel: 1.4e26, platinum: 4.1e13, iridium: 2e13, superalloy: 8.2e12 }, 16260, 'tech', 'all', { corp: 7, era: 8, req: ['c_orbital', 'c_super_b', 'c_proc_7'], mult: { all: 1.5 }, sym: 'corp' }),
+  // Konzernforschung Ausbau 3 (Runde 2, Spätspiel K4-K7): längere Dauern und höhere Basiskosten (je ca. 1,5x Erz/Stahl) als die Forschungen der gleichen Stufe.
+  // Kosten stehen wie oben auf der Basisskala; die Stufenfaktoren (CORP_COST_ORE/MAT) unten skalieren alle Konzernforschungen.
+  r('c_carbide_c', '🔶', 'Sinteroptimierung III', '+15 % Hartmetallproduktion.', { ore: 4.5e22, steel: 1.1e23, carbide: 4e11, molybdenum: 3e11 }, 4700, 'chem', 'carbide', { corp: 4, req: ['c_carbide_b'], mult: { carbide: 1.15 }, sym: 'carbide' }),
+  r('c_cobalt_c', '🔵', 'Kobalt-Verbundanlage', '+20 % Kobalt- und Molybdänproduktion.', { ore: 4.5e22, steel: 1.1e23, cobalt: 1.5e11, molybdenum: 1.2e11 }, 5200, 'chem', 'cobalt', { corp: 4, req: ['c_cobalt_b'], mult: { cobalt: 1.2, molybdenum: 1.2 }, sym: 'cobalt' }),
+  r('c_night', '🌙', 'Konzern-Schichtbetrieb', 'Maximaler Offline-Ertrag +2 Stunden.', { ore: 4.5e22, steel: 1.1e23, gold: 6e11, vanadium: 1.5e11 }, 7200, 'tech', 'all', { corp: 4, req: ['c_lab2'], sym: 'moon' }),
+  r('c_platin_c', '⚪', 'Platin-Raffination III', '+15 % Platinproduktion.', { ore: 4.5e23, steel: 1.1e24, platinum: 3e11, gold: 2e12 }, 6400, 'chem', 'platinum', { corp: 5, req: ['c_platin_b'], mult: { platinum: 1.15 }, sym: 'platinum' }),
+  r('c_lab3', '🛠️', 'Laborautomatisierung III', 'Forschungs- und Werkbank-Zeiten dauern weitere 10 % kürzer.', { ore: 4.5e23, steel: 1.1e24, gold: 5e12, vanadium: 1e12, iridium: 3e11 }, 11000, 'tech', 'all', { corp: 5, era: 6, req: ['c_lab2'], sym: 'hourglass' }),
+  r('c_atomic', '⚛️', 'Atomlagen-Abscheidung', '+10 % Produktion aller Materialien.', { ore: 4.5e23, steel: 1.1e24, iridium: 4e11, platinum: 6e11, gold: 4e12 }, 9500, 'tech', 'all', { corp: 5, era: 6, req: ['c_quantum'], mult: { all: 1.1 }, sym: 'nanogrid' }),
+  r('c_vanadium_c', '🟢', 'Vanadium-Aufschluss III', '+15 % Vanadiumproduktion.', { ore: 7.5e24, steel: 2e25, vanadium: 3e12, molybdenum: 5e12 }, 8500, 'chem', 'vanadium', { corp: 6, req: ['c_vanadium_b'], mult: { vanadium: 1.15 }, sym: 'vanadium' }),
+  r('c_iridium_c', '💠', 'Iridium-Reinigung III', '+15 % Iridiumproduktion.', { ore: 7.5e24, steel: 2e25, iridium: 6e12, platinum: 6e12 }, 9500, 'chem', 'iridium', { corp: 6, era: 7, req: ['c_iridium_b'], mult: { iridium: 1.15 }, sym: 'iridium' }),
+  r('c_asteroid', '☄️', 'Asteroidenbergbau', '+50 % Erzproduktion.', { ore: 7.5e24, steel: 2e25, gold: 6e13, platinum: 8e12, superalloy: 1.5e12 }, 15000, 'mining', 'ore', { corp: 6, era: 7, req: ['c_orbital'], mult: { ore: 1.5 }, sym: 'rocket' }),
+  r('c_drones', '🛰️', 'Prospektor-Drohnen', 'Klickwert ×2, Autoklick-Ertrag ×1,5. Schaltet die Asteroiden-Spitzhacke frei.', { ore: 7.5e24, steel: 2e25, platinum: 8e12, iridium: 6e12, superalloy: 1.2e12 }, 13500, 'tech', 'ore', { corp: 6, era: 7, req: ['c_asteroid'], mult: { click: 2, autoclick: 1.5 }, sym: 'robot' }),
+  r('c_super_c', '🔷', 'Superlegierungs-Veredelung III', '+15 % Superlegierungsproduktion.', { ore: 8.4e25, steel: 2.1e26, superalloy: 2e13, platinum: 7e13 }, 16500, 'chem', 'superalloy', { corp: 7, era: 8, req: ['c_super_b'], mult: { superalloy: 1.15 }, sym: 'superalloy' }),
+  r('c_proc_8', '📊', 'Konzernprozess VIII', '+5 % aller Materialien.', { ore: 8.4e25, steel: 2.1e26, titan: 8e17, alloy: 3e16 }, 15500, 'tech', 'all', { corp: 7, req: ['c_proc_7'], mult: { all: 1.05 }, sym: 'chart' }),
+  r('c_cosmic', '⭐', 'Kosmische Schmiede', '+25 % Produktion aller Materialien. Letzte Forschung des Spiels.', { ore: 8.4e25, steel: 2.1e26, platinum: 8e13, iridium: 4e13, superalloy: 2e13 }, 21600, 'tech', 'all', { corp: 7, era: 8, req: ['c_charta', 'c_super_c', 'c_proc_8'], mult: { all: 1.25 }, sym: 'cosmic' }),
 ];
+// Kostenskalierung der Konzernforschung (D10, Runde 2): Erz/Stahl = Minuten Erzproduktion der Spitzenrate (Bot-Neuguss, Median im Zeitfenster der Stufe)
+// zur Freischaltzeit; Faktor auf die Basiskosten oben. Alle anderen Posten (Materialien, Titan, Legierung) skalieren schwächer, weil die Netto-Raten der
+// Zwischenprodukte stark schwanken (Rezepte verbrauchen sie). Index = Konzernstufe - 1.
+export const CORP_COST_ORE = [1, 1, 54, 360, 360, 340, 360];
+export const CORP_COST_MAT = [1, 1, 2, 3, 4, 5, 6];
+const sig2 = v => Number(v.toPrecision(2));
+for (const x of RESEARCH) if (x.corp) for (const k in x.cost) x.cost[k] = sig2(x.cost[k] * (k === 'ore' || k === 'steel' ? CORP_COST_ORE : CORP_COST_MAT)[x.corp - 1]);
 export const RESEARCH_MAP = Object.fromEntries(RESEARCH.map(x => [x.id, x]));

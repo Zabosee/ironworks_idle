@@ -1,10 +1,13 @@
 // Balance-Simulation der Prestige-Schleife (tools/balance-sim.mjs): echte Module, gieriger Bot.
 // Prüft, dass alle Meilensteine gestaffelt erreichbar sind und der Shop bezahlbar bleibt.
+// Gemessene Werte (Schritt 6, dt 30 bzw. 8, Bot 'rate'): ohne Konzern 1. Neuguss 1,6 h, Zeitalter 1/2/3/4/5 bei 6,8/36/69/99/153 h, Hochofen-Meilenstein 10.000 bei 4,1 h, 250.000 bei 33,8 h;
+// mit Konzern (Schritt 13, hold 3600) Zeitalter 2/3/4/5 bei 54/101/119/137 h. Die Schranken lassen ca. 25 % Puffer. Der volle A1-Lauf (bis 'alles freigeschaltet', Bot 602 h) und die Spielweisen-Matrix liegen in tools/balance-full.mjs.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { simulate } from '../tools/balance-sim.mjs';
 import { MILESTONES, SHOP } from '../js/data/prestige.js';
 import { ERAS } from '../js/data/eras.js';
+import { CORP } from '../js/data/corp.js';
 
 const H = 3600;
 const at = (r, n) => r.milestones[n];
@@ -53,7 +56,7 @@ describe('Balance: Hochofen-Schleife', () => {
 });
 
 describe('Balance: Zeitalter-Progression', () => {
-  // Lange Simulation (bis Zeitalter 5, max. 14 Tage aktive Spielzeit, dt=30, ca. 2 Minuten Rechenzeit)
+  // Lange Simulation (bis Zeitalter 5, max. 14 Tage aktive Spielzeit, dt=30, ca. 1 Minute Rechenzeit)
   const eras = simulate({ hours: 336, dt: 30, policy: 'rate', frac: 1, stopAtEra: 5, corp: false });
   const hours = i => eras.eraTimes[i] / H;
 
@@ -79,16 +82,39 @@ describe('Balance: Zeitalter-Progression', () => {
     }
   });
 
-  test('Zeitalter 2-5 sind in endlicher Zeit erreichbar (obere Schranke je Zeitalter), jeder Schritt dauert mehrere Stunden', () => {
-    const upper = { 2: 100, 3: 180, 4: 240, 5: 336 };   // Stunden aktiver Spielzeit
+  test('Zeitalter 2-5 liegen in ihren Zeitfenstern (Industrie-Boni D7 eingerechnet), jeder Schritt dauert viele Stunden', () => {
+    const window = { 2: [25, 48], 3: [50, 90], 4: [75, 125], 5: [110, 190] };   // Stunden aktiver Spielzeit (gemessen 36 / 69 / 99 / 153)
     for (const i of [2, 3, 4, 5]) {
       assert.ok(eras.eraTimes[i] !== undefined, `Zeitalter ${i} in 14 Tagen nicht erreicht`);
-      assert.ok(hours(i) <= upper[i], `Zeitalter ${i} erst nach ${hours(i).toFixed(1)} h`);
-      assert.ok(hours(i) - hours(i - 1) >= 3, `Zeitalter ${i} nur ${(hours(i) - hours(i - 1)).toFixed(1)} h nach Zeitalter ${i - 1}`);
+      assert.ok(hours(i) >= window[i][0] && hours(i) <= window[i][1], `Zeitalter ${i} bei ${hours(i).toFixed(1)} h, erwartet ${window[i].join(' bis ')} h`);
+      assert.ok(hours(i) - hours(i - 1) >= 15, `Zeitalter ${i} nur ${(hours(i) - hours(i - 1)).toFixed(1)} h nach Zeitalter ${i - 1}`);
     }
   });
+});
 
-  test('Zeitalter 2, 3 und 5 werden nicht innerhalb der ersten 12 h erreicht', () => {
-    for (const i of [2, 3, 5]) assert.ok(hours(i) > 12, `Zeitalter ${i} schon nach ${hours(i).toFixed(1)} h`);
+describe('Balance: Konzern-Schleife (2. Reset-Ebene)', () => {
+  // 100 h aktive Spielzeit mit Konzerngründung (1. Gründung bei 34 h, danach alle 40 h), dt=30, ca. 1 Minute Rechenzeit.
+  // Gemessen (Schritt 13, D = 1500, CAP 0,68/h): Konzern-Reiter 13,4 h, K1 34 h (+12 Patente), 2. Gründung 74 h (+14), K2 erst bei 114 h, Kobalt 36 h, Molybdän 49 h, Hartmetall 118 h.
+  const run = simulate({ hours: 100, dt: 30, policy: 'rate', frac: 1, hold: 3600 });
+  const h = s => s / H, e = run.events;
+
+  test('Konzern-Reiter ab 13,4 h (100 Neugüsse), 1. Gründung nicht vor 34 h, K1 mit der 1. Gründung, K2 nicht vor 100 h', () => {
+    assert.ok(h(e.corpUnlock) >= 10.4 && h(e.corpUnlock) <= 16.4, `Konzern-Reiter bei ${h(e.corpUnlock).toFixed(1)} h`);
+    assert.ok(h(e.firstCorp) >= 34 && h(e.firstCorp) <= 40, `1. Gründung bei ${h(e.firstCorp).toFixed(1)} h`);
+    assert.ok(e.stage[1] !== undefined && h(e.stage[1]) <= 40, 'K1 bis 40 h');
+    assert.equal(e.stage[2], undefined, 'K2 nicht vor 100 h (K1 und K2 fallen nie zusammen)');
+  });
+
+  test('Kobalt/Molybdän kommen nach K1 (30 bis 65 h), Hartmetall (K2) und Platin noch nicht', () => {
+    for (const k of ['cobalt', 'molybdenum']) assert.ok(h(e.mat[k]) >= 30 && h(e.mat[k]) <= 65, `${k} bei ${h(e.mat[k]).toFixed(1)} h`);
+    assert.equal(e.mat.carbide, undefined);
+    assert.equal(e.mat.platinum, undefined);
+  });
+
+  test('Gründungen: jede bringt mindestens 1 Patent, die erste 10 bis 14 (sqrt(Gussformen / D), Zeitdeckel 0,68/h)', () => {
+    assert.ok(run.foundings.length >= 2);
+    for (const f of run.foundings) assert.ok(f.gain >= 1);
+    assert.ok(run.foundings[0].gain >= 10 && run.foundings[0].gain <= 14, `1. Gründung +${run.foundings[0].gain}`);
+    for (const f of run.foundings.slice(1)) assert.ok(f.gain <= Math.floor(CORP.capPerHour * 40) + 1, `+${f.gain} bei 40 h Abstand über dem Deckel`);
   });
 });

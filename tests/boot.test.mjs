@@ -242,18 +242,57 @@ describe('Konzern-UI (Reiter, Sperrzustand, Gründen mit Bestätigung)', () => {
     state.prestige.count = 100; tick();
     assert.equal(parts().lock.hidden, true); assert.equal(parts().main.hidden, false);
     assert.equal(found().getAttribute('aria-disabled'), 'true');   // noch keine Patente
-    state.prestige.total = 68000; tick();
+    state.prestige.total = 104000; state.stats.corpRunTime = 10800; tick();   // raw 8, Zeitdeckel 2
     assert.equal(found().getAttribute('aria-disabled'), 'false');
     assert.deepEqual(errors, []);
   });
 
+  test('Deckel-Anzeige: capped zeigt Hinweis und Zeit bis zum nächsten Patent, sonst nicht', () => {
+    const texts = () => { const o = []; walk(parts().main, c => { if (c.children.length === 0 && c.textContent && !c.hidden) o.push(c.textContent); }); return o.join('|'); };
+    reset(); state.prestige.count = 100; state.prestige.total = 104000; state.stats.corpRunTime = 10800; goto('corp'); tick();   // raw 8, Deckel 2
+    const txt = texts();
+    assert.match(txt, /Gedeckelt: höchstens 2 Patente nach 3 h Konzernlauf \(ohne Deckel 8\)/);
+    assert.match(txt, /Nächstes Patent durch Zeit in 1 h 24 min/);   // ceil(3/0,68*3600) = 15883 s, minus 10800 s
+    assert.match(txt, /0,68 Patente je Stunde/);
+    state.prestige.total = 3000; tick();   // raw 1, Deckel 2: nicht gedeckelt
+    const txt2 = texts();
+    assert.doesNotMatch(txt2, /Gedeckelt|durch Zeit/);
+    assert.match(txt2, /Nächste Patente bei/);
+    assert.deepEqual(errors, []);
+  });
+
+  test('Sperrtext nennt die echte Zahl Konzernforschungen; Vorschau im Singular bei 1 Patent', () => {
+    const texts = () => { const o = []; walk(parts().main, c => { if (c.children.length === 0 && c.textContent) o.push(c.textContent); }); return o.join('|'); };
+    const lockTxt = () => { const o = []; walk(parts().lock, c => { if (c.children.length === 0 && c.textContent) o.push(c.textContent); }); return o.join('|'); };
+    reset(); state.prestige.count = 25; tick();
+    assert.match(lockTxt(), new RegExp('Konzernforschung: ' + RESEARCH.filter(r => r.corp).length + ' dauerhafte Forschungen'));
+    assert.doesNotMatch(lockTxt(), /: 36 /);
+    state.prestige.count = 100; state.prestige.total = 3000; state.stats.corpRunTime = 6000; tick();   // genau 1 Patent
+    assert.match(texts(), /Du erhältst \+1 Patent(\||$)/);
+    state.prestige.total = 104000; state.stats.corpRunTime = 10800; tick();   // 2 Patente
+    assert.match(texts(), /Du erhältst \+2 Patente/);
+  });
+
+  test('Deckel aktiv, 0 Patente: Hinweis, Erstes Patent durch Zeit, Minuten statt Sekunden', () => {
+    const texts = () => { const o = []; walk(parts().main, c => { if (c.children.length === 0 && c.textContent && !c.hidden) o.push(c.textContent); }); return o.join('|'); };
+    reset(); state.prestige.count = 100; state.prestige.total = 3000; state.stats.corpRunTime = 0; goto('corp'); tick();   // raw 1, Deckel 0
+    const txt = texts();
+    assert.match(txt, /Noch keine Patente/);
+    assert.match(txt, /Gedeckelt: höchstens 0 Patente nach 0 s Konzernlauf \(ohne Deckel 1\)/);
+    assert.match(txt, /Erstes Patent durch Zeit in 1 h 28 min/);   // ceil(1/0,68*3600) = 5295 s
+    assert.equal(found().getAttribute('aria-disabled'), 'true');
+    state.prestige.total = 104000; state.stats.corpRunTime = 10802; tick();   // 2 Patente gedeckelt: Sekunden abgerundet
+    assert.match(texts(), /nach 3 h Konzernlauf/);
+    assert.deepEqual(errors, []);
+  });
+
   test('foundCorp ruft doCorp erst nach Bestätigung auf', async () => {
-    reset(); state.prestige.count = 100; state.prestige.total = 68000;
+    reset(); state.prestige.count = 100; state.prestige.total = 104000; state.stats.corpRunTime = 10800;   // Deckel 2
     const { foundCorp, foundPreview } = await import('../js/ui/corp.js');
     assert.equal(foundPreview().gain, 2);
     let asked = 0;
     assert.equal(await foundCorp(async () => { asked++; return false; }), false);
-    assert.equal(asked, 1); assert.equal(state.corp.count, 0); assert.equal(state.prestige.total, 68000);
+    assert.equal(asked, 1); assert.equal(state.corp.count, 0); assert.equal(state.prestige.total, 104000);
     assert.equal(await foundCorp(async pv => { asked++; assert.equal(pv.gain, 2); return true; }), true);
     assert.equal(state.corp.count, 1); assert.equal(state.corp.points, 2); assert.equal(state.prestige.total, 0);
     asked = 0;   // ohne Patente: gar keine Rückfrage
@@ -261,7 +300,7 @@ describe('Konzern-UI (Reiter, Sperrzustand, Gründen mit Bestätigung)', () => {
   });
 
   test('Gründen-Knopf: Dialog, Abbrechen ändert nichts, Bestätigen gründet', async () => {
-    reset(); state.prestige.count = 100; state.prestige.total = 68000; goto('corp'); tick();
+    reset(); state.prestige.count = 100; state.prestige.total = 104000; state.stats.corpRunTime = 10800; goto('corp'); tick();
     const origCreate = document.createElement;
     document.createElement = t => (t === 'dialog' ? new FakeDialog() : new El(t));
     globalThis.HTMLDialogElement = FakeDialog;
@@ -280,13 +319,13 @@ describe('Konzern-UI (Reiter, Sperrzustand, Gründen mit Bestätigung)', () => {
     assert.deepEqual(errors, []);
   });
 
-  test('corpThreshold ist die Umkehrung von corpGain (auch mit Lizenzgebühren)', async () => {
+  test('corpThreshold ist die Umkehrung des Wurzelwerts (raw, ohne Zeitdeckel) von corpGain (auch mit Lizenzgebühren)', async () => {
     reset();
     const { corpThreshold } = await import('../js/ui/corp.js');
-    const { corpGain } = await import('../js/core/formulas.js');
+    const { corpGainParts } = await import('../js/core/formulas.js');
     for (const lvl of [0, 2, 4]) {
       state.corp.shop.c_gain = lvl;
-      for (const g of [1, 2, 7, 30]) { const th = corpThreshold(g); assert.ok(corpGain(th) >= g && corpGain(th - 1) < g, 'lvl ' + lvl + ' gain ' + g); }
+      for (const g of [1, 2, 7, 30]) { const th = corpThreshold(g); assert.ok(corpGainParts(th).raw >= g && corpGainParts(th - 1).raw < g, 'lvl ' + lvl + ' gain ' + g); }
     }
     assert.equal(corpThreshold(0), 0);
   });
@@ -306,3 +345,34 @@ describe('Konzern-UI (Reiter, Sperrzustand, Gründen mit Bestätigung)', () => {
   });
 });
 process.on('exit', () => { console.error = origErr; });
+
+describe('UI-Befunde Abnahme', () => {
+  test('Werk-Lanes werden bei Konzerngründung zurückgesetzt (Stufe 0, Leer-Hinweis sichtbar)', async () => {
+    const { emit } = await import('../js/core/events.js');
+    const C = await import('../js/systems/corp.js');
+    const { CORP } = await import('../js/data/corp.js');
+    reset();
+    state.gens.mine = 400; emit('loaded');
+    const empty = document.getElementById('works-empty');
+    assert.equal(empty.hidden, true);
+    state.prestige.count = CORP.unlockCount; state.prestige.total = CORP.divisor * 2; state.stats.corpRunTime = 1e5;
+    assert.ok(C.doCorp());
+    assert.equal(state.gens.mine, 0);
+    assert.equal(empty.hidden, false);
+  });
+
+  test('Zielleiste: Füll-Element trägt die Klasse bar-fill', async () => {
+    const { buildGoalBar } = await import('../js/ui/goals.js');
+    const g = buildGoalBar();
+    const bar = g.el.children[1];
+    assert.match(bar.children[0].className || bar.children[0].getAttribute('class'), /\bbar-fill\b/);
+  });
+
+  test('fmtEta: ab mehr als einem Jahr "> 1 Jahr"', async () => {
+    const { fmtEta } = await import('../js/core/format.js');
+    assert.equal(fmtEta(3600), '1 h');
+    assert.equal(fmtEta(366 * 86400), '> 1 Jahr');
+    assert.equal(fmtEta(366 * 86400, 'ca. {time}'), '> 1 Jahr');
+    assert.equal(fmtEta(3600, 'ca. {time}'), 'ca. 1 h');
+  });
+});

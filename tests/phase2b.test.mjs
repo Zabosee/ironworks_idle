@@ -613,8 +613,8 @@ describe('Daten- und Balance-Sanity', () => {
     }
   });
   test('Dauern: jeder Forschungs-/Boost-Eintrag hat time > 0, Klick-Upgrades time-Formel; Spanne passt', () => {
-    for (const r of RESEARCH) assert.ok(r.time > 0 && r.time <= (r.corp ? 17000 : 1800), 'research ' + r.id);   // Konzernforschung: bis ca. 4,5 h (Formel 1800 s × 1,4^(K-1))
-    for (const b of BOOSTS) assert.ok(b.time > 0 && b.time <= (b.corp ? 5800 : 1800), 'boost ' + b.id);
+    for (const r of RESEARCH) assert.ok(r.time > 0 && r.time <= (r.corp ? 22000 : 1800), 'research ' + r.id);   // Konzernforschung: bis 6 h (Formel 1800 s × 1,4^(K-1), Ausbau 3 länger)
+    for (const b of BOOSTS) assert.ok(b.time > 0 && b.time <= (b.corp ? 7000 : 1800), 'boost ' + b.id);
     for (const c of CLICKS) { assert.ok(c.time.base > 0 && c.time.growth >= 1 && c.time.max >= c.time.base, 'click ' + c.id); assert.ok(F.baseTime('click', c.id, 500) <= c.time.max); }
     assert.ok(Math.min(...RESEARCH.map(r => r.time)) >= 5 && Math.min(...RESEARCH.map(r => r.time)) <= 20, 'fruehe Forschung 5-20 s');
     assert.ok(Math.max(...RESEARCH.filter(r => !r.corp).map(r => r.time)) >= 600 && Math.max(...RESEARCH.filter(r => !r.corp).map(r => r.time)) <= 1800, 'spaete Forschung bis ~30 min');
@@ -667,7 +667,7 @@ describe('Daten- und Balance-Sanity', () => {
     assert.ok(GENS.length >= 5 + 6, 'mind. 6 neue Generatoren');
     assert.ok(BOOSTS.length >= 6 + 8, 'mind. 8 neue Boosts');
     assert.ok(RESEARCH.length >= 70, 'mind. 70 Forschungen');
-    assert.ok(CLICKS.length >= 1 + 2 && CLICKS.length <= 1 + 5 + 3, '2-5 neue Klick-Upgrades (+3 Konzern)');
+    assert.ok(CLICKS.length >= 1 + 2 && CLICKS.length <= 1 + 5 + 4, '2-5 neue Klick-Upgrades (+4 Konzern)');
     assert.ok(RECIPES.length >= 1 + 3, 'neue Rezeptketten');
     for (const id of ['q_lab', 'q_work', 'q_speed']) assert.ok(SHOP_MAP[id], id);
     assert.ok(RESEARCH_MAP.automation && RESEARCH_MAP.automation.time > 0);
@@ -693,7 +693,7 @@ describe('Daten- und Balance-Sanity', () => {
   });
   test('Spielbarkeit: Bot-lose Pruefung - mit ausreichend Material wird die gesamte Forschung durchlaufen und alles erforscht', () => {
     rich();
-    state.corp.total = 205;   // Konzernstufe K7 (Konzernforschung ist daran gebunden)
+    state.corp.total = 351;   // Konzernstufe K7 (Konzernforschung ist daran gebunden)
     for (const k of RES_IDS) state.res[k] = 1e45;   // auch die 7 Konzern-Materialien
     state.prestige.shop.ab_research = 1;
     for (let guard = 0; guard < 1200 && Object.keys(state.research).length < RESEARCH.length; guard++) {

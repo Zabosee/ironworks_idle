@@ -1,6 +1,6 @@
 // Robuste Zahlenformatierung (Standard-Suffixe, wissenschaftlich, Engineering).
 // Dezimaltrennzeichen und Locale folgen der Sprache (de: Komma, en: Punkt). Die Labels sind deutsche i18n-Schlüssel (Anzeige per t()).
-import { getLang, locale } from './i18n.js';
+import { getLang, locale, t } from './i18n.js';
 
 export const FORMATS = [
   { id: 'standard',    label: 'Standard (1,23M)' },
@@ -88,6 +88,9 @@ export function fmtTime(sec) {
   if ((s || !parts.length) && parts.length < 2) parts.push(s + ' s');
   return parts.join(' ');
 }
+
+/** Geschätzte Restzeit: ab mehr als einem Jahr nur noch "> 1 Jahr" (ohne Präfix). `key` = optionaler i18n-Schlüssel mit {time}, z. B. 'ca. {time}'. */
+export const fmtEta = (sec, key) => (Number(sec) > 365 * 86400 ? t('> 1 Jahr') : key ? t(key, { time: fmtTime(sec) }) : fmtTime(sec));
 
 /** Restzeit als Uhr "m:ss" (ab einer Stunde "h:mm:ss"); Sekunden werden aufgerundet. */
 export function fmtClock(sec) {

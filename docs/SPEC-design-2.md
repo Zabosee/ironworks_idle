@@ -9,15 +9,15 @@ Position in der Tab-Leiste: direkt nach "Hochofen". Panel-Wurzel `#corp-root.pan
 | Zustand | Reiter | Inhalt |
 |---|---|---|
 | gesperrt (Neuguss 25 bis 99) | sichtbar, `aria-disabled="true"` (nicht `disabled`, bleibt fokussierbar und aktivierbar), Schloss-Symbol `ui.svg#lock` vor dem Label | Panel zeigt nur eine Box: Titel "Konzerngründung", Text "Wird nach 100 Neugüssen freigeschaltet.", Balken `role="progressbar"` mit Text "Neuguss 42/100", darunter Liste "Das erwartet dich" (Patente, Konzernforschung, 7 Materialien, Auto-Neuguss) als gedimmte Vorschau. Gedimmt nur über Rahmen/Fläche, nie `opacity` auf Text |
-| freigeschaltet, noch keine Patente (Gussformen im Lauf < 34.000) | normal | Voller Aufbau, Gründen-Knopf `disabled` mit Text "Noch 12.400 Gussformen bis zur ersten Patente" |
+| freigeschaltet, noch keine Patente (Gussformen im Lauf < 1.500) | normal | Voller Aufbau, Gründen-Knopf `disabled` mit Text "Noch 400 Gussformen bis zur ersten Patente" |
 | bereit (`corpGain >= 1`) | gold-Punkt `.dot` wie Hochofen (`sr-only`: " (Konzerngründung möglich)") | Gründen-Knopf aktiv |
 Freischalt-Moment: Toast "Konzerngründung freigeschaltet" (Gold), Reiter pulst einmal 220 ms.
 
 **Aufbau von oben nach unten** (jeweils `.panel-box`, wie Hochofen):
 1. **Kopf "Konzern"**: Patente (groß, Symbol `sym-patent`), Konzernstufe "K3 von 7" mit Balken zur nächsten Schwelle (Text "45/75 Patente gesamt", Fortschritt `aria-valuetext`), aktuelle Boni als eine Zeile: "Patente-Bonus ×3,4 · Konzernstufen ×1,27".
-2. **Gründen** (Hauptknopf, Breite wie Hochofen-Gießknopf): Beschriftung "Konzern gründen" + `sym-corp`. Darunter die **Vorschau**: "Du erhältst +7 Patente" (Zahl 1,5 rem fett), "Nächste Patente bei 34.000 Gussformen im Lauf (aktuell 21.300)", Mini-Balken, bei Konzernstufen-Sprung der Zusatz "Erreicht Konzernstufe K2: schaltet Hartmetall frei". Knopf aktiv nur bei `corpGain >= 1`.
+2. **Gründen** (Hauptknopf, Breite wie Hochofen-Gießknopf): Beschriftung "Konzern gründen" + `sym-corp`. Darunter die **Vorschau**: "Du erhältst +7 Patente" (Zahl 1,5 rem fett), "Nächste Patente bei 6.000 Gussformen im Lauf (aktuell 4.300)", Mini-Balken, bei Konzernstufen-Sprung der Zusatz "Erreicht Konzernstufe K2: schaltet Hartmetall frei". Knopf aktiv nur bei `corpGain >= 1`.
 3. **Konzern-Shop** (`.shop-grid`, Karten wie Hochofen-Shop): 9 Einträge aus `CORP_SHOP`. Karte: Symbol, Name, Wirkung, Stufe "2/4", Kosten "4 Patente" (`sym-patent`), Zustand `can` (Goldrahmen, wie `.card.can`), `maxed` (Haken + "Max"), nicht bezahlbar (Kosten mit `.bad` plus Text "Es fehlen 2 Patente"). Symbole siehe Abschnitt 5. Auto-Neuguss-Eintrag trägt nach Kauf den Schalter direkt auf der Karte (Abschnitt 4.4).
-4. **Konzernforschung** (Zugang): Knopf-Karte "Konzernforschung" mit `sym-microscope`, Zähler "11/36 erforscht", Text "Dauerhaft, bleibt bei Neuguss und Gründung". Klick wechselt in den Forschungs-Reiter und scrollt zum Konzern-Ast (Abschnitt 2). Gesperrt (kein K1): Text "Ab Konzernstufe K1".
+4. **Konzernforschung** (Zugang): Knopf-Karte "Konzernforschung" mit `sym-microscope`, Zähler "11/49 erforscht", Text "Dauerhaft, bleibt bei Neuguss und Gründung". Klick wechselt in den Forschungs-Reiter und scrollt zum Konzern-Ast (Abschnitt 2). Gesperrt (kein K1): Text "Ab Konzernstufe K1".
 5. **Chronik** (`.chronicle`, Tabelle wie Neuguss-Chronik): letzte 10 Gründungen: Nr., Patente, Gussformen, Laufzeit, Zeitpunkt. Leerzustand: "Noch keine Gründung".
 
 **Bestätigungsdialog** (`<dialog>`, Fokus auf "Abbrechen", Esc schließt, Hintergrund inert; Muster Hochofen-Dialog):

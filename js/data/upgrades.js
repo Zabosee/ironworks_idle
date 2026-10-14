@@ -62,6 +62,12 @@ export const CLICKS = [
     costs: [{ res: 'steel', base: 1e26, growth: 1.7 }, { res: 'superalloy', base: 9.3e11, growth: 1.55 }],
     time: { base: 600, growth: 1.15, max: 2400 },
   },
+  {
+    id: 'asteroidpick', sym: 'star', icon: '☄️', name: 'Asteroiden-Spitzhacke', req: ['c_drones'], era: 7, corp: 6,
+    base: 0, perLevel: 1e19,
+    costs: [{ res: 'steel', base: 4e26, growth: 1.7 }, { res: 'superalloy', base: 3e12, growth: 1.55 }],
+    time: { base: 700, growth: 1.15, max: 2700 },
+  },
 ];
 export const CLICK_MAP = Object.fromEntries(CLICKS.map(c => [c.id, c]));
 
@@ -112,5 +118,10 @@ export const BOOSTS = [
   { id: 'cb_vacuum', sym: 'superalloy', icon: '🔷', name: 'Vakuumguss', desc: 'Superlegierungsproduktion ×2, alle Materialien ×1,15.', cost: { steel: 9.7e22, superalloy: 9.3e11 }, mult: { superalloy: 2, all: 1.15 }, time: 4456, req: ['c_super'], era: 7, corp: 6 },
   { id: 'cb_line', sym: 'conveyor', icon: '🛤️', name: 'Konzern-Fließbandsystem', desc: 'Erzproduktion ×2, Stahlproduktion ×2.', cost: { steel: 9.7e22, iridium: 2.3e12 }, mult: { ore: 2, steel: 2 }, time: 4456, req: ['c_orbital'], era: 7, corp: 6 },
   { id: 'cb_center', sym: 'chip', icon: '🖥️', name: 'Weltkonzern-Rechenzentrum', desc: 'Alle Materialien ×1,25.', cost: { steel: 8.5e23, superalloy: 8.2e12 }, mult: { all: 1.25 }, time: 5792, req: ['c_charta'], era: 8, corp: 7 },
+  // Konzern-Boosts Ausbau 3 (Runde 2): längere Dauern und höhere Kosten als die Boosts der gleichen Stufe
+  { id: 'cb_moly', sym: 'molybdenum', icon: '⚙️', name: 'Molybdän-Stahlveredelung', desc: 'Molybdänproduktion ×2, Hartmetallproduktion ×1,5.', cost: { steel: 1.6e21, molybdenum: 6e11, carbide: 2.4e11 }, mult: { molybdenum: 2, carbide: 1.5 }, time: 3200, req: ['c_moly_b'], corp: 4 },
+  { id: 'cb_redox', sym: 'vanadium', icon: '🟢', name: 'Vanadium-Redox-Speicher', desc: 'Vanadiumproduktion ×2, alle Materialien ×1,1.', cost: { steel: 1.2e22, vanadium: 1.5e12, platinum: 5e11 }, mult: { vanadium: 2, all: 1.1 }, time: 4100, req: ['c_vanadium_b'], corp: 5 },
+  { id: 'cb_atomic', sym: 'platinum', icon: '⚪', name: 'Atomlagen-Beschichtung', desc: 'Platinproduktion ×2, Iridiumproduktion ×1,5.', cost: { steel: 1.3e22, iridium: 3e11, platinum: 6e11 }, mult: { platinum: 2, iridium: 1.5 }, time: 4200, req: ['c_atomic'], era: 6, corp: 5 },
+  { id: 'cb_cosmic', sym: 'cosmic', icon: '⭐', name: 'Kosmischer Hochofen', desc: 'Superlegierungsproduktion ×2, alle Materialien ×1,2.', cost: { steel: 1.5e24, superalloy: 1.5e13, iridium: 2e13 }, mult: { superalloy: 2, all: 1.2 }, time: 6900, req: ['c_super_c'], era: 8, corp: 7 },
 ];
 export const BOOST_MAP = Object.fromEntries(BOOSTS.map(b => [b.id, b]));

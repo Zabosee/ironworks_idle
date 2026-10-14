@@ -16,7 +16,7 @@ beforeEach(() => reset());
 
 /** Zustand kurz vor der Gründung: Neuguss 120, Hochofen-Shop, Forschung (normal + Konzern), laufende Aufträge. */
 function midGame() {
-  state.prestige = { points: 40, total: 68000, count: 120, shop: { pp_eff: 2, keep: 1, start: 1, ab_gens: 1, q_lab: 1 }, history: [{ gain: 5, ore: 1e9, time: 100, at: 1 }] };
+  state.prestige = { points: 40, total: 104000, count: 120, shop: { pp_eff: 2, keep: 1, start: 1, ab_gens: 1, q_lab: 1 }, history: [{ gain: 5, ore: 1e9, time: 100, at: 1 }] };
   state.research = { geology: 1, deepmines: 1, c_cobalt: 1, c_proc_1: 1 };
   state.boosts = { diamond: 1 };
   state.gens.mine = 40; state.evo.mine = 2; state.clicks.click = 4;
@@ -24,56 +24,77 @@ function midGame() {
   state.autobuyers.gens = true;
   state.achievements.click_1 = 1;
   state.stats.total.ore = 1e20; state.stats.total.gold = 7; state.stats.playTime = 5000; state.stats.clicks = 33;
-  state.stats.run.ore = 5e8; state.stats.runTime = 900; state.stats.corpRunTime = 3600;
+  state.stats.run.ore = 5e8; state.stats.runTime = 900; state.stats.corpRunTime = 10800;   // 3 h: Deckel 2 Patente
 }
 
 describe('Freischaltung und Formel', () => {
   test('Konzerngründung erst ab 100 Neugüssen; Gründen zusätzlich erst ab 1 Patent', () => {
     state.prestige.count = 99; state.prestige.total = 1e6;
     assert.equal(F.corpUnlocked(), false); assert.equal(C.canCorp(), false); assert.equal(C.doCorp(), false);
-    state.prestige.count = CORP.unlockCount;
+    state.prestige.count = CORP.unlockCount; state.stats.corpRunTime = 1e7;
     assert.equal(F.corpUnlocked(), true); assert.equal(C.canCorp(), true);
-    state.prestige.total = CORP.divisor - 1;
+    state.prestige.total = CORP.divisor - 1; state.stats.corpRunTime = 1e7;
     assert.equal(C.canCorp(), false); assert.equal(C.doCorp(), false);
     assert.equal(state.corp.count, 0);
   });
-  test('corpGain: linear floor(Gussformen / D), D = 34.000; c_gain +10 % je Stufe', () => {
-    assert.equal(CORP.divisor, 34000);
-    assert.equal(F.corpGain(0), 0); assert.equal(F.corpGain(33999), 0); assert.equal(F.corpGain(34000), 1);
-    assert.equal(F.corpGain(34000 * 7), 7); assert.equal(F.corpGain(34000 * 7 + 33999), 7);
+  test('corpGain: Wurzel sqrt(Gussformen / D), D = 1.500; c_gain +10 % je Stufe', () => {
+    assert.equal(CORP.divisor, 1500);
+    const D = CORP.divisor, T = 1e12;   // Zeitdeckel hier unwirksam
+    assert.equal(F.corpGain(0, T), 0); assert.equal(F.corpGain(D - 1, T), 0); assert.equal(F.corpGain(D, T), 1);
+    assert.equal(F.corpGain(D * 49, T), 7); assert.equal(F.corpGain(D * 64 - 1, T), 7); assert.equal(F.corpGain(D * 64, T), 8);
     state.corp.shop.c_gain = 1;
-    assert.equal(F.corpGain(31000), 1);   // 31000/34000 × 1,1 = 1,003
-    assert.equal(F.corpGain(34000 * 10), 11);
+    assert.equal(F.corpGain(D * 0.83, T), 1);   // sqrt(0,83) × 1,1 = 1,002
+    assert.equal(F.corpGain(D * 100, T), 11);
     state.corp.shop.c_gain = 4;
-    assert.equal(F.corpGain(34000 * 10), 14);
-    state.prestige.total = 68000; assert.equal(F.corpGain(), 2);   // 2 × 1,4 = 2,8
+    assert.equal(F.corpGain(D * 100, T), 14);
+    state.prestige.total = D * 4; state.stats.corpRunTime = T; assert.equal(F.corpGain(), 2);   // 2 × 1,4 = 2,8
+    assert.equal(F.corpGain(D * 1e12, T), Math.floor(1e6 * 1.4) );
+    assert.equal(F.corpGain(D * 1e12, 0), 0);   // sehr viele Gussformen: keine Überlauf-/NaN-Probleme
   });
-  test('Obergrenze: Patente <= Gussformen / D (ohne c_gain), egal wie oft gegründet wird', () => {
+  test('Zeitlicher Deckel: höchstens floor(CAP × Stunden seit der Gründung) Patente; corpRunTime 0 = 0 Patente', () => {
+    assert.equal(CORP.capPerHour, 0.68);
+    const big = CORP.divisor * 1e6;   // raw = 1000
+    assert.equal(F.corpGain(big, 0), 0);
+    assert.equal(F.corpGain(big, 3600), 0);          // 0,68
+    assert.equal(F.corpGain(big, 2 * 3600), 1);      // 1,36
+    assert.equal(F.corpGain(big, 40 * 3600), 27);    // 27,2
+    assert.equal(F.corpGain(big, -5), 0);
+    state.corp.shop.c_gain = 4;
+    const p = F.corpGainParts(CORP.divisor * 100, 10 * 3600);   // raw 14, Deckel 6
+    assert.deepEqual(p, { raw: 14, cap: 6, capped: true, gain: 6 });
+    assert.equal(F.corpGainParts(CORP.divisor * 100, 100 * 3600).capped, false);
+    state.stats.corpRunTime = 10 * 3600; state.prestige.total = CORP.divisor * 100;
+    assert.equal(F.corpGain(), 6);   // Standardargumente: Spielstand
+  });
+  test('Obergrenze: Patente je Gründung <= sqrt-Wert und <= CAP × Stunden, egal wie oft gegründet wird', () => {
     state.prestige.count = 100;
-    let casts = 0, total = 0;
-    for (const chunk of [34000, 50000, 120000, 34000, 2e6]) {
-      state.prestige.total = chunk; casts += chunk; total += F.corpGain();
-      assert.ok(C.doCorp());
+    let hours = 0, total = 0;
+    for (const [h, gc] of [[5, 6e4], [40, 3e5], [2, 6e4], [80, 1e7], [10, 4e6]]) {
+      state.prestige.total = gc; state.stats.corpRunTime = h * 3600; hours += h;
+      const g = F.corpGain(); total += g;
+      assert.ok(g <= Math.sqrt(gc / CORP.divisor) + 1e-9 && g <= CORP.capPerHour * h + 1e-9, `${g} bei ${h} h`);
+      if (g >= 1) assert.ok(C.doCorp());
     }
-    assert.ok(state.corp.total <= casts / CORP.divisor + 1e-9, `${state.corp.total} > ${casts / CORP.divisor}`);
+    assert.ok(state.corp.total <= CORP.capPerHour * hours + 1e-9);
     assert.equal(state.corp.total, total);
   });
   test('Konzernstufe K1..K7 und corpMult (Patente × Stufenprodukt, c_eff)', () => {
-    assert.deepEqual(CORP_MILESTONES.map(m => m.at), [5, 20, 45, 75, 110, 150, 205]);
-    assert.equal(F.corpStage(0), 0); assert.equal(F.corpStage(4), 0); assert.equal(F.corpStage(5), 1); assert.equal(F.corpStage(204), 6); assert.equal(F.corpStage(205), 7);
+    assert.deepEqual(CORP_MILESTONES.map(m => m.at), [10, 30, 70, 135, 210, 290, 351]);
+    assert.equal(F.corpStage(0), 0); assert.equal(F.corpStage(9), 0); assert.equal(F.corpStage(10), 1); assert.equal(F.corpStage(350), 6); assert.equal(F.corpStage(351), 7);
     assert.equal(F.corpMult(0), 1);
-    assert.ok(Math.abs(F.corpMult(5) - (1 + 5 * 0.02) * 1.1) < 1e-12);
+    assert.ok(Math.abs(F.corpMult(3) - (1 + 3 * 0.02)) < 1e-12);
+    assert.ok(Math.abs(F.corpMult(10) - (1 + 10 * 0.02) * 1.1) < 1e-12);
     state.corp.shop.c_eff = 4;
-    assert.ok(Math.abs(F.corpMult(10) - (1 + 10 * 0.02 * 1.8) * 1.1) < 1e-12);
+    assert.ok(Math.abs(F.corpMult(30) - (1 + 30 * 0.02 * 1.8) * 1.1 * 1.1) < 1e-12);
     state.corp.total = 20;
     const g0 = F.globalMult(); state.corp.total = 0;
     assert.ok(Math.abs(g0 / F.globalMult() - F.corpMult(20)) < 1e-9, 'corpMult steckt in globalMult');
   });
-  test('Summe der Konzern-Shop-Kosten = Schwelle K7 (205), 9 Einträge', () => {
+  test('Summe der Konzern-Shop-Kosten = Schwelle K7 (351), 9 Einträge', () => {
     assert.equal(CORP_SHOP.length, 9);
     let sum = 0;
     for (const it of CORP_SHOP) for (let l = 0; l < it.max; l++) { state.corp.shop[it.id] = l; sum += F.corpCost(it.id); }
-    assert.equal(sum, 205); assert.equal(sum, CORP_MILESTONES.at(-1).at);
+    assert.equal(sum, 351); assert.equal(sum, CORP_MILESTONES.at(-1).at);
   });
 });
 
@@ -97,11 +118,11 @@ describe('Reset-Regeln (D3)', () => {
     assert.equal(F.eraIndex(), 2, 'Zeitalter folgt stats.total.ore (1e20 = Dampfzeitalter)');
     assert.equal(state.corp.points, 2); assert.equal(state.corp.total, 2); assert.equal(state.corp.count, 1);
     assert.equal(state.corp.history.length, 1);
-    assert.deepEqual({ ...state.corp.history[0], at: 0 }, { gain: 2, gussformen: 68000, time: 3600, at: 0 });
+    assert.deepEqual({ ...state.corp.history[0], at: 0 }, { gain: 2, gussformen: 104000, time: 10800, at: 0 });
   });
   test('Gründung verwirft auch Laboraufträge (selbst mit Wissensarchiv) und Werkbank; Konzernstufen-Toast bei Sprung', () => {
     midGame();
-    state.prestige.total = 34000 * 5; state.res.steel = 1e30; state.res.ore = 1e30;
+    state.prestige.total = CORP.divisor * 100; state.stats.corpRunTime = 20 * 3600; state.res.steel = 1e30; state.res.ore = 1e30;
     state.timers.lab.push({ kind: 'research', id: 'c_moly', total: 100, left: 50, cost: {} }, { kind: 'research', id: 'converter', total: 100, left: 50, cost: {} });
     state.timers.workshop.push({ kind: 'boost', id: 'turbo', total: 100, left: 50, cost: {} });
     const toasts = collect('toast');
@@ -141,11 +162,11 @@ describe('Reset-Regeln (D3)', () => {
 describe('Konzern-Shop', () => {
   test('Kauf zieht Patente ab, respektiert Maximum und Guthaben; Event corpshop', () => {
     const ev = collect('corpshop');
-    state.corp.points = 4;
-    assert.equal(C.buyCorpShop('c_autocast'), false);   // kostet 10
-    assert.equal(C.buyCorpShop('c_eff'), true);          // 3
+    state.corp.points = 7;
+    assert.equal(C.buyCorpShop('c_autocast'), false);   // kostet 18
+    assert.equal(C.buyCorpShop('c_eff'), true);          // 6
     assert.equal(state.corp.points, 1); assert.equal(F.corpLevel('c_eff'), 1);
-    assert.equal(C.buyCorpShop('c_eff'), false);         // Stufe 2 kostet 5
+    assert.equal(C.buyCorpShop('c_eff'), false);         // Stufe 2 kostet 8
     assert.equal(C.buyCorpShop('gibt-es-nicht'), false);
     state.corp.points = 1e6;
     for (let i = 0; i < 10; i++) C.buyCorpShop('c_archive');
@@ -156,8 +177,8 @@ describe('Konzern-Shop', () => {
     state.corp.points = 1e6;
     assert.equal(F.prestigeMult(), 1);
     const costs = []; for (let i = 0; i < 5; i++) { costs.push(F.corpCost('c_heir')); assert.ok(C.buyCorpShop('c_heir')); }
-    assert.deepEqual(costs, [2, 4, 7, 12, 20]);
-    assert.equal(F.corpCost('c_heir'), 20, 'nach Maximum keine Überschreitung');
+    assert.deepEqual(costs, [3, 7, 12, 20, 34]);
+    assert.equal(F.corpCost('c_heir'), 34, 'nach Maximum keine Überschreitung');
     assert.equal(F.heirFloor(), HEIR_FLOOR[5]);
     assert.equal(state.prestige.total, 0);
     const expected = (1 + 250000 * 0.1) * MILESTONES.reduce((m, x) => m * x.mult, 1);
@@ -193,6 +214,12 @@ describe('Konzern-Shop', () => {
     const t0 = F.timeMult();
     state.research.c_lab2 = 1;
     assert.ok(Math.abs(F.timeMult() / t0 - 0.85) < 1e-12);
+  });
+  test('c_lab3 (Forschung): Dauern x0,9 zusätzlich; c_night: Offline-Cap +2 h', () => {
+    const t0 = F.timeMult(), o0 = F.offlineCapSeconds();
+    state.research.c_lab3 = 1; state.research.c_night = 1;
+    assert.ok(Math.abs(F.timeMult() / t0 - 0.9) < 1e-12);
+    assert.equal(F.offlineCapSeconds() - o0, 2 * 3600);
   });
 });
 
@@ -244,21 +271,21 @@ describe('Sperren und Sichtbarkeit (corp)', () => {
     assert.match(F.lockReason('research', 'c_sinter'), /Benötigt: /);   // c_moly fehlt
     state.research.c_moly = 1;
     assert.equal(F.lockReason('research', 'c_sinter'), 'Benötigt Konzernstufe: K2');
-    state.corp.total = 20; assert.equal(F.lockReason('research', 'c_sinter'), null);
+    state.corp.total = 30; assert.equal(F.lockReason('research', 'c_sinter'), null);
     // Zeitalter vor Konzernstufe
     state.research.c_platin = 1; state.research.c_sinter = 1; state.corp.total = 0;
     assert.match(F.lockReason('research', 'c_iridium'), /Zeitalter|Neuguss/);
     // Boost und Klick-Upgrade tragen dieselbe Sperre
     state.research.c_tool = 1;
     assert.equal(F.lockReason('click', 'carbidechisel'), 'Benötigt Konzernstufe: K2');
-    state.corp.total = 20; assert.equal(F.lockReason('click', 'carbidechisel'), null);
+    state.corp.total = 30; assert.equal(F.lockReason('click', 'carbidechisel'), null);
   });
   test('isRevealed: Konzernforschung erst eine Stufe vor der Freischaltung sichtbar', () => {
     state.research.goldsmith = 1;
     assert.equal(F.isRevealed('research', 'c_cobalt'), true);   // K1 bei Stufe 0 sichtbar (gesperrt)
     state.research.c_cobalt = 1; state.research.c_moly = 1;
     assert.equal(F.isRevealed('research', 'c_sinter'), false);   // K2 bei Stufe 0
-    state.corp.total = 5; assert.equal(F.isRevealed('research', 'c_sinter'), true);
+    state.corp.total = 10; assert.equal(F.isRevealed('research', 'c_sinter'), true);
   });
   test('Materialien sind sichtbar nach Freischalt-Forschung oder Bestand', () => {
     assert.equal(F.resVisible('cobalt'), false);
@@ -325,14 +352,27 @@ describe('Save v6', () => {
   test('Spielstand aus neuerer Version (v7) wird abgelehnt', () => {
     assert.throws(() => S.migrate({ v: 7, state: {} }), /neueren/);
   });
-  test('Konzernforschung im Spielstand wird übernommen (alle 36), unbekannte IDs nicht', () => {
+  test('Konzernforschung im Spielstand wird übernommen (alle 49), unbekannte IDs nicht', () => {
     const ids = RESEARCH.filter(r => r.corp).map(r => r.id);
-    assert.equal(ids.length, 36);
+    assert.equal(ids.length, 49);
     const s = S.sanitize({ research: { ...Object.fromEntries(ids.map(i => [i, 1])), c_fake: 1 } });
-    assert.equal(Object.keys(s.research).length, 36); assert.equal(s.research.c_fake, undefined);
+    assert.equal(Object.keys(s.research).length, 49); assert.equal(s.research.c_fake, undefined);
     assert.ok(RESEARCH_MAP.c_charta);
   });
   test('Offline-Fortschritt zählt corpRunTime mit', () => {
     S.applyOffline(100); assert.equal(state.stats.corpRunTime, 100);
+  });
+});
+
+describe('EN-Texte der Konzernstufen', () => {
+  test('jede CORP_MILESTONES-Stufe hat EN-Text (en-data nach at, en-ui nach desc)', async () => {
+    const { EN } = await import('../js/i18n/en-data.js');
+    const { EN_UI } = await import('../js/i18n/en-ui.js');
+    assert.deepEqual(Object.keys(EN.corpMilestones).map(Number), CORP_MILESTONES.map(m => m.at));
+    for (const m of CORP_MILESTONES) {
+      const en = 'Production ×' + String(m.mult).replace('.', ',') ;
+      assert.equal(EN.corpMilestones[m.at].desc, 'Production ×' + m.mult, 'en-data at=' + m.at);
+      assert.equal(EN_UI[m.desc], en.replace(',', '.'), 'en-ui ' + m.desc);
+    }
   });
 });

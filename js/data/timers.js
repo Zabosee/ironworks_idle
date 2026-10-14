@@ -18,3 +18,7 @@ export const MIN_DURATION = 1;                         // Sekunden
 export const MAX_ENTRIES = 12;                         // Obergrenze beim Laden eines Spielstands
 export const LAB2_RESEARCH = 'c_lab2';                 // Konzernforschung: Dauern zusätzlich x LAB2_MULT
 export const LAB2_MULT = 0.85;
+export const LAB3_RESEARCH = 'c_lab3';                 // Konzernforschung: Dauern zusätzlich x LAB3_MULT
+export const LAB3_MULT = 0.9;
+export const NIGHT_RESEARCH = 'c_night';               // Konzernforschung: maximaler Offline-Ertrag + NIGHT_HOURS Stunden
+export const NIGHT_HOURS = 2;
