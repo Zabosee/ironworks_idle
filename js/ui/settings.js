@@ -6,6 +6,7 @@ import { on } from '../core/events.js';
 import { t, LANGS, getLang, setLang } from '../core/i18n.js';
 import { h, $, confirmDialog } from './dom.js';
 import { refresh } from './render.js';
+import { previewSound } from './sound.js';
 
 export function applySettings() {
   setFormat(state.settings.format);
@@ -27,6 +28,12 @@ export function initSettings() {
   const particles = h('input', { type: 'checkbox', id: 'set-particles', checked: state.settings.particles });
   particles.addEventListener('change', () => { setSetting('particles', particles.checked); });
 
+  const sound = h('input', { type: 'checkbox', id: 'set-sound', checked: state.settings.sound });
+  sound.addEventListener('change', () => { setSetting('sound', sound.checked); previewSound(); });
+
+  const volume = h('input', { type: 'range', id: 'set-volume', min: 0, max: 1, step: 0.05, value: state.settings.volume });
+  volume.addEventListener('change', () => { setSetting('volume', Number(volume.value)); previewSound(); });
+
   const autosave = h('input', { type: 'checkbox', id: 'set-autosave', checked: state.settings.autosave });
   autosave.addEventListener('change', () => { setSetting('autosave', autosave.checked); });
 
@@ -42,6 +49,7 @@ export function initSettings() {
 
   const sync = () => {
     langSel.value = getLang(); formatSel.value = state.settings.format; particles.checked = state.settings.particles;
+    sound.checked = state.settings.sound; volume.value = state.settings.volume;
     autosave.checked = state.settings.autosave; interval.value = String(state.settings.autosaveSec);
   };
 
@@ -51,6 +59,10 @@ export function initSettings() {
       h('div', { class: 'field' }, h('label', { htmlFor: 'set-lang', text: t('Sprache / Language') }), langSel),
       h('div', { class: 'field' }, h('label', { htmlFor: 'set-format', text: t('Zahlenformat') }), formatSel),
       h('label', { class: 'check' }, particles, ' ' + t('Partikel und Animationen anzeigen'))),
+    h('div', { class: 'panel-box' },
+      h('h2', { text: t('Ton') }),
+      h('label', { class: 'check' }, sound, ' ' + t('Soundeffekte')),
+      h('div', { class: 'field' }, h('label', { htmlFor: 'set-volume', text: t('Lautstärke') }), volume)),
     h('div', { class: 'panel-box' },
       h('h2', { text: t('Speichern') }),
       h('label', { class: 'check' }, autosave, ' ' + t('Automatisch speichern')),

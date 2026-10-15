@@ -69,7 +69,7 @@ describe('Generator-Ausbau', () => {
 describe('Generator-Ausbau VI bis VIII', () => {
   test('Daten laut Design: 8 Stufen, kumuliert x324, Stufe k braucht Zeitalter k', () => {
     assert.equal(EVO_MAX, 8);
-    assert.deepEqual(EVO_AT, [10, 25, 50, 100, 200, 300, 325, 345]);
+    assert.deepEqual(EVO_AT, [10, 20, 30, 45, 60, 75, 90, 100]);
     assert.deepEqual(EVO_MULT, [1.5, 1.5, 2, 2, 3, 2, 2, 3]);
     assert.deepEqual(EVO_COST, [25, 60, 150, 400, 1000, 2000, 3000, 4000]);
     assert.ok(Math.abs(EVO_MULT.reduce((a, b) => a * b) - 324) < 1e-9);

@@ -35,6 +35,13 @@ export function initTabs(nav) {
     else if (e.key === 'End') n = buttons.length - 1;
     if (n >= 0) { e.preventDefault(); select(buttons[n].dataset.tab, true); }
   });
+  // Tasten 1 bis 9: n-ter sichtbarer Tab (nicht in Eingabefeldern oder offenen Dialogen)
+  document.addEventListener('keydown', e => {
+    if (!/^[1-9]$/.test(e.key) || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.target.closest?.('input, textarea, select, [contenteditable]') || document.querySelector('dialog[open]')) return;
+    const b = vis()[Number(e.key) - 1];
+    if (b) { e.preventDefault(); select(b.dataset.tab); }
+  });
   selectFn = select;
   select(active);
   return select;

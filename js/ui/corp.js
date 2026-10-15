@@ -60,6 +60,7 @@ function askFound(pv) {
         h('h2', { id: 'dlg-corp-title', text: t('Konzern gründen?') }),
         h('p', { class: 'dlg-gain', text: t(pv.gain === 1 ? '+{gain} Patent (gesamt {total}, Konzernstufe K{stage})' : '+{gain} Patente (gesamt {total}, Konzernstufe K{stage})', { gain: fmtInt(pv.gain), total: fmtInt(pv.total), stage: pv.stage }) }),
         h('div', { class: 'dlg-cols' }, col('lost', 'cancel', t('Geht verloren'), lost), col('kept', 'check', t('Bleibt'), kept)),
+        h('p', { class: 'hint', text: t('Danach produzierst du zunächst deutlich weniger: Bis Gussformen, Hochofen-Shop und Forschung wieder aufgebaut sind, kommt das nächste Zeitalter langsamer. Die Patente zahlen sich langfristig aus.') }),
         pv.capped ? h('p', { class: 'hint dlg-cap', text: capText(pv, state.stats.corpRunTime) }) : null,
         pv.heir > 0 ? h('p', { class: 'hint', text: t('Hochofen-Erbe stellt wieder her: Gussformen-Stand {n} für Multiplikator und Meilensteine.', { n: fmtInt(pv.heir) }) }) : null,
         h('div', { class: 'dialog-actions' },

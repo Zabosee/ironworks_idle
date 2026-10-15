@@ -14,12 +14,13 @@ Idle-Spiel im Browser: Aus Erz wird Stahl, Titan und Gold. Vanilla ES-Module, ke
 - **Schwerpunkt**: Vor jedem Neuguss wählst du Stahlschmiede, Titanofen oder Goldguss. Die gewählte Kette bekommt im nächsten Durchlauf +25 % Produktion, die anderen -5 %.
 - **Konzern (2. Reset-Ebene)**: Ab 100 Neugüssen gründest du einen Konzern und erhältst Patente. Sie erhöhen die Produktion, schalten die Konzernstufen K1 bis K7 frei und werden im Konzern-Shop ausgegeben. Dazu kommen 49 dauerhafte Konzernforschungen und vier weitere Materialrezepte.
 - **Zeitalter und Industrie**: Ab dem 1. Neuguss gibt es neun Zeitalter (Handwerk bis Kosmische Schmiede) mit globalem Bonus, neuen Forschungen und Generator-Ausbau. Zwei Meilenstein-Leisten (Fördermenge, Materialvielfalt) geben weitere Produktionsboni.
-- **Herausforderungen**: Ab dem 1. Neuguss gibt es Aufgaben mit Sonderregel und Frist (Ohne Klicken, Ein Generator, Eiserne Frist). Jede geschaffte Herausforderung gibt einmalig +3 % Produktion.
+- **Herausforderungen**: Ab dem 1. Neuguss gibt es fünf Aufgaben mit Sonderregel und Frist (Ohne Klicken, Ein Generator, Eiserne Frist, Forschungsstopp, Erzmangel). Jede hat 5 Stufen mit steigendem Ziel: Stufe 1 gibt dauerhaft +3 % Produktion, jede weitere +1 %.
 - **Zufallsereignisse**: Alle 8 bis 15 Minuten aktiver Spielzeit erscheint ein Ereignis im Werk: Erzader (Klick-Bonus), Rohstoffengpass (per Klick beheben) oder Sonderauftrag (Material liefern für einen Produktionsbonus).
-- **Erfolge und goldene Barren**: 69 Erfolge mit Produktionsbonus. Goldene Barren erscheinen zufällig und geben per Klick oder Taste G einen Zeitbuff.
+- **Erfolge und goldene Barren**: 70 Erfolge mit Produktionsbonus. Goldene Barren erscheinen zufällig und geben per Klick oder Taste G einen Zeitbuff.
 - **Offline-Fortschritt**: Beim Laden wird die Abwesenheit nachgerechnet, mit 60 % des Aktiv-Ertrags und einer Kappe (Basis 8 h). Ein Willkommen-Dialog zeigt ab 60 s Abwesenheit, was du gewonnen hast.
 - **Tagesbonus**: Der erste Start an einem neuen Kalendertag gibt einen Schmelzrausch-Buff, dessen Dauer in einer Serie bis Tag 7 wächst.
-- **Hilfe und Glossar**: Die Taste `?` oder der Knopf "Hilfe ?" öffnet eine Erklärung aller Spielebenen und Begriffe.
+- **Hilfe und Glossar**: Die Taste `?` oder der Knopf "Hilfe ?" öffnet eine Erklärung aller Spielebenen und Begriffe. Die Tasten 1 bis 9 wechseln die Bereiche.
+- **Ton und Hinweise**: Synthetische Soundeffekte (WebAudio, abschaltbar, Lautstärke einstellbar). Läuft das Spiel im Hintergrund, zeigt der Tab-Titel an, wenn ein Auftrag in Labor oder Werkbank fertig ist.
 - **Sprache, Export und Import**: Deutsch und Englisch, Spielstand als Base64 exportieren und importieren, drei Zahlenformate, Autosave. Ältere Spielstände werden migriert.
 - **Mehr-Tab-Schutz**: Ein zweiter Tab speichert nicht und überschreibt den Fortschritt nicht.
 
@@ -37,3 +38,7 @@ Umfang: 125 Forschungen (davon 49 Konzernforschung), 43 Boosts, 10 Klick-Upgrade
 | Konzern: Patente, Gründung und Konzern-Shop. | Erfolge: Bedingung und Produktionsbonus je Erfolg. |
 | ![Hilfe-Dialog mit Erklärung der Spielebenen](docs/screenshots/08-hilfe.png) | |
 | Hilfe-Dialog (Taste ?). | |
+
+## Tests
+
+`npm test` führt alle Tests aus (Node 22 oder neuer, keine Abhängigkeiten, ca. 3 min). Auf GitHub laufen sie bei jedem Push.

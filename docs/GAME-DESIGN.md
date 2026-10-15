@@ -91,10 +91,12 @@ Jeder Generator hat optional Stufen 1–5. Stufe k braucht (a) Zeitalter >= k, (
 | Stufe | freigeschaltet ab | Stufe des Generators | Multiplikator | Kosten-Faktor |
 |---|---|---|---|---|
 | 1 | Zeitalter 1 | Stufe 10 | ×1.5 | ×25 |
-| 2 | Zeitalter 2 | Stufe 25 | ×1.5 | ×60 |
-| 3 | Zeitalter 3 | Stufe 50 | ×2.0 | ×150 |
-| 4 | Zeitalter 4 | Stufe 100 | ×2.0 | ×400 |
-| 5 | Zeitalter 5 | Stufe 200 | ×3.0 | ×1000 |
+| 2 | Zeitalter 2 | Stufe 20 | ×1.5 | ×60 |
+| 3 | Zeitalter 3 | Stufe 30 | ×2.0 | ×150 |
+| 4 | Zeitalter 4 | Stufe 45 | ×2.0 | ×400 |
+| 5 | Zeitalter 5 | Stufe 60 | ×3.0 | ×1000 |
+
+Die Generatorstufen wurden 2026-10 gesenkt (vorher 10 / 25 / 50 / 100 / 200, Begründung in B8).
 
 - Kumulativer Multiplikator: alle Stufen kaufen → ×27 (1.5 × 1.5 × 2 × 2 × 3).
 - Kauf: sofort (kein Timer), Kosten = `unitCost('gen', id, EVO_AT[k-1]) × EVO_COST[k-1]`, abgerundet.
@@ -364,6 +366,8 @@ Datenfelder: `img` je Material und Generator (`assets/icons/res-<id>.svg`, `gen-
 ## A9. Zufallsereignisse und Herausforderungen
 - Zufallsereignisse (`data/events-random.js`, `systems/events-random.js`): alle 8 bis 15 min aktive Spielzeit höchstens eines, Hinweisknopf oben rechts (`ui/revent.js`), ignorierbar. Typen: Erzader (Klickwert ×10 für 30 s), Rohstoffengpass (ein Material −50 % für 60 s als Buff `shortage` mit Feld `res`, Klick behebt ihn), Sonderauftrag (90 s Frist, Rate × 45 s Einheiten liefern, Belohnung Produktion ×2 für 60 s). Zufallsquelle über `setRandom` injizierbar; der Balance-Bot ruft `tick` nie auf.
 - Herausforderungen (`data/challenges.js`, `systems/challenges.js`, `ui/challenges.js`, Hochofen-Panel, ab 1. Neuguss): gewählt wurde die einfache sichere Variante "Sonderregel als Modifikator im laufenden Durchlauf mit Zeitlimit", ohne Snapshot und ohne Reset, daher kann nichts beschädigt werden; Abbruch und Scheitern kosten nichts. Ziel = Stahl seit Start: max(floor, Stahlrate beim Start × Frist × k). Belohnung einmalig +3 % Produktion je Herausforderung (`challengeMult`) plus Erfolge `challenge_1`/`challenge_3`. `state.challenges = { done, active }`, Migration `migrateV8toV9`, strenge Prüfung in `sanitize`.
+- Stufen (2026-10): `done[id]` ist die höchste geschaffte Stufe (1 bis `CHALLENGE_MAX_LEVEL` = 5; alte Spielstände mit `true` werden in `sanitize` zu Stufe 1, ohne neue Speicherversion). Ein Start versucht die nächste Stufe (`active.level`), Ziel × (1 + 0,25 × (Stufe − 1)). Belohnung: Stufe 1 +3 %, jede weitere +1 % (`CHALLENGE_LEVEL_BONUS`), alle 5 Herausforderungen auf Stufe 5 zusammen +35 %. Auf der Höchststufe wird ohne Belohnung wiederholt. Neue Regeln: Forschungsstopp (`mods.noQueue`, `lockReason` sperrt neue Aufträge in Labor und Werkbank) und Erzmangel (`mods.res: { ore: 0,1 }` auf die Nettorate in `rates`). Neuer Erfolg `challenge_max` (eine Herausforderung auf Stufe 5); `challenge_3` heißt jetzt "3 verschiedene".
+- Kalibrierung der Stufen (`MINRUN=3600 LEVEL=<n> node tools/challenge-calib.mjs 30 4`): Stufe 1 schafft der Bot bei allen fünf an jedem Messpunkt (33 bis 86 % der Frist). Stufe 3 und 5 schafft er nur bei Start nach 30 min Durchlaufzeit, wenn die Stahlrate noch wächst (Stufe 5: 54 bis 93 % der Frist); auf dem Plateau (40 bis 60 min) scheitert er bei ca. 80 % (Stufe 3) bzw. 60 % (Stufe 5) des Ziels. Hohe Stufen belohnen also den richtigen Startzeitpunkt. Forschungsstopp und Erzmangel messen für den Bot fast gleich wie Ohne Klicken: Die Stahlrate hängt in 20 min kaum an neuen Käufen; für Menschen wirken die Regeln stärker.
 
 # Teil B – Konzerngründung und Industrie-Ausbau
 
@@ -393,7 +397,7 @@ Der Kreislauf "produzieren, kaufen, Neuguss, stärker neu beginnen" ist vorhande
 | Bei ca. 8,6 Neugüssen/h (Sim) ist manuelles Gießen über Wochen mühsam; es gibt nur Auto-Buyer, keinen Auto-Neuguss | Spielfluss bricht, Offline-Zeit wird nicht ausgenutzt | M3 Auto-Neuguss (Patente-Shop) |
 | Vor dem 1. Neuguss (ca. 1,8 h) gibt es kein sichtbares Systemziel (siehe A8) | Frühe Ziel-Lücke | M4 Gesperrte Reiter + Fortschritt zum 1. Neuguss |
 | Lange Ziele jenseits Stunde 35 fehlen: der letzte Hochofen-Meilenstein (250.000) fällt bei ca. 34,5 h, Zeitalter 5 bei ca. 192 h, danach kommt nichts mehr | Kein Langzeitziel, keine zweite Ebene | Konzerngründung (Abschnitt B3), Zeitalter 6 bis 8, Meilenstein-Leisten (Abschnitt B2) |
-| Offline-Ertrag ist 1:1 und auf 8 h (+2 h je Stufe) gedeckelt; bei 600 h Zielzeit wird er zur Hauptzeit | Offline lohnt sich zu wenig | M5 Offline-Ausbau (nur Cap, kein Mehrertrag) |
+| Offline-Ertrag (inzwischen 60 % der Aktiv-Rate, `OFFLINE_EFFICIENCY`) ist auf 8 h (+2 h je Stufe) gedeckelt; bei 600 h Zielzeit wird er zur Hauptzeit | Offline lohnt sich zu wenig | M5 Offline-Ausbau (nur Cap, kein Mehrertrag) |
 | Meilensteine existieren nur auf Generatorstufe und Gussformen; keine auf Gesamtleistung | Wenig "Pling" für Gesamtfortschritt | M6 Industrie-Meilensteine (Abschnitt B2.3) |
 | Generator-Meilensteine alle 10 Stufen sind nicht sichtbar auf den Karten | Kleine Ziele fehlen | M7 Hinweis "noch n Stufen bis ×2" |
 
@@ -405,11 +409,11 @@ Der Kreislauf "produzieren, kaufen, Neuguss, stärker neu beginnen" ist vorhande
 | M2 | **Neuguss-Vorschau** | Im Hochofen-Bereich: Gewinn jetzt, Gewinn/h (Gewinn / Laufzeit), nächster Gussformen-Meilenstein ("noch X"), Hinweis "lohnt sich" (Gewinnzuwachs der letzten 2 min unter dem Durchlauf-Schnitt, dieselbe Regel wie die Sim-Policy `rate`). | `state.stats.runTime`, `prestige.history`; kleine Hilfsfunktion in `formulas.js` |
 | M3 | **Auto-Neuguss** | Freischaltung im Konzern-Shop (`c_autocast`). Einstellung `modus: Gewinn` (Neuguss ab Gewinn >= Wert, Vorgabe = Mittel der letzten 5 Gewinne) oder `modus: Zeit` (Neuguss nach n Minuten). Mindestlaufzeit 60 s. Es gibt **keinen** Auto-Konzern (Konzerngründung bleibt immer manuell). | `state.autoCast`, Tick in `main.js`/`systems/prestige.js` |
 | M4 | **Früher Systemhinweis** | Industrie-Reiter ab Spielbeginn sichtbar, aber gesperrt ("Ab dem ersten Neuguss"), dazu Fortschritt zu 1e7 Erz. Konzern-Reiter ab Neuguss 25 gesperrt sichtbar, Freischaltung bei 100. | UI |
-| M5 | **Offline-Ausbau** | Konzern-Shop "Nachtschicht II": +4 h Offline-Cap je Stufe (max 3). Ertrag bleibt 100 %. Der Willkommen-zurück-Toast zeigt zusätzlich "Cap erreicht in ..." beim Laden. | `offlineCapSeconds` + 4 h × Stufe |
+| M5 | **Offline-Ausbau** | Konzern-Shop "Nachtschicht II": +4 h Offline-Cap je Stufe (max 3). Ertrag bleibt bei 60 % (`OFFLINE_EFFICIENCY`). Der Willkommen-zurück-Toast zeigt zusätzlich "Cap erreicht in ..." beim Laden. | `offlineCapSeconds` + 4 h × Stufe |
 | M6 | **Industrie-Meilensteine** | Zwei automatische Leisten (Abschnitt B2.3), Toast bei Erreichen, ein Panel im Industrie-Tab. | `systems/industry.js` (Muster `systems/eras.js`) |
 | M7 | **Generator-Meilenstein-Hinweis** | Auf der Generatorkarte: "noch n Stufen bis ×2". Nur Anzeige, `MILESTONE_STEP` ist 10. | UI |
 
-Bewusst nicht aufgenommen: Soft-Caps, Challenges, Ressourcen-Verfall, zusätzliche Klick-Minispiele. Sie passen nicht zum bestehenden Konzept und würden den Umfang sprengen.
+Bewusst nicht aufgenommen: Soft-Caps, Ressourcen-Verfall, zusätzliche Klick-Minispiele. Sie passen nicht zum bestehenden Konzept und würden den Umfang sprengen. Herausforderungen kamen später doch dazu (Abschnitt A9).
 
 ## B2. Industrie-Ausbau
 
@@ -429,13 +433,14 @@ Kumulativer Zeitalter-Bonus nach Zeitalter 8: 7,02 (bisher) × 1,5 × 1,5 × 2 =
 
 | Stufe | Zeitalter | Stufe des Generators | Multiplikator | Kosten-Faktor |
 |---|---|---|---|---|
-| 6 | 6 | 300 | ×2 | ×2.000 |
-| 7 | 7 | 325 | ×2 | ×3.000 |
-| 8 | 8 | 345 | ×3 | ×4.000 |
+| 6 | 6 | 75 (vorher 300) | ×2 | ×2.000 |
+| 7 | 7 | 90 (vorher 325) | ×2 | ×3.000 |
+| 8 | 8 | 100 (vorher 345) | ×3 | ×4.000 |
 
 - Kumulativer Multiplikator aller 8 Stufen: ×27 × 12 = ×324.
 - Die Generatorstufen sind so gewählt, dass die billigen Generatoren (Wachstum 1,15 bis 1,17: Eisenmine, Bohrturm, Schmelzofen, Zeche) die Stufen zu ca. 1 bis 15 % der Zeitalter-Schwelle erreichen (Beispiel Eisenmine: Stufe 300 kostet 15 × 1,15^300 × 2.000 = 4,8e22 Erz bei Zeitalter 6 mit 8e26). Teure Generatoren (Wachstum >= 1,25) erreichen sie praktisch nie; das ist gewollt: Ausbau VI bis VIII ist **offen** und zählt **nicht** zu "alles freigeschaltet" (siehe B6.5).
-- Daten: `EVO_AT = [10,25,50,100,200,300,325,345]`, `EVO_MULT = [1.5,1.5,2,2,3,2,2,3]`, `EVO_COST = [25,60,150,400,1000,2000,3000,4000]`. Der Auto-Buyer "Generatoren" kauft die neuen Stufen mit (bestehende Logik, keine Änderung).
+- Hinweis 2026-10: Die Begründung oben gilt für die alten Schwellen; der Bot erreichte damit nie über Ausbau III (siehe B8). Seit der Senkung nutzt er Ausbau IV bis VI.
+- Daten: `EVO_AT = [10,20,30,45,60,75,90,100]` (vorher `[10,25,50,100,200,300,325,345]`), `EVO_MULT = [1.5,1.5,2,2,3,2,2,3]`, `EVO_COST = [25,60,150,400,1000,2000,3000,4000]`. Der Auto-Buyer "Generatoren" kauft die neuen Stufen mit (bestehende Logik, keine Änderung).
 
 ### B2.3 Industrie-Meilensteine (neue Meilenstein-Ebene)
 Zwei Leisten, automatisch, kostenlos, global multiplikativ auf alle Ausgaben (neuer Faktor `industryMult()` in `globalMult`). Kein Eintrag im Spielstand nötig: Der Wert wird aus `stats.total` abgeleitet (bleibt über Neuguss und Konzerngründung erhalten). Toast in Gold bei Erreichen (Merker wie in `systems/eras.js`).
@@ -804,24 +809,24 @@ Spalte "Quelle": GEM = gemessen im Lauf `node tools/balance-full.mjs` (Gründung
 | 20 | A3 (1e18) | | MOD |
 | 34,5 | Hochofen-Meilenstein 250.000 (Neuguss 280) | Gussformen | SIM |
 | **34** | **1. Konzerngründung, K1 (10 Patente)** | Wurzelformel, D = 1500, Bot-Rhythmus | GEM |
-| 36 / 69 / 99 / 153 | Zeitalter 2 / 3 / 4 / 5 **ohne Konzern** (balance.test) | Erz 1e20 / 1e22 / 1e23 / 3e23 | GEM |
+| 36 / 59 / 132 / 155 | Zeitalter 2 / 3 / 4 / 5 **ohne Konzern** (balance.test, seit den gesenkten Ausbau-Schwellen; vorher 36 / 69 / 99 / 153) | Erz 1e20 / 1e22 / 1e23 / 3e23 | GEM |
 | 43 | Molybdän, B4 | K1 | MOD |
 | 52 | Kobalt (Konzernforschung I), nicht neu gemessen | K1 | GEM (alt) |
-| 55 / 106 / 114 / 114 | Zeitalter 2 / 3 / 4 / 5 **mit Konzern**, nicht neu gemessen | Erz | GEM (alt) |
+| 57 / 101 / 135 / 136 | Zeitalter 2 / 3 / 4 / 5 **mit Konzern** (Gründung alle 40 h), neu gemessen 2026-10 mit gesenkten Ausbau-Schwellen (vorher 57 / 101 / 127 / 138) | Erz | GEM |
 | 70 | A4 (1e21) | | MOD |
 | 114 | Gründung 3, K2 (30 Patente) | | GEM |
 | 118 | Hartmetall (Konzernforschung II) | K2 | GEM |
 | 176 | Fördermenge A5 (2e25) | Erz | GEM |
 | 194 | K3 (70) | | GEM |
 | 202 | Platin | K3 | GEM |
-| 258 | **Zeitalter 6** (8e26) | Erz | GEM |
+| 230 (vorher 258) | **Zeitalter 6** (8e26) | Erz | GEM |
 | 274 | K4 (135) | | GEM |
 | 290 | Vanadium | K4 | GEM |
-| 344 | **Zeitalter 7** (8e27) | Erz | GEM |
+| 305 (vorher 344) | **Zeitalter 7** (8e27) | Erz | GEM |
 | 371 | A6 (5e27) | Erz | GEM |
 | 394 | K5 (210) | | GEM |
 | 408 | Iridium (braucht Zeitalter 6) | K5 + Z6 | GEM |
-| 462 | **Zeitalter 8** (8e28) | Erz | GEM |
+| 424 (vorher 462) | **Zeitalter 8** (8e28) | Erz | GEM |
 | 474 | A7 (5e28) | Erz | GEM |
 | 514 | K6 (290) | | GEM |
 | 527 | Superlegierung (braucht Zeitalter 7) | K6 + Z7 | GEM |
@@ -831,7 +836,25 @@ Spalte "Quelle": GEM = gemessen im Lauf `node tools/balance-full.mjs` (Gründung
 
 **Gesamt: alle Inhalte (125 Forschungen, 43 Boosts, 10 Klick-Upgrades, 19 Materialien, beide Reset-Ebenen, alle Meilensteine) bei 602,3 h gemessen (Bot `rate`, Korridor 504 bis 700 h).** Die schnellste gefundene Spielweise braucht 538,4 h (B6.2). Ausbau VI bis VIII und weitere Klick-/Shop-Stufen nach Maximum sind offen und zählen nicht zu "alles". Die Erzkosten der Konzernforschung sind nach Konzernstufe skaliert (B5.2).
 
-Die Zeitalter 2 bis 5 liegen mit Konzern später als ohne (55 / 106 / 114 / 114 h gegen 36 / 69 / 99 / 153 h); die Ursache ist hier nicht untersucht. Gegenüber dem Grundspiel (7,5 / 37,9 / 96,5 / 127,6 / 192 h) sind die Zeiten ohne Konzern durch die Industrie-Boni nach vorn verschoben.
+Die Zeitalter 2 bis 5 liegen mit Konzern später als ohne. Neu gemessen (2026-10, vor der Senkung der Ausbau-Schwellen, `simulate` bis 160 h, Bot `rate`, dt 30, Zeitalter 2 / 3 / 4 / 5):
+
+| Lauf | Zeitalter 2 / 3 / 4 / 5 | Hochofen-Meilenstein 250.000 |
+|---|---|---|
+| ohne Konzern (`corp: false`) | 36 / 51 / 79 / 79 h | 34,0 h |
+| nur eine Gründung bei 34 h | 57 / 76 / 95 / 95 h | 66,1 h |
+| Gründung alle 40 h (Bot) | 57 / 101 / 127 / 138 h | 66,1 h |
+
+Ursache: Jede Gründung setzt die Gussformen zurück und damit die Hochofen-Meilensteine (bis ×10) und die Wirkung des Hochofen-Shops. Die erste Gründung bei 34 h fällt genau auf den Zeitpunkt, an dem der Meilenstein 250.000 (×10) erreicht würde; er verschiebt sich auf 66 h. Die Patente einer Gründung (12 bis 19, je +2 %) und K1 (×1,1) gleichen das nicht aus, bis das Hochofen-Erbe gekauft ist. Für den Spieler wirkt die zweite Reset-Ebene deshalb rund 20 bis 60 h lang wie ein Rückschritt bei den Zeitaltern. Geprüfte Abhilfe "Firmenerbe" (ein Anteil der Gussformen des Konzernlaufs bleibt als Mindeststand, wie das Hochofen-Erbe), Zeitalter 2 / 3:
+
+| Anteil, der bleibt | Zeitalter 2 / 3 |
+|---|---|
+| 0 % (Stand) | 57,0 / 101,3 h |
+| 1 % | 57,0 / 100,1 h |
+| 5 % | 55,8 / 96,8 h |
+| 10 % | 55,8 / 87,6 h |
+| 100 % | 42,9 / 72,0 h |
+
+Kleine Anteile wirken fast nicht, weil der Gussformen-Bonus linear im Stand ist und die Meilensteine bis 250.000 reichen. Selbst wenn alle Gussformen blieben, fehlen noch ca. 7 h bis zum Lauf ohne Konzern (Hochofen-Shop und Forschung). Hochofen-Erbe Stufe 1 gratis (Mindeststand 5) wäre wirkungslos. Der Rückstand gehört damit zum Kern der zweiten Reset-Ebene; das Firmenerbe ist nicht umgesetzt. Umgesetzt ist nur ein Hinweis im Gründungsdialog, dass das nächste Zeitalter danach langsamer kommt. Eine echte Abhilfe wäre ein Umbau (z. B. Zeitalter nicht an kumuliertem Erz, sondern an Erz je Durchlauf festmachen) mit neuer Kalibrierung. Gegenüber dem Grundspiel (7,5 / 37,9 / 96,5 / 127,6 / 192 h) sind die Zeiten ohne Konzern durch die Industrie-Boni nach vorn verschoben.
 
 ### B6.5 Stellschrauben (kalibrierter Stand)
 
@@ -876,4 +899,4 @@ state.autoCast = { on: false, mode: 'gain', value: 0 }                // Auto-Ne
 - Die Zeiten in B6.4 sind für den Bot gemessen, die Kosten der Konzerninhalte bleiben Modellwerte (B5.2).
 - Der Wiederaufbau nach der Konzerngründung (3 h) ist geschätzt; er bestimmt, wie oft ein Spieler sinnvollerweise gründet, hat wegen des Zeitdeckels (B3.2) nur geringen Einfluss auf die Mindestdauer (516 h).
 - Es wurde kein echter Spieler gemessen (siehe A8). Reale Spieler können schneller sein (Offline-Ertrag, bessere Entscheidungen).
-- Ausbau VI bis VIII ist nur auf billigen Generatoren erreichbar. Falls das als Lücke wirkt, könnten die Stufen-Schwellen je Generator gestaffelt werden (z. B. `EVO_AT` abhängig vom Wachstum des Generators).
+- Ausbau VI bis VIII ist nur auf billigen Generatoren erreichbar. Nachgemessen (2026-10, Bot `rate` bis "alles" bei 602 h, Generatorstufen alle 50 h): Der Bot kommt mit seinen kurzen Durchläufen (ca. 7 min) auf keinem Generator über Stufe 73 (Bohrturm), höchster Ausbau III. Schon Ausbau IV (Stufe 100) bleibt also ungenutzt, nicht erst VI bis VIII. Eine Staffelung von `EVO_AT` nach Generator-Wachstum hätte daran nichts geändert. Umgesetzt: Die Schwellen sind insgesamt gesenkt auf 10 / 20 / 30 / 45 / 60 / 75 / 90 / 100. Neu gemessen (`node tools/balance-full.mjs`): ALLES bei 602,4 h (vorher 602,3 h, Korridor OK, das Tor bleibt K7 mit Patente-Deckel), Zeitalter 6 / 7 / 8 bei 230 / 305 / 424 h (vorher 258 / 344 / 462 h), Fördermenge A8 bei 534 h (vorher 539 h), Zeitalter 1 bis 3 und Materialien unverändert, Zeitalter 4 / 5 bei 135 / 136 h (vorher 127 / 138 h). Ohne Konzern (`tests/balance.test.mjs`) kommt Zeitalter 4 dagegen deutlich später (132 statt 98 h, Zeitalter 5 unverändert ca. 155 h): Ausbau IV ist schon ab Generatorstufe 45 kaufbar, kostet das 400-fache einer Stufe, und der Auto-Buyer kauft ihn sofort. Verglichen wurde auch 10 / 25 / 40 / 60 / 80 / 100 / 120 / 140: Zeitalter 4 ohne Konzern 113 h, aber der Bot nutzt dann nur Ausbau IV und die späten Zeitalter bleiben unverändert; deshalb fiel die Wahl auf die stärkere Senkung. Höchster Ausbau beim Bot jetzt: Bohrturm VI, Eisenmine/Schmelzofen/Walzwerk V, Zeche IV, Titan-Schmiede III (vorher überall höchstens III). Teure Generatoren bleiben unter Stufe 20 und kommen weiter kaum über Ausbau I.

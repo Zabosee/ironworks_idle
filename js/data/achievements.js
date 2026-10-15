@@ -2,6 +2,7 @@
 import { RESEARCH } from './research.js';
 import { BOOSTS } from './upgrades.js';
 import { INDUSTRY_TRACKS } from './industry.js';
+import { CHALLENGE_MAX_LEVEL } from './challenges.js';
 
 const ACH = [];
 const fmtBig = n => n.toLocaleString('de-DE');   // einheitlich mit Tausenderpunkt (auch 1e15, 1e20)
@@ -76,7 +77,8 @@ add('industry_b7', '🧩', 'Alle Materialien', `Besitze alle ${VAR_MAX} Material
 
 const chDone = s => Object.keys(s.challenges?.done || {}).length;
 add('challenge_1', '🏁', 'Bewährungsprobe', 'Schaffe eine Herausforderung im Hochofen.', 0.01, s => chDone(s) >= 1);
-add('challenge_3', '🏁', 'Meisterprüfung', 'Schaffe alle 3 Herausforderungen im Hochofen.', 0.01, s => chDone(s) >= 3);
+add('challenge_3', '🏁', 'Meisterprüfung', 'Schaffe 3 verschiedene Herausforderungen im Hochofen.', 0.01, s => chDone(s) >= 3);
+add('challenge_max', '🏁', 'Großmeister', `Bringe eine Herausforderung auf Stufe ${CHALLENGE_MAX_LEVEL}.`, 0.02, s => Object.values(s.challenges?.done || {}).some(l => l >= CHALLENGE_MAX_LEVEL));
 
 export const ACHIEVEMENTS = ACH;
 export const ACHIEVEMENT_MAP = Object.fromEntries(ACH.map(a => [a.id, a]));

@@ -16,7 +16,7 @@ const panels = {};
 for (const n of NAMES) { els.set('tabbtn-' + n, mk(n)); panels[n] = { hidden: true }; els.set('tab-' + n, panels[n]); }
 els.get('tabbtn-industry').hidden = true;   // wie in index.html
 const nav = { querySelectorAll: () => NAMES.map(n => els.get('tabbtn-' + n)), addEventListener() {} };
-globalThis.document = { getElementById: id => els.get(id) ?? null };
+globalThis.document = { getElementById: id => els.get(id) ?? null, addEventListener() {} };
 globalThis.Node = class {};
 const { initTabs, setTabHidden, activeTab } = await import('../js/ui/tabs.js');
 const select = initTabs(nav);

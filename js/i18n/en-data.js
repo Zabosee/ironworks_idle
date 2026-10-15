@@ -282,7 +282,8 @@ export const EN = {
     golden_10: { name: "Lucky Devil", desc: "Catch 10 golden ingots." },
     golden_50: { name: "Gold Digger", desc: "Catch 50 golden ingots." },
     challenge_1: { name: 'Trial by Fire', desc: 'Complete a challenge in the Blast Furnace.' },
-    challenge_3: { name: 'Master Exam', desc: 'Complete all 3 challenges in the Blast Furnace.' },
+    challenge_3: { name: 'Master Exam', desc: 'Complete 3 different challenges in the Blast Furnace.' },
+    challenge_max: { name: 'Grandmaster', desc: 'Bring a challenge to level 5.' },
     golden_200: { name: "Midas", desc: "Catch 200 golden ingots." },
     time_3600: { name: "One Shift", desc: "Play for a total of 1 hour." },
     time_86400: { name: "Around the Clock", desc: "Play for a total of 24 hours." },
@@ -352,6 +353,8 @@ export const EN = {
     noclick: { name: 'No Clicking',  desc: 'Click yield 0. Produce the steel goal in 20 min.' },
     onegen:  { name: 'One Generator', desc: 'Only one generator type may be bought (the first purchase decides). Steel goal in 20 min.' },
     iron:    { name: 'Iron Deadline', desc: 'Production halved. Steel goal in 30 min.' },
+    nolab:   { name: 'Research Freeze', desc: 'Lab and workbench accept no new jobs (running ones continue). Steel goal in 20 min.' },
+    orestop: { name: 'Ore Shortage',  desc: 'Ore production −90%. Steel goal in 20 min.' },
   },
   randomEvents: {
     vein:     { name: 'Ore Vein Found' },

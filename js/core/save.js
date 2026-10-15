@@ -14,7 +14,7 @@ import { HISTORY_MAX } from '../data/prestige.js';
 import { EVO_MAX } from '../data/eras.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { BUFFS } from '../data/golden.js';
-import { CHALLENGE_MAP } from '../data/challenges.js';
+import { CHALLENGE_MAP, CHALLENGE_MAX_LEVEL } from '../data/challenges.js';
 import { QUEUES, QUEUE_IDS, MAX_ENTRIES, OFFLINE_EFFICIENCY } from '../data/timers.js';
 
 export const SAVE_VERSION = 9;
@@ -131,10 +131,11 @@ export function sanitize(d) {
   // Herausforderungen: nur bekannte IDs; ein ungültiger oder unvollständiger aktiver Lauf wird verworfen (ohne Folgen)
   const ch = isObj(d.challenges) ? d.challenges : {};
   const chDone = isObj(ch.done) ? ch.done : {};
-  for (const id of Object.keys(CHALLENGE_MAP)) if (chDone[id] === true) s.challenges.done[id] = true;
+  // Stufe 1..CHALLENGE_MAX_LEVEL; Spielstände vor den Stufen speichern true (= Stufe 1)
+  for (const id of Object.keys(CHALLENGE_MAP)) { const l = chDone[id] === true ? 1 : int(chDone[id], CHALLENGE_MAX_LEVEL); if (l > 0) s.challenges.done[id] = l; }
   const ca = ch.active;
   if (isObj(ca) && typeof ca.id === 'string' && Object.hasOwn(CHALLENGE_MAP, ca.id) && Number.isFinite(ca.goal) && ca.goal > 0 && Number.isFinite(ca.left) && ca.left > 0) {
-    s.challenges.active = { id: ca.id, left: num(ca.left, 0, 0, CHALLENGE_MAP[ca.id].time), goal: num(ca.goal, 1, 1, 1e300), base: num(ca.base), gen: GENS.some(g => g.id === ca.gen) ? ca.gen : '' };
+    s.challenges.active = { id: ca.id, level: Math.max(1, int(ca.level, CHALLENGE_MAX_LEVEL)), left: num(ca.left, 0, 0, CHALLENGE_MAP[ca.id].time), goal: num(ca.goal, 1, 1, 1e300), base: num(ca.base), gen: GENS.some(g => g.id === ca.gen) ? ca.gen : '' };
   }
 
   const dl = isObj(d.daily) ? d.daily : {};
@@ -148,6 +149,8 @@ export function sanitize(d) {
   s.settings.particles = bool(se.particles, true);
   s.settings.lang = LANG_IDS.includes(se.lang) ? se.lang : 'de';
   s.settings.buyAmount = BUY_AMOUNTS.includes(se.buyAmount) ? se.buyAmount : '1';
+  s.settings.sound = bool(se.sound, true);
+  s.settings.volume = num(se.volume, 0.5, 0, 1);
 
   s.savedAt = num(d.savedAt, 0, 0, 8.64e15);
   return s;

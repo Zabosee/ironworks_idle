@@ -1027,11 +1027,11 @@ await scenario('o', 'Schwerpunkt, Herausforderung, Willkommen-Dialog (60 %)', as
   await step('Herausforderung: Starten sperrt die anderen, Abbrechen kostet nichts', async () => {
     await prep(); await tab('prestige');
     const before = await G('JSON.stringify([state.prestige, state.gens])');
-    await clickText('#prestige-root .challenges li', 'Starten');
+    await clickText('#prestige-root .challenges li', 'Stufe 1 starten');
     assert(await G('state.challenges.active?.id') === 'noclick', 'Herausforderung nicht aktiv: ' + await G('JSON.stringify(state.challenges)'));
     assert(await G('state.challenges.active.goal > 0 && F.rates().click === 0'), 'Ziel/Klickmod falsch');
     const dis = await ev(`[...document.querySelectorAll('#prestige-root .challenges li button')].map(b => b.disabled)`);
-    assert(J(dis) === '[false,true,true]', 'Knopfzustand: ' + J(dis));
+    assert(J(dis) === '[false,true,true,true,true]', 'Knopfzustand: ' + J(dis));
     await shot('o-challenge');
     await clickText('#prestige-root .challenges li', 'Abbrechen');
     assert(await G('state.challenges.active') === null, 'Abbruch ohne Wirkung');

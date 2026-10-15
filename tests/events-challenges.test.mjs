@@ -8,7 +8,7 @@ import * as C from '../js/systems/challenges.js';
 import { buy } from '../js/systems/production.js';
 import { check } from '../js/systems/achievements.js';
 import { RANDOM_EVENTS } from '../js/data/events-random.js';
-import { CHALLENGES, CHALLENGE_BONUS, CHALLENGE_MIN_RUN } from '../js/data/challenges.js';
+import { CHALLENGES, CHALLENGE_BONUS, CHALLENGE_LEVEL_BONUS, CHALLENGE_MAX_LEVEL, CHALLENGE_MIN_RUN, challengeGoalMult } from '../js/data/challenges.js';
 import { doPrestige } from '../js/systems/prestige.js';
 import { doCorp } from '../js/systems/corp.js';
 
@@ -126,21 +126,43 @@ describe('Herausforderungen', () => {
     const base = F.rates().ore;
     C.start('iron'); assert.equal(F.rates().ore, base * 0.5);
   });
-  test('Abschluss: Bonus +3 % einmalig, Erfolg, Wiederholung ohne weiteren Bonus', () => {
+  test('Abschluss: Stufe 1 gibt +3 %, jede weitere Stufe +1 % mit höherem Ziel; Höchststufe nur noch Wiederholung', () => {
     unlock(); state.gens.mine = 10;
     const base = F.rates().ore;
     C.start('noclick');
     const ev = collect('challenge');
-    state.stats.total.steel += CHALLENGES[0].floor; C.tick(1);
-    assert.equal(state.challenges.active, null); assert.equal(state.challenges.done.noclick, true);
-    assert.equal(ev.got.at(-1).done, 'noclick');
+    state.stats.total.steel += state.challenges.active.goal; C.tick(1);
+    assert.equal(state.challenges.active, null); assert.equal(state.challenges.done.noclick, 1);
+    assert.equal(ev.got.at(-1).done, 'noclick'); assert.equal(ev.got.at(-1).level, 1);
     assert.ok(Math.abs(F.rates().ore - base * (1 + CHALLENGE_BONUS)) < 1e-9);
     check(0, true); assert.ok(state.achievements.challenge_1); assert.ok(!state.achievements.challenge_3);
-    C.start('noclick'); state.stats.total.steel += CHALLENGES[0].floor; C.tick(1);
-    assert.equal(Object.keys(state.challenges.done).length, 1);
-    for (const c of CHALLENGES) state.challenges.done[c.id] = true;
+    for (let lvl = 2; lvl <= CHALLENGE_MAX_LEVEL; lvl++) {
+      C.start('noclick');
+      assert.equal(state.challenges.active.level, lvl);
+      assert.equal(state.challenges.active.goal, Math.ceil(CHALLENGES[0].floor * challengeGoalMult(lvl)));
+      state.stats.total.steel += state.challenges.active.goal; C.tick(1);
+      assert.equal(state.challenges.done.noclick, lvl);
+    }
+    const top = 1 + CHALLENGE_BONUS + CHALLENGE_LEVEL_BONUS * (CHALLENGE_MAX_LEVEL - 1);
+    assert.ok(Math.abs(F.challengeMult() - top) < 1e-12);
+    check(0, true); assert.ok(state.achievements.challenge_max);
+    C.start('noclick'); assert.equal(state.challenges.active.level, CHALLENGE_MAX_LEVEL);   // Wiederholung ohne weiteren Bonus
+    state.stats.total.steel += state.challenges.active.goal; C.tick(1);
+    assert.equal(state.challenges.done.noclick, CHALLENGE_MAX_LEVEL);
+    assert.ok(Math.abs(F.challengeMult() - top) < 1e-12);
+    for (const c of CHALLENGES.slice(1, 3)) state.challenges.done[c.id] = 1;
     check(0, true); assert.ok(state.achievements.challenge_3);
-    assert.ok(Math.abs(F.challengeMult() - (1 + 3 * CHALLENGE_BONUS)) < 1e-12);
+  });
+  test('Forschungsstopp sperrt neue Aufträge; Erzmangel senkt nur die Erzrate', () => {
+    unlock(); state.gens.mine = 10; state.gens.smelter = 5; state.res.ore = 1e6;
+    const r0 = F.rates();
+    C.start('nolab');
+    assert.equal(F.lockReason('research', 'geology'), 'Herausforderung: keine neuen Aufträge');
+    assert.equal(buy('research', 'geology'), false);
+    C.abort(); assert.equal(F.lockReason('research', 'geology'), null);
+    C.start('orestop');
+    const r1 = F.rates();
+    assert.ok(Math.abs(r1.ore - r0.ore * 0.1) < 1e-9); assert.equal(r1.steel, r0.steel);
   });
   test('Scheitern bei Fristablauf: nichts verloren, kein Bonus', () => {
     unlock(); state.res.ore = 77;
@@ -221,7 +243,7 @@ describe('Save v9: challenges', () => {
     assert.equal(m.v, 9); assert.deepEqual(m.state.challenges, { done: {}, active: null });
   });
   test('Roundtrip erhält done und aktiven Lauf', () => {
-    state.prestige.count = 1; state.stats.runTime = CHALLENGE_MIN_RUN; C.start('onegen'); state.challenges.done.iron = true; state.challenges.active.gen = 'mine';
+    state.prestige.count = 1; state.stats.runTime = CHALLENGE_MIN_RUN; C.start('onegen'); state.challenges.done.iron = 2; state.challenges.active.gen = 'mine';
     const before = JSON.parse(JSON.stringify(state.challenges));
     S.importSave(S.exportSave());
     assert.deepEqual(state.challenges, before);
@@ -230,10 +252,10 @@ describe('Save v9: challenges', () => {
     const s = d => S.sanitize({ challenges: d }).challenges;
     const empty = { done: {}, active: null };
     for (const bad of [null, 5, 'x', [], { done: 3, active: 'x' }]) assert.deepEqual(s(bad), empty);
-    assert.deepEqual(s({ done: { noclick: true, iron: 1, foo: true, onegen: 'ja' } }).done, { noclick: true });
+    assert.deepEqual(s({ done: { noclick: true, iron: 3, nolab: 99, orestop: 0, foo: true, onegen: 'ja' } }).done, { noclick: 1, iron: 3, nolab: CHALLENGE_MAX_LEVEL });
     for (const a of [{ id: 'nope', left: 5, goal: 5 }, { id: 'iron', left: 'x', goal: 5 }, { id: 'iron', left: 5, goal: -1 }, { id: 'iron', left: 0, goal: 5 }, { id: 'iron', left: NaN, goal: 5 }, { id: '__proto__', left: 5, goal: 5 }, 7])
       assert.equal(s({ active: a }).active, null);
-    assert.deepEqual(s({ active: { id: 'iron', left: 99999, goal: 50, base: -3, gen: 'xx', extra: 1 } }).active, { id: 'iron', left: 1800, goal: 50, base: 0, gen: '' });
+    assert.deepEqual(s({ active: { id: 'iron', left: 99999, goal: 50, base: -3, gen: 'xx', extra: 1 } }).active, { id: 'iron', level: 1, left: 1800, goal: 50, base: 0, gen: '' });
     assert.equal(s({ active: { id: 'iron', left: 5, goal: 5, gen: 'mine' } }).active.gen, 'mine');
   });
 });

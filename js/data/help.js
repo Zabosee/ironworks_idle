@@ -18,6 +18,7 @@ export const LAYERS = [
   { id: 'challenges', name: 'Herausforderungen', text: 'Optionale Aufgaben mit Sonderregel und Zeitlimit (ab dem ersten Neuguss). Kein Risiko: nichts wird zurückgesetzt. Jede geschaffte gibt dauerhaft Produktion.' },
   { id: 'events', name: 'Zufallsereignisse', text: 'Während du spielst, erscheinen gelegentlich Ereignisse: Erzader, Rohstoffengpass oder Sonderauftrag. Klicken oder Liefern bringt einen Bonus. Der goldene Barren (Taste G) gibt einen kurzen Effekt.' },
   { id: 'offline', name: 'Offline und Tagesbonus', text: 'Auch bei geschlossenem Spiel läuft die Produktion nach, mit {pct} % des Aktiv-Ertrags und einer Zeitkappe. Der Tagesbonus gibt beim ersten Start des Tages einen Effekt; eine Serie bis Tag {max} steigert ihn.' },
+  { id: 'keys', name: 'Tastenkürzel', text: '1 bis 9 wechseln die Bereiche, ? öffnet diese Hilfe, G fängt den goldenen Barren. Ton und Lautstärke stellst du in den Einstellungen ein.' },
 ];
 
 export const layerParams = id => (id === 'corp' ? { n: CORP.unlockCount } : id === 'offline' ? { pct: Math.round(OFFLINE_EFFICIENCY * 100), max: DAILY.maxStreak } : undefined);

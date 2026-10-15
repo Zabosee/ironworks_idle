@@ -22,7 +22,7 @@ describe('Hilfe', () => {
     assert.deepEqual(g.coke.fed.map(r => r.id), ['blast']);
   });
   test('Spielebenen: DE und EN vorhanden, Platzhalter gefüllt', () => {
-    assert.equal(LAYERS.length, 9);
+    assert.equal(LAYERS.length, 10);
     for (const l of LAYERS) for (const k of [l.name, l.text]) assert.ok(EN_UI[k], `EN fehlt: ${k}`);
     for (const l of LAYERS) assert.ok(!/\{\w+\}/.test(l.text.replace(/\{(\w+)\}/g, (m, p) => layerParams(l.id)?.[p] ?? m)), l.id);
   });

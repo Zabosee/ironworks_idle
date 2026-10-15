@@ -130,7 +130,14 @@ describe('Validierung (sanitize) – negative / NaN / Muell-Werte', () => {
   });
   test('Einstellungen: ungueltige Werte -> Defaults', () => {
     S.importSave(wrap({ settings: { format: 'hex', autosave: 'ja', autosaveSec: 7, particles: 0, buyAmount: '5', lang: 'fr' } }));
-    assert.deepEqual(state.settings, { format: 'standard', autosave: true, autosaveSec: 10, particles: true, buyAmount: '1', lang: 'de' });
+    assert.deepEqual(state.settings, { format: 'standard', autosave: true, autosaveSec: 10, particles: true, buyAmount: '1', lang: 'de', sound: true, volume: 0.5 });
+  });
+  test('Einstellungen: Sound bleibt erhalten, Lautstärke auf 0..1 geklemmt', () => {
+    S.importSave(wrap({ settings: { sound: false, volume: 3 } }));
+    assert.equal(state.settings.sound, false);
+    assert.equal(state.settings.volume, 1);
+    S.importSave(wrap({ settings: { volume: 'laut' } }));
+    assert.equal(state.settings.volume, 0.5);
   });
   test('Buffs: unbekannte, abgelaufene, negative gedroppt; Restzeit geklemmt', () => {
     S.importSave(wrap({ buffs: [

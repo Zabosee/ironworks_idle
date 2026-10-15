@@ -90,7 +90,9 @@ describe('Balance: Zeitalter-Progression', () => {
   });
 
   test('Zeitalter 2-5 liegen in ihren Zeitfenstern (Industrie-Boni D7 eingerechnet), jeder Schritt dauert viele Stunden', () => {
-    const window = { 2: [25, 48], 3: [50, 90], 4: [75, 125], 5: [110, 190] };   // Stunden aktiver Spielzeit (gemessen 36 / 69 / 99 / 153)
+    // Stunden aktiver Spielzeit, gemessen 36 / 59 / 132 / 155. Zeitalter 4 kam vor 2026-10 bei 98 h; seit den gesenkten Ausbau-Schwellen (EVO_AT)
+    // kauft der Auto-Buyer Ausbau IV ab Generatorstufe 45 (Kosten x400) und bremst ohne Konzern bis Zeitalter 4. Mit Konzern nur +7 h (127 -> 135 h), GAME-DESIGN.md B8.
+    const window = { 2: [25, 48], 3: [50, 90], 4: [75, 140], 5: [110, 190] };
     for (const i of [2, 3, 4, 5]) {
       assert.ok(eras.eraTimes[i] !== undefined, `Zeitalter ${i} in 14 Tagen nicht erreicht`);
       assert.ok(hours(i) >= window[i][0] && hours(i) <= window[i][1], `Zeitalter ${i} bei ${hours(i).toFixed(1)} h, erwartet ${window[i].join(' bis ')} h`);

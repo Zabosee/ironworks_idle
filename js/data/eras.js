@@ -17,6 +17,6 @@ export const ERAS = [
 ];
 
 export const EVO_MAX = 8;
-export const EVO_AT = [10, 25, 50, 100, 200, 300, 325, 345];   // Generatorenstufe, ab der Ausbau k freigeschaltet
+export const EVO_AT = [10, 20, 30, 45, 60, 75, 90, 100];   // Generatorenstufe, ab der Ausbau k freigeschaltet
 export const EVO_MULT = [1.5, 1.5, 2, 2, 3, 2, 2, 3];          // Multiplikator für genOutputAt je Stufe (kumuliert x324)
 export const EVO_COST = [25, 60, 150, 400, 1000, 2000, 3000, 4000];   // Kosten-Multiplikator je Stufe

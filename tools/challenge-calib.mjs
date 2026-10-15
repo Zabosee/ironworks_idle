@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Kalibrierung der Herausforderungen (js/data/challenges.js): der Balance-Bot spielt normal und forkt an Messpunkten den Zustand;
 // im Fork startet er jede Herausforderung und spielt sie mit demselben Bot-Schritt bis Ziel oder Frist, danach wird der Zustand zurückgesetzt.
-//   [MINRUN=Sekunden kürzester Bot-Durchlauf, Standard 300; 3600 = Bot spielt lange Durchläufe wie ein Mensch]
+//   [MINRUN=Sekunden kürzester Bot-Durchlauf, Standard 300; 3600 = Bot spielt lange Durchläufe wie ein Mensch] [LEVEL=Stufe, Standard 1]
 //   node tools/challenge-calib.mjs [Stunden=6] [Klicks/s=4] [Name.Feld=Wert ...]    z. B. noclick.k=300 iron.floor=1e6
 // Ausgabe je Messpunkt und Herausforderung: Ziel, Fertigstellung als Anteil der Frist ("--" = gescheitert, dann Anteil des Ziels).
 import { state, replaceState } from '../js/core/state.js';
@@ -18,6 +18,7 @@ const args = process.argv.slice(2), over = args.filter(a => a.includes('=')), po
 for (const o of over) { const [p, v] = o.split('='), [id, f] = p.split('.'); CHALLENGES.find(c => c.id === id)[f] = Number(v); }
 const [hours = 6, cps = 4] = pos.map(Number);
 const DT = 2;
+const LEVEL = +(process.env.LEVEL || 1);   // LEVEL=<n>: misst Stufe n (Ziel x challengeGoalMult(n))
 const PROBE = process.env.PROBE === '1';   // PROBE=1: ohne Ziel spielen und k_eff = erzeugter Stahl / (Startrate x Frist) ausgeben (k muss darunter liegen)
 
 function botStep() {
@@ -31,12 +32,13 @@ function botStep() {
 }
 
 function runChallenge(id) {
+  if (LEVEL > 1) state.challenges.done[id] = LEVEL - 1;
   if (!C.start(id)) return null;
   const a = state.challenges.active, goal = a.goal, time = a.left;
   if (PROBE) { const r0 = F.rates().steel; a.goal = 1e300; let u = 0; while (u < time) { botStep(); C.tick(DT); u += DT; } return { goal, ok: true, frac: 0, prog: 1, keff: (state.stats.total.steel - a.base) / (r0 * time), rate0: r0 }; }
   let used = 0;
   while (state.challenges.active && used < time + DT) { botStep(); C.tick(DT); used += DT; }
-  const ok = !!state.challenges.done[id];
+  const ok = (state.challenges.done[id] || 0) >= LEVEL;
   return { goal, ok, frac: ok ? used / time : 0, prog: ok ? 1 : (state.stats.total.steel - a.base) / goal };
 }
 

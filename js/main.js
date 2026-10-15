@@ -27,6 +27,7 @@ import { showWelcome } from './ui/welcome.js';
 import { initToasts } from './ui/toast.js';
 import { initCollect, initGoldenUI, initFlash } from './ui/effects.js';
 import { initHelp } from './ui/help.js';
+import { initSound } from './ui/sound.js';
 import { initSettings, applySettings } from './ui/settings.js';
 import { resetHistory } from './ui/charts.js';
 import { $ } from './ui/dom.js';
@@ -71,6 +72,7 @@ function boot() {
   initTabs($('#tabs'));
   initSettings();
   initHelp();
+  initSound();
   initCollect($('#collect'), $('#click-zone'), refresh);
   initGoldenUI($('#goldenLayer'));
   initFlash();
@@ -112,6 +114,16 @@ function boot() {
 
   // Beim Verlassen nur speichern, wenn der Nutzer Autosave eingeschaltet hat (und nie bei gesperrtem Speichern).
   document.addEventListener('visibilitychange', () => { if (document.hidden) autoSave(); });
+  // Tab-Titel als Hinweis im Hintergrund: Der Loop (requestAnimationFrame) pausiert dort, deshalb rechnet ein Intervall
+  // mit der beim Verstecken verbleibenden Zeit des nächsten Auftrags (Timer laufen offline mit vollem Tempo).
+  const baseTitle = document.title;
+  let hiddenAt = 0, doneIn = Infinity;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { hiddenAt = performance.now(); doneIn = timers.timeToNext(); } else document.title = baseTitle;
+  });
+  setInterval(() => {
+    if (document.hidden && (performance.now() - hiddenAt) / 1000 >= doneIn) document.title = '✔ ' + t('Auftrag fertig') + ' · ' + baseTitle;
+  }, 5000);
   addEventListener('pagehide', autoSave);
   // Debug-Hook nur lokal (Live-Tests per DevTools); sonst bleibt es beim Boot-Marker.
   window.__eisenwerk = ['localhost', '127.0.0.1'].includes(location.hostname) ? { state, F, timers, buy, save, refresh } : true;

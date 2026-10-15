@@ -10,10 +10,19 @@
 //   Start bei 30 min oder im 1. Neuguss (Rate wächst noch): 33 bis 68 %. Wachstumsstarts sind leichter (früher fertig), nie unschaffbar.
 // Ein Mensch ist langsamer als der Bot, k nicht weiter erhöhen.
 export const CHALLENGE_MIN_RUN = 1800;   // Start erst, wenn der Durchlauf so viele Sekunden alt ist (direkt nach dem Neuguss ist die Stahlrate ~0)
-export const CHALLENGE_BONUS = 0.03;   // dauerhaft je geschaffter Herausforderung (Produktion)
+export const CHALLENGE_BONUS = 0.03;   // dauerhaft für Stufe 1 je Herausforderung (Produktion)
+// Stufen: state.challenges.done[id] = höchste geschaffte Stufe (1..CHALLENGE_MAX_LEVEL). Stufe n hat das Ziel x (1 + CHALLENGE_LEVEL_GOAL x (n-1))
+// und gibt je Stufe über 1 zusätzlich CHALLENGE_LEVEL_BONUS. Da das Ziel an der Startrate hängt, verlangen hohe Stufen Wachstum während der Frist
+// (Start früh im Durchlauf, Rate wächst noch); im Plateau schafft der Bot etwa Stufe 1 bis 2. Kalibrierung: LEVEL=<n> node tools/challenge-calib.mjs.
+export const CHALLENGE_MAX_LEVEL = 5;
+export const CHALLENGE_LEVEL_GOAL = 0.25;
+export const CHALLENGE_LEVEL_BONUS = 0.01;
+export const challengeGoalMult = level => 1 + CHALLENGE_LEVEL_GOAL * (level - 1);
 export const CHALLENGES = [
   { id: 'noclick', sym: 'finger', name: 'Ohne Klicken', desc: 'Klickertrag 0. Produziere das Stahlziel in 20 min.', time: 1200, k: 0.85, floor: 1e7, mods: { click: 0 } },
   { id: 'onegen',  sym: 'factory', name: 'Ein Generator', desc: 'Nur ein Generator-Typ darf gekauft werden (der erste Kauf legt ihn fest). Stahlziel in 20 min.', time: 1200, k: 0.85, floor: 1e7, mods: { oneGen: true } },
   { id: 'iron',    sym: 'hourglass', name: 'Eiserne Frist', desc: 'Produktion halbiert. Stahlziel in 30 min.', time: 1800, k: 0.43, floor: 1e7, mods: { prod: 0.5 } },
+  { id: 'nolab',   sym: 'microscope', name: 'Forschungsstopp', desc: 'Labor und Werkbank nehmen keine neuen Aufträge an (laufende arbeiten weiter). Stahlziel in 20 min.', time: 1200, k: 0.85, floor: 1e7, mods: { noQueue: true } },
+  { id: 'orestop', sym: 'rock', name: 'Erzmangel', desc: 'Erzproduktion −90 %. Stahlziel in 20 min.', time: 1200, k: 0.85, floor: 1e7, mods: { res: { ore: 0.1 } } },
 ];
 export const CHALLENGE_MAP = Object.fromEntries(CHALLENGES.map(c => [c.id, c]));

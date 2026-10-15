@@ -10,7 +10,7 @@ import { RECIPES } from '../data/recipes.js';
 import { PRESTIGE, FOCUS_MAP, FOCUS_RES, FOCUS_BONUS, FOCUS_MALUS, SHOP_MAP, MILESTONES, AUTOBUYERS, AUTOBUYER_INTERVAL } from '../data/prestige.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { BUFFS } from '../data/golden.js';
-import { CHALLENGE_MAP, CHALLENGE_BONUS } from '../data/challenges.js';
+import { CHALLENGE_MAP, CHALLENGE_BONUS, CHALLENGE_LEVEL_BONUS } from '../data/challenges.js';
 import { ERAS, EVO_MAX, EVO_AT, EVO_MULT, EVO_COST } from '../data/eras.js';
 import { INDUSTRY_TRACKS } from '../data/industry.js';
 import { CORP, CORP_SHOP_MAP, CORP_MILESTONES, HEIR_FLOOR } from '../data/corp.js';
@@ -214,8 +214,12 @@ export function focusMult(res) {
 
 // ---------- Herausforderungen (state.challenges, siehe systems/challenges.js) ----------
 export const challengeDef = () => CHALLENGE_MAP[state.challenges?.active?.id] || null;
-/** Dauerhafter Bonus je geschaffter Herausforderung mal Malus der laufenden (Eiserne Frist). */
-export const challengeMult = () => (1 + CHALLENGE_BONUS * Object.keys(state.challenges?.done || {}).length) * (challengeDef()?.mods.prod ?? 1);
+/** Dauerhafter Bonus der geschafften Stufen (Stufe 1: CHALLENGE_BONUS, jede weitere CHALLENGE_LEVEL_BONUS) mal Malus der laufenden (Eiserne Frist). */
+export function challengeMult() {
+  let bonus = 0;
+  for (const lvl of Object.values(state.challenges?.done || {})) if (lvl >= 1) bonus += CHALLENGE_BONUS + CHALLENGE_LEVEL_BONUS * (lvl - 1);
+  return (1 + bonus) * (challengeDef()?.mods.prod ?? 1);
+}
 /** true, wenn die laufende Herausforderung 'Ein Generator' diesen Generator-Typ sperrt. */
 export const oneGenBlocked = id => { const a = state.challenges?.active; return !!(a && a.gen && a.gen !== id && challengeDef()?.mods.oneGen); };
 
@@ -281,6 +285,8 @@ export function rates() {
     r.flows.push(flow);
   }
   for (const b of state.buffs) if (b.id === 'shortage' && b.left > 0 && r[b.res] > 0) r[b.res] *= BUFFS.shortage.mult;   // Rohstoffengpass (Zufallsereignis)
+  const chRes = challengeDef()?.mods.res;   // Herausforderung 'Erzmangel': Nettorate einzelner Materialien
+  if (chRes) for (const k in chRes) if (r[k] > 0) r[k] *= chRes[k];
   for (const k of RES_IDS) r[k] = safe(r[k]);
   return r;
 }
@@ -363,6 +369,7 @@ export function lockReason(kind, id) {
   if (q) {
     const p = pendingOf(kind, id);
     if (p) return p.running ? t('Läuft') : t('In Warteschlange');
+    if (challengeDef()?.mods.noQueue) return t('Herausforderung: keine neuen Aufträge');
     if (state.timers[q].length >= queueCapacity(q)) return t('{name}: Warteschlange voll', { name: tName('timers', QUEUES[q]) });
   }
   return null;

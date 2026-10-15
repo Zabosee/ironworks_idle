@@ -34,7 +34,7 @@ export function defaultState() {
       golden: 0, buys: 0, bestOreRate: 0, timersDone: 0,
       bestPrestige: 0, fastestPrestige: 0, startedAt: Date.now(),
     },
-    settings: { format: 'standard', autosave: true, autosaveSec: 10, particles: true, buyAmount: '1', lang: 'de' },
+    settings: { format: 'standard', autosave: true, autosaveSec: 10, particles: true, buyAmount: '1', lang: 'de', sound: true, volume: 0.5 },
     challenges: { done: {}, active: null },   // Herausforderungen: done { id: true }, active null | { id, left, goal, base, gen } (data/challenges.js)
     daily: { last: '', streak: 0 },   // Tagesbonus: letzter Bonus-Tag (lokal, YYYY-MM-DD) und Serie
     savedAt: 0,
