@@ -37,7 +37,3 @@ Umfang: 125 Forschungen (davon 49 Konzernforschung), 43 Boosts, 10 Klick-Upgrade
 | Konzern: Patente, Gründung und Konzern-Shop. | Erfolge: Bedingung und Produktionsbonus je Erfolg. |
 | ![Hilfe-Dialog mit Erklärung der Spielebenen](docs/screenshots/08-hilfe.png) | |
 | Hilfe-Dialog (Taste ?). | |
-
-## Dokumentation
-
-- [docs/GAME-DESIGN.md](docs/GAME-DESIGN.md): Spieldesign mit Ressourcenkette, Timern, Neuguss, Konzerngründung, Zeitplan und Balance
