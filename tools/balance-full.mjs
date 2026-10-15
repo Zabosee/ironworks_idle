@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Voller Kalibrierlauf des kalibrierten Bots (beide Reset-Ebenen) bis "alles freigeschaltet" (GAME-DESIGN-2.md 6.4, Entscheidung D2).
+// Voller Kalibrierlauf des kalibrierten Bots (beide Reset-Ebenen) bis "alles freigeschaltet" (GAME-DESIGN.md B6.4).
 // Dauer: ca. 10 bis 20 min Rechenzeit (nicht Teil von `node --test`). Gehört nicht in den normalen Testlauf.
 //
 //   node tools/balance-full.mjs [maxStunden=800] [corpEvery=40] [hold=3600] [workHold=1] [minRun=60] [Name.Pfad=Wert ...]

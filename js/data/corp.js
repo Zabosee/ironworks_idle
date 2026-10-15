@@ -1,4 +1,4 @@
-// Zweite Reset-Ebene "Konzerngründung" (GAME-DESIGN-2.md Abschnitt 3): Formel-Parameter, Konzern-Shop, Konzernstufen.
+// Zweite Reset-Ebene "Konzerngründung" (GAME-DESIGN.md B3): Formel-Parameter, Konzern-Shop, Konzernstufen.
 // Nachkalibriert mit capPerHour 0,68 (tools/balance-full.mjs): Bot (Gründung alle 40 h) ALLES bei 602,3 h, K1..K7 bei 34/114/194/274/394/514/594 h; schnellste gemessene Spielweise 537-538 h (workHold, minRun 15, hold 7200, Gründung alle 17,7 h); Untergrenze 351/0,68 = 516 h. Patente = min(Wurzel, Zeitdeckel), siehe corpGainParts in formulas.js.
 export const CORP = {
   name: 'Konzerngründung',

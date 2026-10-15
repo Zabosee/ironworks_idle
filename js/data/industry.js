@@ -1,4 +1,4 @@
-// Industrie-Meilensteine (GAME-DESIGN-2.md 2.3): zwei automatische Leisten, kostenlos, global multiplikativ.
+// Industrie-Meilensteine (GAME-DESIGN.md B2.3): zwei automatische Leisten, kostenlos, global multiplikativ.
 // Der Wert wird aus dem Spielstand abgeleitet (nichts gespeichert); `value(state)` ist rein. Schwellen A5-A8 kalibriert in Schritt 6, Stufen-Multiplikatoren A5-A8 1,20/1,25/1,35/1,50 und B4-B7 1,15/1,20/1,25/1,35 in Schritt 13 (D13); Bot: A5-A8 bei ca. 176/371/474/539 h.
 //   log: Fortschritt zur nächsten Stufe logarithmisch (Erz) statt linear (Anzahl).
 const ownedMaterials = s => Object.values(s.stats.total).filter(v => v > 0).length;

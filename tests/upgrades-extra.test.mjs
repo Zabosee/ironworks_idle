@@ -52,7 +52,7 @@ describe('Upgrades: click/autoclick-Boosts, Synergie, Zeitalter-Staffelung', () 
       assert.ok(maxCost(x) <= ERAS[x.era].at * 1.0, `${label} teurer als die Schwelle von Zeitalter ${x.era}`);
       assert.ok(maxCost(x) >= ERAS[x.era].at * 1e-6, `${label} zu billig fuer Zeitalter ${x.era}`);
     };
-    for (const b of BOOSTS.filter(b => b.era && !b.corp)) band(b, b.id);   // Konzern-Inhalte (corp) folgen der Formel aus GAME-DESIGN-2.md 5.2, siehe corp.test.mjs
+    for (const b of BOOSTS.filter(b => b.era && !b.corp)) band(b, b.id);   // Konzern-Inhalte (corp) folgen der Formel aus GAME-DESIGN.md B5.2, siehe corp.test.mjs
     for (const r of RESEARCH.filter(r => r.era && !r.corp)) {
       band(r, r.id);
       assert.ok(r.cost.ore === undefined || r.cost.ore <= ERAS[r.era].at, `${r.id}: Erzkosten ueber der Schwelle`);

@@ -27,8 +27,8 @@ export const EN_UI = {
   '{res} −50 % – Klicken behebt den Engpass': '{res} −50% – click to fix the shortage',
   'Liefere {need} {res} (noch {sec} s) für Produktions-Bonus': 'Deliver {need} {res} ({sec} s left) for a production bonus',
   // --- Index / statische Texte ---
-  'Eisenwerk Idle – ein Idle-Game mit Prestige, Erfolgen und goldenen Events.': 'Eisenwerk Idle – an idle game with prestige, achievements and golden events.',
-  'Eisenwerk Idle': 'Eisenwerk Idle',
+  'Eisenwerk Idle – ein Idle-Game mit Prestige, Erfolgen und goldenen Events.': 'Ironworks Idle – an idle game with prestige, achievements and golden events.',
+  'Eisenwerk Idle': 'Ironworks Idle',
   'Zum Hauptinhalt springen': 'Skip to main content',
   'Ressourcen und Hauptaktion': 'Resources and main action',
   'Neuguss-Chronik im Hochofen öffnen': 'Open the recast chronicle in the Blast Furnace',

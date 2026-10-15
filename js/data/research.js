@@ -104,7 +104,7 @@ export const RESEARCH = [
   r('copperenrich', '🏚️', 'Kupfererz-Konzentration',   '+50 % Kupferproduktion durch fortgeschrittene Aufbereitungstechnik.',       { ore: 2e5, steel: 5000, copper: 500 }, 180, 'metal', 'copper', { req: ['copperworks'], mult: { copper: 1.5 } }),
   r('quantumopt',   '✨', 'Quantenoptik',                '+25 % aller Materialien. Licht und Quantenmechanik in der Messtechnik.',   { ore: 1e22, steel: 3.4e22, titan: 1.5e16, alloy: 8e14 }, 1200, 'tech', 'all', { era: 4, req: ['quantum'], mult: { all: 1.25 } }),
 
-  // Konzernforschung (Ausbau 2, GAME-DESIGN-2.md 5.3): corp = Mindest-Konzernstufe (1 bis 7), permanent (bleibt bei Neuguss und Konzerngründung).
+  // Konzernforschung (Ausbau 2, GAME-DESIGN.md B5.3): corp = Mindest-Konzernstufe (1 bis 7), permanent (bleibt bei Neuguss und Konzerngründung).
   // Kosten/Dauer sind Modellwerte aus Formel 5.2 (Kalibrierung in Schritt 6).
   r('c_cobalt', '🔵', 'Kobaltbergbau', 'Schaltet die Kobaltgrube frei und macht Kobalt abbaubar.', { ore: 5e18, steel: 1.3e19, tungsten: 1.2e9, gold: 4.2e8 }, 1800, 'chem', 'cobalt', { corp: 1, req: ['goldsmith'], sym: 'cobalt' }),
   r('c_moly', '⚙️', 'Molybdän-Aufbereitung', 'Schaltet das Molybdänwerk frei.', { ore: 5e18, steel: 1.3e19, cobalt: 6e8, alloy: 3.9e10 }, 1800, 'chem', 'molybdenum', { corp: 1, req: ['c_cobalt'], sym: 'molybdenum' }),

@@ -26,7 +26,7 @@ export const GENS = [
   g('nickelref',   '🛢️', 'Nickelraffinerie',  'nickel',    0.1,   { steel: 3e5, copper: 8000, alloy: 30 },         1.22, 6, ['chromium']),
   g('reactor',     '☢️', 'Wolframreaktor',    'tungsten',  0.02,  { titan: 3000, alloy: 300, chrome: 200, nickel: 200 }, 1.25, 8, ['tungsten']),
   g('crucible',    '👑', 'Edelmetall-Tiegel', 'gold',      0.004, { titan: 2e4, tungsten: 200, alloy: 1500 },      1.27, 10, ['goldsmith']),
-  // Konzern-Materialien (Ausbau 2, GAME-DESIGN-2.md 4.2); Freigabe über Konzernforschung
+  // Konzern-Materialien (Ausbau 2, GAME-DESIGN.md B4.2); Freigabe über Konzernforschung
   g('cobaltmine',      '🔵', 'Kobaltgrube',               'cobalt',     0.003,  { titan: 4e4, tungsten: 400, alloy: 3000 },                     1.28, 12, ['c_cobalt']),
   g('molybdenumworks', '⚙️', 'Molybdänwerk',              'molybdenum', 0.0025, { titan: 6e4, cobalt: 300, alloy: 4000 },                       1.28, 14, ['c_moly']),
   g('sinterworks',     '🔶', 'Sinterwerk',                'carbide',    0.002,  { titan: 1e5, tungsten: 2000, cobalt: 600, molybdenum: 300 },   1.29, 16, ['c_sinter']),

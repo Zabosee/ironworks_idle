@@ -51,7 +51,7 @@ export const SHOP_PLAN = [
   ['pp_eff', 10], ['pp_gain', 10], ['q_speed', 6], ['q_lab', 3], ['q_work', 3], ['click', 10], ['start', 5], ['offline', 5], ['golden', 5], ['ab_speed', 4],
 ];
 
-/** Konzern-Shop: [id, Zielstufe]; Wachstum von Patenten und Gussformen zuerst, Komfort danach, c_heir 5 zuletzt (GAME-DESIGN-2.md 3.5). */
+/** Konzern-Shop: [id, Zielstufe]; Wachstum von Patenten und Gussformen zuerst, Komfort danach, c_heir 5 zuletzt (GAME-DESIGN.md B3.5). */
 export const CORP_PLAN = [
   ['c_archive', 1], ['c_heir', 1], ['c_gain', 1], ['c_cast', 1], ['c_auto', 1], ['c_eff', 1], ['c_heir', 2], ['c_gain', 2], ['c_cast', 2], ['c_eff', 2],
   ['c_click', 1], ['c_auto', 2], ['c_gain', 3], ['c_cast', 3], ['c_heir', 3], ['c_eff', 3], ['c_offline', 1], ['c_auto', 3], ['c_click', 2], ['c_gain', 4],

@@ -109,7 +109,7 @@ export const BOOSTS = [
   { id: 'nanocoat',  sym: 'nanogrid', icon: '✨', name: 'Nano-Beschichtung',      desc: 'Erzproduktion ×2.',        cost: { steel: 6e22, titan: 3e16 },                     mult: { ore: 2 },       time: 1400, req: ['proc_5'], era: 5 },
   { id: 'fusioncat', sym: 'atom', icon: '☀️', name: 'Fusions-Katalysator',       desc: 'Alle Materialien ×1,5.',   cost: { steel: 3e23, tungsten: 2e14, gold: 6.8e13 },      mult: { all: 1.5 },     time: 1600, req: ['fusion'], era: 5 },
 
-  // Konzern-Boosts (Ausbau 2, GAME-DESIGN-2.md 5.4): corp = Mindest-Konzernstufe; Reset beim Neuguss wie alle Boosts
+  // Konzern-Boosts (Ausbau 2, GAME-DESIGN.md B5.4): corp = Mindest-Konzernstufe; Reset beim Neuguss wie alle Boosts
   { id: 'cb_cobalt', sym: 'cobalt', icon: '🔵', name: 'Kobalt-Katalysator', desc: 'Kobaltproduktion ×2, Molybdänproduktion ×1,5.', cost: { steel: 1.2e18, cobalt: 6e8, molybdenum: 4.8e8 }, mult: { cobalt: 2, molybdenum: 1.5 }, time: 1200, req: ['c_cobalt'], corp: 1 },
   { id: 'cb_sinter', sym: 'carbide', icon: '🔶', name: 'Sinterpresse', desc: 'Hartmetallproduktion ×2, Wolframproduktion ×1,5.', cost: { steel: 3.1e19, carbide: 4.4e9, tungsten: 3e10 }, mult: { carbide: 2, tungsten: 1.5 }, time: 1560, req: ['c_sinter'], corp: 2 },
   { id: 'cb_platin', sym: 'platinum', icon: '⚪', name: 'Platin-Elektrolyse', desc: 'Platinproduktion ×2, Goldproduktion ×1,5.', cost: { steel: 7.1e20, platinum: 3.4e10, gold: 2.4e11 }, mult: { platinum: 2, gold: 1.5 }, time: 2028, req: ['c_platin'], corp: 3 },

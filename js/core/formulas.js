@@ -98,7 +98,7 @@ export const shopCost = id => {
   return Math.ceil(safe(it.cost * it.growth ** shopLevel(id)));
 };
 
-// ---------- Konzern (2. Reset-Ebene, GAME-DESIGN-2.md 3) ----------
+// ---------- Konzern (2. Reset-Ebene, GAME-DESIGN.md B3) ----------
 export const corpLevel = id => state.corp?.shop[id] || 0;
 export const corpCost = id => {
   const it = CORP_SHOP_MAP[id], lvl = corpLevel(id);

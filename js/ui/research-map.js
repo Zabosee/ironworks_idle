@@ -174,7 +174,8 @@ function setupPanZoom(viewport, container) {
   let startTranslate = { x: 0, y: 0 };
 
   viewport.addEventListener('mousedown', (e) => {
-    if (e.target.closest('.research-node, .zoom-btn')) return;
+    if (e.button !== 0 || e.target.closest('.research-node, .zoom-btn')) return;
+    e.preventDefault();   // kein natives Ziehen/Markieren, sonst geht mouseup verloren und die Karte "klebt"
     isPanning = true;
     panStart = { x: e.clientX, y: e.clientY };
     startTranslate = { x: mapState.translateX, y: mapState.translateY };
@@ -183,6 +184,7 @@ function setupPanZoom(viewport, container) {
 
   document.addEventListener('mousemove', (e) => {
     if (!isPanning) return;
+    if (!(e.buttons & 1)) { stopPan(); return; }   // Taste wurde außerhalb losgelassen
     const dx = e.clientX - panStart.x;
     const dy = e.clientY - panStart.y;
     mapState.translateX = startTranslate.x + dx;
@@ -190,13 +192,14 @@ function setupPanZoom(viewport, container) {
     applyTransform(container);
   });
 
-  document.addEventListener('mouseup', () => {
-    isPanning = false;
-    viewport.classList.remove('panning');
-  });
+  const stopPan = () => { isPanning = false; viewport.classList.remove('panning'); };
+  document.addEventListener('mouseup', stopPan);
+  window.addEventListener('blur', stopPan);
+  viewport.addEventListener('dragstart', e => e.preventDefault());
 
   // Zoom mit Mausrad
   viewport.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey) return;   // normales Scrollen bewegt die Seite; Strg + Rad zoomt die Karte
     e.preventDefault();
     const oldScale = mapState.scale;
     const factor = e.deltaY > 0 ? 1 / ZOOM_STEP : ZOOM_STEP;

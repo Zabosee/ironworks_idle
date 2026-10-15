@@ -638,12 +638,10 @@ h2 .h-ico { width: 1.3rem; height: 1.3rem; vertical-align: -.2em; }
   width: 100%;
   height: min(80vh, 820px);
   overflow: hidden;
-  background: radial-gradient(circle at center, #1a1f2e 0%, #0f1419 100%);
   position: relative;
-  border: 1px solid var(--border);
-  border-radius: 12px;
   margin-bottom: 1.5rem;
   cursor: grab;
+  user-select: none;
 }
 
 @media (max-width: 640px) {
@@ -655,6 +653,7 @@ h2 .h-ico { width: 1.3rem; height: 1.3rem; vertical-align: -.2em; }
 .research-map-viewport.panning {
   cursor: grabbing;
 }
+.research-map-viewport.panning .research-map-container { transition: none; }
 
 .research-map-container {
   position: absolute;

@@ -1,4 +1,4 @@
-// Zweite Reset-Ebene "Konzerngründung" (GAME-DESIGN-2.md 3): Gründung, Konzern-Shop, Auto-Neuguss.
+// Zweite Reset-Ebene "Konzerngründung" (GAME-DESIGN.md B3): Gründung, Konzern-Shop, Auto-Neuguss.
 // Events: 'corp' { gain }, 'corpshop' { id }, 'corpunlock', 'autocast' { gain }, 'autocastset'.
 import { state } from '../core/state.js';
 import { corpGain, corpUnlocked, corpStage, corpCost, corpLevel, prestigeGain } from '../core/formulas.js';

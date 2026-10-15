@@ -57,7 +57,7 @@ add('boost_2', '🚀', 'Vollgas', 'Kaufe alle Elite-Boosts.', 0.04, s => Object.
 [[3600, 'Eine Schicht', '1 Stunde'], [86400, 'Rund um die Uhr', '24 Stunden'], [604800, 'Stammbelegschaft', '7 Tage']]
   .forEach(([n, name, label], i) => add('time_' + n, '⏳', name, `Spiele insgesamt ${label}.`, 0.01 * (i + 1), s => s.stats.playTime >= n));
 
-// Konzern-Materialien (GAME-DESIGN-2.md 5.6)
+// Konzern-Materialien (GAME-DESIGN.md B5.6)
 [['cobalt', 100, '🔵', 'Kobaltfund', 'Kobalt', 0.01], ['molybdenum', 1e3, '⚙️', 'Molybdänhärtung', 'Molybdän', 0.01], ['carbide', 1e4, '🔶', 'Hartmetallspäne', 'Hartmetall', 0.01],
   ['platinum', 1e5, '⚪', 'Platinglanz', 'Platin', 0.012], ['vanadium', 1e5, '🟢', 'Vanadiumstahl', 'Vanadium', 0.014], ['iridium', 1e6, '💠', 'Iridiumfunke', 'Iridium', 0.016],
   ['superalloy', 1e6, '🔷', 'Superlegierer', 'Superlegierung', 0.02]]

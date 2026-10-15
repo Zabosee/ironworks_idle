@@ -1,4 +1,4 @@
-// Industrie-Leisten (GAME-DESIGN-2.md 2.3): meldet das Erreichen einer Stufe per Event 'industry' { track, step, mult }
+// Industrie-Leisten (GAME-DESIGN.md B2.3): meldet das Erreichen einer Stufe per Event 'industry' { track, step, mult }
 // (step = Nummer der Stufe, 1-basiert). Kein Toast hier: Texte gehören der UI (Muster systems/eras.js, aber ohne t()).
 // Die Stufen sind abgeleitet (formulas.industryProgress); hier wird nur der Wechsel erkannt.
 import { industryProgress } from '../core/formulas.js';
