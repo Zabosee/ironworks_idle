@@ -23,7 +23,7 @@ import { initRender, frame, refresh } from './ui/render.js';
 import { initTabs } from './ui/tabs.js';
 import { initWorks } from './ui/works.js';
 import { claimDaily } from './systems/daily.js';
-import { showWelcome } from './ui/welcome.js';
+import { showWelcome, dailyText } from './ui/welcome.js';
 import { initToasts } from './ui/toast.js';
 import { initCollect, initGoldenUI, initFlash } from './ui/effects.js';
 import { initHelp } from './ui/help.js';
@@ -91,12 +91,15 @@ function boot() {
   refresh();
   showWelcome(welcomeOff, welcomeDaily);
 
-  let last = performance.now(), sinceSave = 0;
+  let last = performance.now(), sinceSave = 0, dailyAt = last;
   const loop = now => {
     let dt = (now - last) / 1000;
     last = now;
     if (!(dt > 0)) dt = 0;
     if (dt > OFFLINE_MIN_SECONDS) { announceOffline(applyOffline(dt, { runtime: true })); dt = 0; }
+    // Tageswechsel bei offenem Spiel (läuft durch oder kommt aus dem Hintergrund): Tagesbonus nachreichen, nach der Offline-Verrechnung,
+    // sonst würde sie den frischen Buff gleich um die Abwesenheit kürzen. performance.now läuft im Hintergrund weiter.
+    if (now - dailyAt >= 60_000) { dailyAt = now; const d = claimDaily(); if (d) toast(dailyText(d), 'gold'); }
     const r = tick(dt);
     autobuyers.tick(dt);
     golden.tick(dt);

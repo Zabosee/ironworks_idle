@@ -42,7 +42,7 @@ export function initHelp() {
   document.getElementById('help-btn')?.addEventListener('click', openHelp);
   document.addEventListener('keydown', e => {
     if (e.key !== '?' || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.target.closest?.('input, textarea, select, [contenteditable]') || document.querySelector('dialog[open]')) return;
+    if (/** @type {Element} */ (e.target).closest?.('input, textarea, select, [contenteditable]') || document.querySelector('dialog[open]')) return;
     e.preventDefault(); openHelp();
   });
 }

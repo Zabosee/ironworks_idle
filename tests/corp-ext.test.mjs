@@ -22,11 +22,11 @@ const b64 = o => Buffer.from(JSON.stringify(o), 'utf8').toString('base64');
 
 describe('Save v6: feindliche Werte', () => {
   test('Infinity/1e400, Strings und Objekte in corp und autoCast werden geklemmt oder auf Defaults gesetzt', () => {
-    const s = S.sanitize(JSON.parse('{"corp":{"points":1e400,"total":"9","count":[1],"shop":{"c_eff":"3","c_gain":null,"c_cast":{}},"history":{"0":{"gain":5}}},"autoCast":{"on":1,"mode":["time"],"value":1e400}}'));
+    const s = S.sanitize(JSON.parse('{"corp":{"points":1e400,"total":"9","count":[1],"shop":{"c_eff":"3","c_gain":null,"c_cast":{}},"history":{"0":{"gain":5}}},"autoCast":{"on":1,"mode":["time"],"value":1e400,"minRun":1e400}}'));
     assert.ok(Number.isFinite(s.corp.points)); assert.equal(s.corp.total, 0); assert.equal(s.corp.count, 0);
     assert.ok(s.corp.shop.c_gain === undefined && s.corp.shop.c_cast === undefined);
     assert.deepEqual(s.corp.history, []);
-    assert.equal(s.autoCast.on, false); assert.equal(s.autoCast.mode, 'gain');
+    assert.equal(s.autoCast.on, false); assert.ok(!('mode' in s.autoCast)); assert.ok(s.autoCast.minRun <= 1e7);
     assert.ok(Number.isFinite(s.autoCast.value) && s.autoCast.value <= 1e12);
   });
   test('Prototype-Pollution-Schlüssel im Konzern-Shop erzeugen keine Einträge und verändern Object.prototype nicht', () => {
@@ -54,14 +54,14 @@ describe('Save v6: Zustand nach Gründung', () => {
     state.prestige = { points: 3, total: CORP.divisor * 4, count: CORP.unlockCount, shop: { pp_eff: 1 }, history: [] };
     state.stats.corpRunTime = 100 * 3600;
     state.research.c_cobalt = 1;
-    state.corp.shop.c_autocast = 1; state.autoCast = { on: true, mode: 'time', value: 7 };
+    state.corp.shop.c_autocast = 1; state.autoCast = { on: true, value: 7, minRun: 120 };
     assert.ok(C.doCorp());
     const dump = () => { const o = JSON.parse(S.serialize()).state; delete o.savedAt; return JSON.stringify(o); };
     const before = dump();
     for (let i = 0; i < 3; i++) S.importSave(S.exportSave());
     assert.equal(dump(), before);
     assert.equal(state.corp.count, 1); assert.equal(state.corp.history.length, 1);
-    assert.deepEqual(state.autoCast, { on: true, mode: 'time', value: 7 });
+    assert.deepEqual(state.autoCast, { on: true, value: 7, minRun: 120 });
   });
   test('Migrierter v5-Stand ist sofort gründungsfähig, wenn die Schwelle erreicht ist', () => {
     const old = { prestige: { points: 0, total: CORP.divisor * 2, count: CORP.unlockCount, shop: {}, history: [] } };
@@ -91,10 +91,10 @@ describe('Konzern-Reset: Randfälle', () => {
     assert.equal(state.corp.history.length, CORP_HISTORY_MAX);
   });
   test('Auto-Neuguss-Einstellung und Kauf überleben die Gründung; danach nicht sofort fällig', () => {
-    state.corp.shop.c_autocast = 1; state.autoCast = { on: true, mode: 'gain', value: 1 };
+    state.corp.shop.c_autocast = 1; state.autoCast = { on: true, value: 1, minRun: 0 };
     state.prestige.count = CORP.unlockCount; state.prestige.total = CORP.divisor * 2; state.stats.corpRunTime = 100 * 3600;
     assert.ok(C.doCorp());
-    assert.equal(F.corpLevel('c_autocast'), 1); assert.deepEqual(state.autoCast, { on: true, mode: 'gain', value: 1 });
+    assert.equal(F.corpLevel('c_autocast'), 1); assert.deepEqual(state.autoCast, { on: true, value: 1, minRun: 0 });
     assert.equal(C.autoCastDue(), false);
   });
 });

@@ -26,6 +26,9 @@ export function initSidebar() {
     eraBox: $('#era-summary'), eraName: $('#era-name'), eraBonus: $('#era-bonus'), eraIco: $('#era-ico'), eraFill: $('#era-fill'), eraNext: $('#era-next'),
   });
   buildMeters();
+  // Mobil ist die Seitenleiste ein klebender Kopf: Höhe für Sticky-Leisten und Forschungskarte bereitstellen
+  const side = $('.sidebar');
+  if (side && globalThis.ResizeObserver) new ResizeObserver(() => document.documentElement.style.setProperty('--side-h', side.offsetHeight + 'px')).observe(side);
 }
 
 const BASE_RES = ['ore', 'steel', 'titan'];

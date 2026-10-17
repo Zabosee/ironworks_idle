@@ -22,6 +22,7 @@ export const heldByOther = (lock, id, now, ttl = LOCK_TTL_MS) => !!lock && lock.
  * Rückgabe von claim()/beat(): true = diese Instanz darf speichern, false = andere Instanz aktiv (Lock bleibt unberührt).
  * Wurde einmal "fremd" erkannt, bleibt der Wächter dauerhaft gesperrt (Neuladen nötig, sonst würde ein veralteter Stand den neueren überschreiben).
  */
+/** @param {{ storage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>, now?: () => number, id?: string, ttl?: number, onConflict?: () => void }} [opts] */
 export function createGuard({ storage, now = Date.now, id = newId(), ttl = LOCK_TTL_MS, onConflict = () => {} } = {}) {
   let blocked = false;
   const write = () => { try { storage.setItem(LOCK_KEY, JSON.stringify({ id, t: now() })); } catch { /* Speicher gesperrt: kein Schutz möglich */ } };

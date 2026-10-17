@@ -102,8 +102,10 @@ export function sanitize(d) {
   s.focusNext = typeof d.focusNext === 'string' && Object.hasOwn(FOCUS_MAP, d.focusNext) ? d.focusNext : '';
   const ac = isObj(d.autoCast) ? d.autoCast : {};
   s.autoCast.on = bool(ac.on, false);
-  s.autoCast.mode = AUTOCAST.modes.includes(ac.mode) ? ac.mode : 'gain';
   s.autoCast.value = num(ac.value, 0, 0, 1e12);
+  s.autoCast.minRun = num(ac.minRun, 0, 0, 1e7);
+  // früherer Zeit-Modus ("nach n Minuten", jeder Gewinn): gleiches Verhalten als Mindestlaufzeit + Gewinn ab 1
+  if (ac.mode === 'time') { s.autoCast.minRun = Math.min((s.autoCast.value || 10) * 60, 1e7); s.autoCast.value = 1; }
 
   const ab = isObj(d.autobuyers) ? d.autobuyers : {};
   for (const a of AUTOBUYERS) s.autobuyers[a.id] = bool(ab[a.id], false);
@@ -186,7 +188,7 @@ export function migrateV4toV5(old) {
 
 /** v5 -> v6: zweite Reset-Ebene (corp, autoCast) kommt neu hinzu, leere Vorgaben; neue Ressourcen/Generatoren ergänzt sanitize mit 0. */
 export function migrateV5toV6(old) {
-  return { ...old, corp: { points: 0, total: 0, count: 0, shop: {}, history: [] }, autoCast: { on: false, mode: 'gain', value: 0 } };
+  return { ...old, corp: { points: 0, total: 0, count: 0, shop: {}, history: [] }, autoCast: { on: false, value: 0, minRun: 0 } };
 }
 
 /** v6 -> v7: Tagesbonus (`daily`) kommt neu hinzu, leer. */

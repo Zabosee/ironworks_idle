@@ -135,7 +135,7 @@ export function initGoldenUI(layer) {
 
   document.addEventListener('keydown', e => {
     if (e.key.toLowerCase() !== 'g' || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.target.closest?.('input, textarea, select, [contenteditable]')) return;
+    if (/** @type {Element} */ (e.target).closest?.('input, textarea, select, [contenteditable]')) return;
     if (el) { e.preventDefault(); el.click(); }
   });
 }

@@ -6,7 +6,7 @@ import { nextGoals, castPreview, prestigeGain, corpLevel } from '../core/formula
 import { ERAS } from '../data/eras.js';
 import { INDUSTRY_TRACKS } from '../data/industry.js';
 import { AUTOCAST } from '../data/corp.js';
-import { setAutoCast, autoCastDefaultGain } from '../systems/corp.js';
+import { setAutoCast, autoCastDefaultGain, autoCastMinRun } from '../systems/corp.js';
 import { symSvg, svgUse } from './assets.js';
 import { h, setText, setAttr, setClass } from './dom.js';
 import { restartAnim } from './effects.js';
@@ -121,32 +121,25 @@ export function buildCastPreview() {
 
 // ---------- Auto-Neuguss ----------
 let uid = 0;
-/** Schalter (role=switch), Modus (radiogroup Gewinn/Zeit), Zahlenfeld. Unsichtbar, solange c_autocast nicht gekauft ist. */
+/** Schalter (role=switch) und zwei Zahlenfelder: ab Gewinn, Mindestlaufzeit. Unsichtbar, solange c_autocast nicht gekauft ist. */
 export function buildAutocast() {
   const n = ++uid;
   const sw = h('button', { class: 'switch', type: 'button', role: 'switch', 'aria-checked': 'false', 'aria-labelledby': 'ac-title-' + n }, h('span', { class: 'switch-knob', 'aria-hidden': 'true' }));
   sw.addEventListener('click', () => setAutoCast({ on: !state.autoCast.on }));
-  const modes = { gain: t('Gewinn'), time: t('Zeit') };
-  const radios = Object.entries(modes).map(([m, label]) => h('button', { class: 'btn seg', type: 'button', role: 'radio', 'aria-checked': 'false', dataset: { mode: m }, text: label }));
-  const group = h('div', { class: 'seg-group', role: 'radiogroup', 'aria-label': t('Modus') }, radios);
-  const pick = (b, focus) => { setAutoCast({ mode: b.dataset.mode, value: 0 }); if (focus) b.focus(); };
-  group.addEventListener('click', e => { const b = e.target.closest('button[data-mode]'); if (b) pick(b); });
-  group.addEventListener('keydown', e => {
-    const i = radios.indexOf(document.activeElement);
-    if (i < 0 || !e.key.startsWith('Arrow')) return;
-    e.preventDefault();
-    pick(radios[(i + (e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : radios.length - 1)) % radios.length], true);
-  });
-  const label = h('label', { htmlFor: 'ac-val-' + n });
-  const input = h('input', { id: 'ac-val-' + n, type: 'number', inputmode: 'numeric', min: '1', step: '1' });
-  input.addEventListener('change', () => {
-    const val = Math.floor(Number(input.value));
-    if (val >= 1) setAutoCast({ value: val }); else input._v = null;   // ungültig: beim nächsten Update zurücksetzen
-  });
+  const field = (key, text, min) => {
+    const input = h('input', { id: `ac-${key}-${n}`, type: 'number', inputmode: 'numeric', min: String(min), step: '1' });
+    input.addEventListener('change', () => {
+      const val = Math.floor(Number(input.value));
+      if (val >= min) setAutoCast({ [key]: val }); else input._v = null;   // ungültig: beim nächsten Update zurücksetzen
+    });
+    return { input, el: h('span', { class: 'autocast-field' }, h('label', { htmlFor: input.id, text }), input) };
+  };
+  const gain = field('value', t('ab Gewinn'), 1), run = field('minRun', t('Mindestlaufzeit (s)'), AUTOCAST.minRunFloor);
   const el = h('div', { class: 'autocast' },
     h('div', { class: 'autocast-head' }, symSvg('autocast', 'h-ico', 'prestige'), h('strong', { id: 'ac-title-' + n, text: t('Auto-Neuguss') }), sw),
-    h('div', { class: 'autocast-row' }, group, h('span', { class: 'autocast-field' }, label, input)),
-    h('p', { class: 'hint', text: t('Mindestlaufzeit {n} s', { n: AUTOCAST.minRun }) }));
+    h('div', { class: 'autocast-row' }, gain.el, run.el),
+    h('p', { class: 'hint', text: t('Gießt neu, sobald der Gewinn erreicht und die Mindestlaufzeit vorbei ist.') }));
+  const show = (f, val) => { if (document.activeElement !== f.input && f.input._v !== val) { f.input._v = val; f.input.value = String(val); } };
   const o = { el };
   o.update = () => {
     const unlocked = corpLevel('c_autocast') >= 1;
@@ -155,10 +148,8 @@ export function buildAutocast() {
     const a = state.autoCast;
     setAttr(sw, 'aria-checked', a.on);
     setClass(sw, 'on', a.on);
-    for (const r of radios) setAttr(r, 'aria-checked', r.dataset.mode === a.mode), setAttr(r, 'tabindex', r.dataset.mode === a.mode ? 0 : -1);
-    setText(label, a.mode === 'time' ? t('nach Minuten') : t('ab Gewinn'));
-    const val = a.value > 0 ? a.value : a.mode === 'time' ? AUTOCAST.defaultMinutes : autoCastDefaultGain();
-    if (document.activeElement !== input && input._v !== val) { input._v = val; input.value = String(val); }
+    show(gain, a.value > 0 ? a.value : autoCastDefaultGain());
+    show(run, autoCastMinRun());
   };
   return o;
 }

@@ -407,7 +407,7 @@ Der Kreislauf "produzieren, kaufen, Neuguss, stärker neu beginnen" ist vorhande
 |---|---|---|---|
 | M1 | **Zielleiste** ("Nächstes Ziel") | Eine Zeile oben im Werk: das nächstliegende Ziel aus der Liste (a) 1. Neuguss, (b) nächster Gussformen-Meilenstein, (c) nächstes Zeitalter, (d) nächste Industrie-Meilenstein-Stufe, (e) nächste Konzernstufe; je Ziel Fortschrittsbalken (logarithmisch bei Erz) und, falls die Rate bekannt ist, geschätzte Restzeit. | Neue reine Funktion `nextGoals()` in `js/core/goals.js` (liest nur `state`, nutzt `eraProgress`, `prestigeGain`, `oreForGain`, neue Corp-/Industry-Helfer) |
 | M2 | **Neuguss-Vorschau** | Im Hochofen-Bereich: Gewinn jetzt, Gewinn/h (Gewinn / Laufzeit), nächster Gussformen-Meilenstein ("noch X"), Hinweis "lohnt sich" (Gewinnzuwachs der letzten 2 min unter dem Durchlauf-Schnitt, dieselbe Regel wie die Sim-Policy `rate`). | `state.stats.runTime`, `prestige.history`; kleine Hilfsfunktion in `formulas.js` |
-| M3 | **Auto-Neuguss** | Freischaltung im Konzern-Shop (`c_autocast`). Einstellung `modus: Gewinn` (Neuguss ab Gewinn >= Wert, Vorgabe = Mittel der letzten 5 Gewinne) oder `modus: Zeit` (Neuguss nach n Minuten). Mindestlaufzeit 60 s. Es gibt **keinen** Auto-Konzern (Konzerngründung bleibt immer manuell). | `state.autoCast`, Tick in `main.js`/`systems/prestige.js` |
+| M3 | **Auto-Neuguss** | Freischaltung im Konzern-Shop (`c_autocast`). Neuguss ab Gewinn >= Wert (Vorgabe = Mittel der letzten 5 Gewinne), frühestens nach der einstellbaren Mindestlaufzeit (Vorgabe 60 s, mindestens 10 s). Es gibt **keinen** Auto-Konzern (Konzerngründung bleibt immer manuell). | `state.autoCast`, Tick in `main.js`/`systems/prestige.js` |
 | M4 | **Früher Systemhinweis** | Industrie-Reiter ab Spielbeginn sichtbar, aber gesperrt ("Ab dem ersten Neuguss"), dazu Fortschritt zu 1e7 Erz. Konzern-Reiter ab Neuguss 25 gesperrt sichtbar, Freischaltung bei 100. | UI |
 | M5 | **Offline-Ausbau** | Konzern-Shop "Nachtschicht II": +4 h Offline-Cap je Stufe (max 3). Ertrag bleibt bei 60 % (`OFFLINE_EFFICIENCY`). Der Willkommen-zurück-Toast zeigt zusätzlich "Cap erreicht in ..." beim Laden. | `offlineCapSeconds` + 4 h × Stufe |
 | M6 | **Industrie-Meilensteine** | Zwei automatische Leisten (Abschnitt B2.3), Toast bei Erreichen, ein Panel im Industrie-Tab. | `systems/industry.js` (Muster `systems/eras.js`) |
@@ -883,10 +883,10 @@ Andere Spielweisen messen (Optionen in `tools/balance-full.mjs`, Name=Wert oder 
 ### B7.1 Spielstand
 ```js
 state.corp = { points: 0, total: 0, count: 0, shop: {}, history: [] }   // history: letzte 10 Gründungen { gain, gussformen, time, at }
-state.autoCast = { on: false, mode: 'gain', value: 0 }                // Auto-Neuguss
+state.autoCast = { on: false, value: 0, minRun: 0 }                  // Auto-Neuguss (0 = Vorgabe)
 ```
 - Kein neues Feld für Zeitalter oder Industrie (abgeleitet). `stats` bekommt `corpRunTime: 0` (Sekunden seit der letzten Gründung, nur Anzeige und Auswertung).
-- Sanitizing (`save.js`): `corp.points/total` über `num`, `corp.count` über `int(.., 1e9)`, `corp.shop` nur bekannte IDs mit `min(stufe, max)` (wie `SHOP`), `corp.history` höchstens 10 gültige Einträge, `autoCast.mode ∈ {'gain','time'}`, `value` über `num(.., 0, 0, 1e12)`. Forschungsaufträge in den Queues: unbekannte oder bereits abgeschlossene Forschung wird wie bisher verworfen (neue IDs sind Teil von `RESEARCH`, das sanitizing läuft automatisch über die Datenlisten).
+- Sanitizing (`save.js`): `corp.points/total` über `num`, `corp.count` über `int(.., 1e9)`, `corp.shop` nur bekannte IDs mit `min(stufe, max)` (wie `SHOP`), `corp.history` höchstens 10 gültige Einträge, `autoCast.value` über `num(.., 0, 0, 1e12)`, `minRun` über `num(.., 0, 0, 1e7)`; ein alter Zeit-Modus (`mode: 'time'`, n Minuten) wird zu `value: 1, minRun: n*60`. Forschungsaufträge in den Queues: unbekannte oder bereits abgeschlossene Forschung wird wie bisher verworfen (neue IDs sind Teil von `RESEARCH`, das sanitizing läuft automatisch über die Datenlisten).
 - Neue Ressourcen und Generatoren werden von `sanitize` automatisch über `RES_IDS`/`GENS` behandelt; fehlende Felder in alten v5-Spielständen werden zu 0. `evo` wird bei `EVO_MAX = 8` weiterhin über `int(.., EVO_MAX)` begrenzt.
 - Keine inhaltliche Migration: `migrateV5toV6` ergänzt nur `corp` (leer) und `autoCast`.
 

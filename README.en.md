@@ -18,7 +18,7 @@ Browser idle game: ore becomes steel, titanium and gold. Vanilla ES modules, no 
 - **Random events**: Every 8 to 15 minutes of active play an event appears in the factory: ore vein (click bonus), resource shortage (fix it with a click) or special order (deliver material for a production bonus).
 - **Achievements and golden bars**: 70 achievements with production bonuses. Golden bars appear at random and give a timed buff when you click them or press G.
 - **Offline progress**: On load, your absence is calculated at 60 % of the active yield, with a cap (base 8 h). From 60 s of absence a welcome dialog shows what you gained.
-- **Daily bonus**: The first start on a new calendar day gives a Smelting Frenzy buff. Its duration grows in a streak up to day 7.
+- **Daily bonus**: Each new calendar day gives a Smelting Frenzy buff on the first start (or after midnight while the game is running). Its duration grows in a streak up to day 7.
 - **Help and glossary**: The `?` key or the "Help ?" button opens an explanation of all game layers and terms. Keys 1 to 9 switch between sections.
 - **Sound and notices**: Synthesized sound effects (WebAudio, can be turned off, adjustable volume). While the game runs in the background, the tab title shows when a lab or workbench job is finished.
 - **Language, export and import**: German and English, export and import saves as Base64, three number formats, autosave. Older saves are migrated.

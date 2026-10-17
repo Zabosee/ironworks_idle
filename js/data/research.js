@@ -9,6 +9,11 @@ const LIQ = { ore: '#f97316', steel: '#38bdf8', titan: '#d946ef', all: '#fbbf24'
   cobalt: '#60a5fa', molybdenum: '#94a3b8', carbide: '#cbd5e1', platinum: '#e2e8f0', vanadium: '#34d399', iridium: '#fb7185', superalloy: '#22d3ee' };
 //   sym:    Symbolname in assets/sprites/items.svg (sym-<name>), abgeleitet vom Emoji `icon` (bleibt als Textfallback)
 const SYM = { '🧭': 'target', '🔨': 'hammer', '♻️': 'converter', '🕳️': 'jackhammer', '🧪': 'petri', '💎': 'gem', '🔬': 'microscope', '📈': 'chart', '🤖': 'robot', '📐': 'nut', '⚛️': 'atom', '⛏️': 'pickaxe', '🧱': 'brick', '🌋': 'arcfurnace', '🔌': 'turbine', '⛓️': 'chain', '🛠️': 'toolbox', '🧬': 'dna', '⚗️': 'cylinder', '🛞': 'disc', '☢️': 'nanogrid', '🧲': 'magnet', '👑': 'medal', '🏭': 'factory', '🪨': 'rock', '📊': 'chart', '🔥': 'flame', '🏗️': 'press', '☀️': 'star', '🔋': 'battery', '💧': 'waterwheel', '🚂': 'train', '⚡': 'bolt', '⚙️': 'gear', '🛤️': 'conveyor', '📦': 'rollmill', '🖥️': 'chip', '🏚️': 'shower', '✨': 'sparkle' };
+/**
+ * @typedef {{ id: string, icon: string, sym?: string, name: string, desc: string, cost: Record<string, number>, time: number, cat: string, liquid: string,
+ *   req?: string[], era?: number, corp?: number, mult?: Record<string, number>, eralloy?: number }} Research
+ * @returns {Research}
+ */
 const r = (id, icon, name, desc, cost, time, cat, liq, extra = {}) => ({ id, icon, sym: SYM[icon], name, desc, cost, time, cat, liquid: LIQ[liq], ...extra });
 
 export const RESEARCH = [

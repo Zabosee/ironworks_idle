@@ -66,23 +66,25 @@ export function autoCastDefaultGain() {
   return h.length ? Math.max(1, Math.round(h.reduce((a, e) => a + e.gain, 0) / h.length)) : 1;
 }
 
+/** Eingestellte Mindestlaufzeit in s (0 = Vorgabe), nie unter AUTOCAST.minRunFloor. */
+export const autoCastMinRun = () => Math.max(AUTOCAST.minRunFloor, state.autoCast.minRun || AUTOCAST.minRun);
+
 /** Soll jetzt automatisch gegossen werden? (rein) */
 export function autoCastDue() {
   const a = state.autoCast;
   if (!a.on || corpLevel('c_autocast') < 1) return false;
   const gain = prestigeGain();
-  if (state.stats.runTime < AUTOCAST.minRun || gain < 1) return false;
-  if (a.mode === 'time') return state.stats.runTime >= Math.max(AUTOCAST.minRun, (a.value > 0 ? a.value : AUTOCAST.defaultMinutes) * 60);
+  if (state.stats.runTime < autoCastMinRun() || gain < 1) return false;
   return gain >= (a.value > 0 ? a.value : autoCastDefaultGain());
 }
 
-/** Einstellung ändern ({ on, mode, value }); ungültige Werte werden ignoriert. Nur nach Kauf von c_autocast. */
+/** Einstellung ändern ({ on, value, minRun }); ungültige Werte werden ignoriert. Nur nach Kauf von c_autocast. */
 export function setAutoCast(patch = {}) {
   if (corpLevel('c_autocast') < 1) return false;
   const a = state.autoCast;
   if (typeof patch.on === 'boolean') a.on = patch.on;
-  if (AUTOCAST.modes.includes(patch.mode)) a.mode = patch.mode;
   if (Number.isFinite(patch.value)) a.value = Math.min(Math.max(patch.value, 0), 1e12);
+  if (Number.isFinite(patch.minRun)) a.minRun = Math.min(Math.max(patch.minRun, 0), 1e7);
   emit('autocastset');
   return true;
 }

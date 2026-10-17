@@ -22,7 +22,7 @@ export function initTabs(nav) {
     emit('tab', name);
   };
   nav.addEventListener('click', e => {
-    const b = e.target.closest('[role="tab"]');
+    const b = /** @type {HTMLElement} */ (/** @type {Element} */ (e.target).closest('[role="tab"]'));
     if (b) select(b.dataset.tab);
   });
   nav.addEventListener('keydown', e => {
@@ -38,7 +38,7 @@ export function initTabs(nav) {
   // Tasten 1 bis 9: n-ter sichtbarer Tab (nicht in Eingabefeldern oder offenen Dialogen)
   document.addEventListener('keydown', e => {
     if (!/^[1-9]$/.test(e.key) || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.target.closest?.('input, textarea, select, [contenteditable]') || document.querySelector('dialog[open]')) return;
+    if (/** @type {Element} */ (e.target).closest?.('input, textarea, select, [contenteditable]') || document.querySelector('dialog[open]')) return;
     const b = vis()[Number(e.key) - 1];
     if (b) { e.preventDefault(); select(b.dataset.tab); }
   });

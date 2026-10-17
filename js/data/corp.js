@@ -41,4 +41,4 @@ export const CORP_MILESTONES = [
 export const HEIR_FLOOR = [0, 5, 150, 1000, 10000, 250000];
 
 // Auto-Neuguss
-export const AUTOCAST = { minRun: 60, defaultMinutes: 10, history: 5, modes: ['gain', 'time'] };
+export const AUTOCAST = { minRun: 60, minRunFloor: 10, history: 5 };   // minRun: Vorgabe-Mindestlaufzeit (s), einstellbar ab minRunFloor

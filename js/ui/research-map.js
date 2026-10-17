@@ -34,6 +34,7 @@ const MAX_SCALE = 3;
 const ZOOM_STEP = 1.15;
 const NODE_R = 48;        // Knotenradius (96 px / 2 + Rand)
 const START_SCALE = 0.9;  // Startansicht: Geologie in der Mitte, erste Knoten lesbar
+const MOBILE_SCALE = 0.5; // schmale Bildschirme: kleinster automatischer Zoom (Knoten noch antippbar)
 
 /**
  * Initialisiert die Research Map einmalig.
@@ -201,21 +202,10 @@ function setupPanZoom(viewport, container) {
   viewport.addEventListener('wheel', (e) => {
     if (!e.ctrlKey) return;   // normales Scrollen bewegt die Seite; Strg + Rad zoomt die Karte
     e.preventDefault();
-    const oldScale = mapState.scale;
     const factor = e.deltaY > 0 ? 1 / ZOOM_STEP : ZOOM_STEP;
-    mapState.scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, oldScale * factor));
-
-    // Zoom um Mausposition
     const rect = viewport.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left - rect.width / 2;
-    const mouseY = e.clientY - rect.top - rect.height / 2;
-
-    // Berechne neue Translation, um um die Mausposition zu zoomen
-    const scaleDiff = mapState.scale - oldScale;
-    mapState.translateX -= mouseX * scaleDiff / oldScale;
-    mapState.translateY -= mouseY * scaleDiff / oldScale;
-
-    applyTransform(container);
+    const mx = e.clientX - rect.left - rect.width / 2, my = e.clientY - rect.top - rect.height / 2;
+    zoomAt(container, mapState.scale * factor, mx, my, mx, my, mapState.translateX, mapState.translateY, mapState.scale);
   }, { passive: false });
 
   // Arrow Keys für Pan
@@ -228,41 +218,37 @@ function setupPanZoom(viewport, container) {
     else if (e.key === 'ArrowDown') { mapState.translateY -= step; applyTransform(container); }
   });
 
-  // Touch Pan und Pinch Zoom
-  let touchStart = { x: 0, y: 0 };
-  let touchStartTranslate = { x: 0, y: 0 };
-  let touchStartDistance = 0;
-  let touchStartScale = 0;
-
-  viewport.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 1) {
-      touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      touchStartTranslate = { x: mapState.translateX, y: mapState.translateY };
-    } else if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      touchStartDistance = Math.sqrt(dx * dx + dy * dy);
-      touchStartScale = mapState.scale;
-    }
-  });
-
+  // Touch: ein Finger verschiebt, zwei Finger zoomen um ihre Mitte. Bei jedem Fingerwechsel neu verankern (sonst springt die Karte).
+  // Im Detailpanel und auf den Zoomknöpfen bleibt Touch nativ (Panel scrollt).
+  let anchor = null;   // { x, y, dist, tx, ty, scale } relativ zur Viewport-Mitte
+  const own = e => !e.target.closest('.research-panel, .research-map-controls');
+  const touchInfo = (e) => {
+    const r = viewport.getBoundingClientRect(), [a, b = a] = e.touches;
+    return { x: (a.clientX + b.clientX) / 2 - r.left - r.width / 2, y: (a.clientY + b.clientY) / 2 - r.top - r.height / 2, dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) };
+  };
+  const reanchor = (e) => {
+    anchor = e.touches.length && own(e) ? { ...touchInfo(e), tx: mapState.translateX, ty: mapState.translateY, scale: mapState.scale } : null;
+    viewport.classList.toggle('panning', !!anchor);
+  };
+  viewport.addEventListener('touchstart', reanchor, { passive: true });
+  viewport.addEventListener('touchend', reanchor);
+  viewport.addEventListener('touchcancel', reanchor);
   viewport.addEventListener('touchmove', (e) => {
+    if (!anchor) return;
     e.preventDefault();
-    if (e.touches.length === 1) {
-      const dx = e.touches[0].clientX - touchStart.x;
-      const dy = e.touches[0].clientY - touchStart.y;
-      mapState.translateX = touchStartTranslate.x + dx;
-      mapState.translateY = touchStartTranslate.y + dy;
-      applyTransform(container);
-    } else if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      const factor = distance / touchStartDistance;
-      mapState.scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, touchStartScale * factor));
-      applyTransform(container);
-    }
+    const cur = touchInfo(e);
+    const scale = e.touches.length > 1 && anchor.dist > 0 ? anchor.scale * cur.dist / anchor.dist : anchor.scale;
+    zoomAt(container, scale, anchor.x, anchor.y, cur.x, cur.y, anchor.tx, anchor.ty, anchor.scale);
   }, { passive: false });
+}
+
+/** Skaliert so, dass der Kartenpunkt, der bei (fromX, fromY) lag, danach bei (toX, toY) liegt (Viewport-Mitte = 0,0). */
+function zoomAt(container, scale, fromX, fromY, toX, toY, tx, ty, oldScale) {
+  const s = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
+  mapState.translateX = toX - (fromX - tx) * s / oldScale;
+  mapState.translateY = toY - (fromY - ty) * s / oldScale;
+  mapState.scale = s;
+  applyTransform(container);
 }
 
 function setupControls(controls, viewport, container) {
@@ -270,18 +256,13 @@ function setupControls(controls, viewport, container) {
   const zoomOut = controls.querySelector('.zoom-out');
   const zoomFit = controls.querySelector('.zoom-fit');
 
-  zoomIn.addEventListener('click', () => {
-    mapState.scale = Math.min(MAX_SCALE, mapState.scale * ZOOM_STEP);
-    applyTransform(container);
-  });
-
-  zoomOut.addEventListener('click', () => {
-    mapState.scale = Math.max(MIN_SCALE, mapState.scale / ZOOM_STEP);
-    applyTransform(container);
-  });
+  // Knöpfe zoomen um die Mitte des Ausschnitts
+  const zoomBy = f => zoomAt(container, mapState.scale * f, 0, 0, 0, 0, mapState.translateX, mapState.translateY, mapState.scale);
+  zoomIn.addEventListener('click', () => zoomBy(ZOOM_STEP));
+  zoomOut.addEventListener('click', () => zoomBy(1 / ZOOM_STEP));
 
   zoomFit.addEventListener('click', () => {
-    centerOn(container);
+    centerOn(container, true);
   });
 }
 
@@ -340,7 +321,7 @@ function buildResearchPanel() {
 
   const content = mapState.panel.content;
   clear(content);
-  const refs = mapState.refs = { costs: [], btn: null, progText: null, progFill: null };
+  const refs = mapState.refs = { costs: [], btn: null, progText: null, progFill: null, reason: null };
   mapState.panelKey = panelKey(id);
 
   // Icon + Name
@@ -446,8 +427,9 @@ function applyTransform(container) {
  * Passt den Ausschnitt an die sichtbaren Knoten an. Passt alles bei START_SCALE um Geologie (0,0) herum in den
  * Viewport, bleibt Geologie in der Mitte; sonst wird die Bounding Box der sichtbaren Knoten eingepasst.
  * Gibt false zurück, wenn der Viewport gerade keine Größe hat (Tab verborgen).
+ * Auf schmalen Bildschirmen wäre das Einpassen unlesbar klein: dann (außer bei "Fit") die erforschbaren Knoten in lesbarer Größe zeigen.
  */
-function centerOn(container) {
+function centerOn(container, overview = false) {
   let minX = 0, maxX = 0, minY = 0, maxY = 0;   // (0,0) = Geologie liegt immer im Ausschnitt
   for (const card of mapState.nodes) {
     if (!isRevealed('research', card.id)) continue;
@@ -468,6 +450,16 @@ function centerOn(container) {
   } else {
     let f = fitFor(NODE_R + 90, NODE_R + 40, NODE_R + 70);
     if (f.scale < LABEL_MIN_SCALE) f = fitFor(NODE_R + 30, NODE_R + 60, NODE_R + 30);   // kompakt: keine Labels, Platz für Steuerknöpfe oben
+    if (!overview && f.scale < MOBILE_SCALE && vw < 641) {
+      const shown = mapState.nodes.filter(n => isRevealed('research', n.id));
+      const open = shown.filter(n => !levelOf('research', n.id) && !lockReason('research', n.id));
+      const pts = (open.length ? open : shown).map(n => n.coord);
+      mapState.scale = MOBILE_SCALE;
+      mapState.translateX = -(pts.reduce((s, p) => s + p.x, 0) / pts.length) * MOBILE_SCALE;
+      mapState.translateY = -(pts.reduce((s, p) => s + p.y, 0) / pts.length) * MOBILE_SCALE;
+      applyTransform(container);
+      return true;
+    }
     mapState.scale = Math.max(MIN_SCALE, Math.min(START_SCALE, f.scale));
     mapState.translateX = -((minX + maxX) / 2) * mapState.scale;
     mapState.translateY = -((minY + maxY) / 2 + (f.padBottom - f.padTop) / 2) * mapState.scale;
@@ -493,10 +485,10 @@ function renderLines(svg) {
       const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       // Linie endet am Knotenrand, damit die Pfeilspitze sichtbar bleibt
       const dx = toCoord.x - fromCoord.x, dy = toCoord.y - fromCoord.y, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
-      line.setAttribute('x1', fromCoord.x + ux * NODE_R);
-      line.setAttribute('y1', fromCoord.y + uy * NODE_R);
-      line.setAttribute('x2', toCoord.x - ux * (NODE_R + 6));
-      line.setAttribute('y2', toCoord.y - uy * (NODE_R + 6));
+      line.setAttribute('x1', String(fromCoord.x + ux * NODE_R));
+      line.setAttribute('y1', String(fromCoord.y + uy * NODE_R));
+      line.setAttribute('x2', String(toCoord.x - ux * (NODE_R + 6)));
+      line.setAttribute('y2', String(toCoord.y - uy * (NODE_R + 6)));
       line.setAttribute('data-from', reqId);
       line.setAttribute('data-to', r.id);
       line.setAttribute('class', 'req-line locked');

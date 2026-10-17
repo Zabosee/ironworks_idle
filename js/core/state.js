@@ -10,6 +10,7 @@ export const LANG_IDS = ['de', 'en'];
 export const BUY_AMOUNTS = ['1', '10', '100', 'max'];
 export const AUTOSAVE_OPTIONS = [5, 10, 30, 60];
 
+/** Frischer Spielstand. Typ: GameState (types/state.d.ts). @returns {GameState} */
 export function defaultState() {
   return {
     res: Object.fromEntries(RES_IDS.map(k => [k, 0])),
@@ -21,9 +22,9 @@ export function defaultState() {
     prestige: { points: 0, total: 0, count: 0, shop: {}, history: [] },   // history: letzte Neugüsse { gain, ore, time, at }, älteste zuerst
     corp: { points: 0, total: 0, count: 0, shop: {}, history: [] },   // 2. Reset-Ebene (Patente); history: letzte Gründungen { gain, gussformen, time, at }
     focus: '', focusNext: '',   // Schwerpunkt (data/prestige.js FOCUS): aktiv im laufenden Durchlauf / gewählt für den nächsten Neuguss
-    autoCast: { on: false, mode: 'gain', value: 0 },   // Auto-Neuguss (Konzern-Shop c_autocast); mode 'gain' | 'time', value 0 = Vorgabe
+    autoCast: { on: false, value: 0, minRun: 0 },   // Auto-Neuguss (Konzern-Shop c_autocast): ab Gewinn value, frühestens nach minRun s; 0 = Vorgabe
     autobuyers: Object.fromEntries(AUTOBUYERS.map(a => [a.id, false])),
-    achievements: {},
+    achievements: {},   // id -> Zeitpunkt der Freischaltung
     buffs: [],   // { id, left }  (Definition in data/golden.js)
     evo: Object.fromEntries(GENS.map(g => [g.id, 0])),         // Generator-Ausbauten (Stufe 0..EVO_MAX), werden bei Neuguss resettet
     stats: {
@@ -35,7 +36,7 @@ export function defaultState() {
       bestPrestige: 0, fastestPrestige: 0, startedAt: Date.now(),
     },
     settings: { format: 'standard', autosave: true, autosaveSec: 10, particles: true, buyAmount: '1', lang: 'de', sound: true, volume: 0.5 },
-    challenges: { done: {}, active: null },   // Herausforderungen: done { id: true }, active null | { id, left, goal, base, gen } (data/challenges.js)
+    challenges: { done: {}, active: null },   // Herausforderungen: done { id: Stufe }, active null | { id, level, left, goal, base, gen } (data/challenges.js)
     daily: { last: '', streak: 0 },   // Tagesbonus: letzter Bonus-Tag (lokal, YYYY-MM-DD) und Serie
     savedAt: 0,
   };

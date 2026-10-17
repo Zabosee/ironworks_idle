@@ -24,7 +24,7 @@ const researchCount = s => Object.keys(s.research).length;
 [[10, 'Kleiner Betrieb'], [50, 'Werkshalle'], [150, 'Industriepark'], [400, 'Konzern'], [1000, 'Weltkonzern']]
   .forEach(([n, name], i) => add('gens_' + n, '🏭', name, `Besitze insgesamt ${fmtBig(n)} Generator-Stufen.`, 0.01 * (i + 1), s => sumGens(s) >= n));
 
-[[10, 'Elite-Stufe'], [25, 'Präziser Takt'], [50, 'Meisterbetrieb'], [100, 'Hundertschaft']]
+/** @type {[number, string][]} */ ([[10, 'Elite-Stufe'], [25, 'Präziser Takt'], [50, 'Meisterbetrieb'], [100, 'Hundertschaft']])
   .forEach(([n, name], i) => add('level_' + n, '⭐', name, `Bringe einen Generator auf Stufe ${n}.`, 0.01 * (i + 1), s => maxGen(s) >= n));
 
 add('steel_1', '🔩', 'Stahlhart', 'Produziere insgesamt 1.000 Stahl.', 0.01, s => s.stats.total.steel >= 1e3);
@@ -49,7 +49,7 @@ add('boost_2', '🚀', 'Vollgas', 'Kaufe alle Elite-Boosts.', 0.04, s => Object.
 [[10, 'Geduldsprobe'], [50, 'Zeitplaner'], [200, 'Taktgeber']]
   .forEach(([n, name], i) => add('timer_' + n, '⏱️', name, `Schließe ${n} Aufträge in Labor und Werkbank ab.`, 0.01 * (i + 1), s => s.stats.timersDone >= n));
 
-[[1, 'Neuguss'], [5, 'Gussprofi'], [25, 'Gießmeister'], [100, 'Ewige Esse']]
+/** @type {[number, string][]} */ ([[1, 'Neuguss'], [5, 'Gussprofi'], [25, 'Gießmeister'], [100, 'Ewige Esse']])
   .forEach(([n, name], i) => add('prestige_' + n, '🔥', name, `Führe ${n} Hochofen-Neuguss${n > 1 ? 'e' : ''} durch.`, 0.02 * (i + 1), s => s.prestige.count >= n));
 
 [[1, 'Goldener Moment'], [10, 'Glückspilz'], [50, 'Goldgräber'], [200, 'Midas']]
@@ -64,7 +64,7 @@ add('boost_2', '🚀', 'Vollgas', 'Kaufe alle Elite-Boosts.', 0.04, s => Object.
   ['superalloy', 1e6, '🔷', 'Superlegierer', 'Superlegierung', 0.02]]
   .forEach(([k, n, icon, name, label, bonus]) => add(k + '_1', icon, name, `Produziere insgesamt ${fmtBig(n)} ${label}.`, bonus, s => s.stats.total[k] >= n));
 
-[[1, 'Firmengründer', 0.01], [5, 'Serienunternehmer', 0.02], [15, 'Konzernlenker', 0.03]]
+/** @type {[number, string, number][]} */ ([[1, 'Firmengründer', 0.01], [5, 'Serienunternehmer', 0.02], [15, 'Konzernlenker', 0.03]])
   .forEach(([n, name, bonus]) => add('corp_' + n, '🏢', name, `Gründe ${n} Konzern${n > 1 ? 'e' : ''}.`, bonus, s => (s.corp?.count || 0) >= n));
 
 [[50, 'Patentanwalt', 0.01], [100, 'Patentimperium', 0.02], [200, 'Lizenzkönig', 0.03]]

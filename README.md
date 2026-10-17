@@ -18,7 +18,7 @@ Idle-Spiel im Browser: Aus Erz wird Stahl, Titan und Gold. Vanilla ES-Module, ke
 - **Zufallsereignisse**: Alle 8 bis 15 Minuten aktiver Spielzeit erscheint ein Ereignis im Werk: Erzader (Klick-Bonus), Rohstoffengpass (per Klick beheben) oder Sonderauftrag (Material liefern für einen Produktionsbonus).
 - **Erfolge und goldene Barren**: 70 Erfolge mit Produktionsbonus. Goldene Barren erscheinen zufällig und geben per Klick oder Taste G einen Zeitbuff.
 - **Offline-Fortschritt**: Beim Laden wird die Abwesenheit nachgerechnet, mit 60 % des Aktiv-Ertrags und einer Kappe (Basis 8 h). Ein Willkommen-Dialog zeigt ab 60 s Abwesenheit, was du gewonnen hast.
-- **Tagesbonus**: Der erste Start an einem neuen Kalendertag gibt einen Schmelzrausch-Buff, dessen Dauer in einer Serie bis Tag 7 wächst.
+- **Tagesbonus**: Jeder neue Kalendertag gibt beim ersten Start (oder im laufenden Spiel nach Mitternacht) einen Schmelzrausch-Buff, dessen Dauer in einer Serie bis Tag 7 wächst.
 - **Hilfe und Glossar**: Die Taste `?` oder der Knopf "Hilfe ?" öffnet eine Erklärung aller Spielebenen und Begriffe. Die Tasten 1 bis 9 wechseln die Bereiche.
 - **Ton und Hinweise**: Synthetische Soundeffekte (WebAudio, abschaltbar, Lautstärke einstellbar). Läuft das Spiel im Hintergrund, zeigt der Tab-Titel an, wenn ein Auftrag in Labor oder Werkbank fertig ist.
 - **Sprache, Export und Import**: Deutsch und Englisch, Spielstand als Base64 exportieren und importieren, drei Zahlenformate, Autosave. Ältere Spielstände werden migriert.

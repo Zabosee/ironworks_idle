@@ -82,7 +82,11 @@ export function renderBadges() {
     if (!st.length) continue;
     const left = run.length ? Math.min(...run.map(e => e.left)) : 0;
     const wait = st.length - run.length;
-    setText(el, `${run.length}/${queueSlots(q)} · ${fmtClock(left)}${wait ? ' +' + wait : ''}`);
+    const txt = `${run.length}/${queueSlots(q)} · ${fmtClock(left)}${wait ? ' +' + wait : ''}`;
+    if (el._t !== txt) {   // mobil nur die Restzeit (.badge-x ausgeblendet)
+      el._t = txt;
+      el.replaceChildren(h('span', { class: 'badge-x', text: `${run.length}/${queueSlots(q)} · ` }), fmtClock(left), wait ? h('span', { class: 'badge-x', text: ' +' + wait }) : '');
+    }
     setAttr(el, 'title', t('{name}: {run} läuft, {wait} wartet', { name: tName('timers', QUEUES[q]), run: run.length, wait }));
   }
 }

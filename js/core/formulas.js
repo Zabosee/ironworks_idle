@@ -262,7 +262,7 @@ export const recipeActive = rc => (rc.req || []).every(q => state.research[q]);
  */
 export function rates() {
   const gm = globalMult();
-  const r = Object.fromEntries(RES_IDS.map(k => [k, 0]));
+  const r = /** @type {Record<string, number> & { flows: { id: string, cycles: number, inputs: Record<string, number>, outputs: Record<string, number> }[] }} */ (Object.fromEntries(RES_IDS.map(k => [k, 0])));
   for (const g of GENS) {
     const n = genLevel(g.id);
     if (n > 0) r[g.res] += genOutputAt(g, n, gm);
@@ -406,6 +406,9 @@ function prefixOf(kind, id, lvl, n) {
  * Kaufplan: { count, cost, affordable }.
  * amount: Zahl/String '1' | '10' | '100' | 'max'. Einmalkäufe (boost/research) ignorieren amount.
  * 'max' sucht die größte bezahlbare Menge (max. MAX_BULK) per Galopp + Binärsuche über die gecachten Summen.
+ * @param {string} kind
+ * @param {string} id
+ * @param {number | string} [amount]
  */
 export function bulkPlan(kind, id, amount = '1') {
   const lvl = levelOf(kind, id);

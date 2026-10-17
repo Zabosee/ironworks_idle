@@ -228,10 +228,10 @@ describe('Auto-Neuguss', () => {
   test('Einstellung nur nach Kauf; ungültige Werte werden ignoriert', () => {
     assert.equal(C.setAutoCast({ on: true }), false); assert.equal(state.autoCast.on, false);
     state.corp.shop.c_autocast = 1;
-    assert.equal(C.setAutoCast({ on: true, mode: 'time', value: 5 }), true);
-    assert.deepEqual(state.autoCast, { on: true, mode: 'time', value: 5 });
-    C.setAutoCast({ mode: 'x', value: NaN, on: 'ja' });
-    assert.deepEqual(state.autoCast, { on: true, mode: 'time', value: 5 });
+    assert.equal(C.setAutoCast({ on: true, value: 5, minRun: 120 }), true);
+    assert.deepEqual(state.autoCast, { on: true, value: 5, minRun: 120 });
+    C.setAutoCast({ value: NaN, minRun: 'x', on: 'ja' });
+    assert.deepEqual(state.autoCast, { on: true, value: 5, minRun: 120 });
   });
   test('Modus Gewinn: Vorgabe = Mittel der letzten 5 Gewinne; Mindestlaufzeit 60 s', () => {
     ready();
@@ -245,15 +245,21 @@ describe('Auto-Neuguss', () => {
     state.autoCast.value = g; assert.equal(C.autoCastDue(), true);
     state.autoCast.on = false; assert.equal(C.autoCastDue(), false);
   });
-  test('Modus Zeit: nach n Minuten (Vorgabe 10 min)', () => {
-    ready(); state.autoCast.mode = 'time'; state.autoCast.value = 0;
-    state.stats.runTime = 599; assert.equal(C.autoCastDue(), false);
-    state.stats.runTime = 600; assert.equal(C.autoCastDue(), true);
-    state.autoCast.value = 15; assert.equal(C.autoCastDue(), false);
-    state.stats.runTime = 900; assert.equal(C.autoCastDue(), true);
+  test('Mindestlaufzeit einstellbar (Vorgabe 60 s, nie unter 10 s)', () => {
+    ready(); state.autoCast.value = 1;
+    state.autoCast.minRun = 300;
+    state.stats.runTime = 299; assert.equal(C.autoCastDue(), false);
+    state.stats.runTime = 300; assert.equal(C.autoCastDue(), true);
+    state.autoCast.minRun = 3; assert.equal(C.autoCastMinRun(), 10);
+    state.stats.runTime = 10; assert.equal(C.autoCastDue(), true);
+    state.autoCast.minRun = 0; assert.equal(C.autoCastMinRun(), 60);
+  });
+  test('Alter Zeit-Modus wird beim Laden zu Mindestlaufzeit + Gewinn ab 1', () => {
+    assert.deepEqual(S.sanitize({ autoCast: { on: true, mode: 'time', value: 15 } }).autoCast, { on: true, value: 1, minRun: 900 });
+    assert.deepEqual(S.sanitize({ autoCast: { on: true, mode: 'time', value: 0 } }).autoCast, { on: true, value: 1, minRun: 600 });
   });
   test('tick gießt automatisch (Event autocast), nie ohne Kauf; Gründung bleibt manuell', () => {
-    ready(); state.autoCast.mode = 'gain'; state.autoCast.value = 1;
+    ready(); state.autoCast.value = 1;
     const ev = collect('autocast');
     state.corp.shop.c_autocast = 0;
     C.tick(1, true); assert.equal(state.prestige.count, 0);
@@ -318,22 +324,22 @@ describe('Save v6', () => {
   test('SAVE_VERSION 9; Roundtrip erhält corp, Konzernforschung, autoCast und corpRunTime', () => {
     assert.equal(S.SAVE_VERSION, 9);
     state.corp = { points: 7, total: 31, count: 4, shop: { c_eff: 2, c_heir: 3 }, history: [{ gain: 3, gussformen: 1e5, time: 1234, at: 99 }] };
-    state.research.c_cobalt = 1; state.autoCast = { on: true, mode: 'time', value: 12 }; state.stats.corpRunTime = 777;
+    state.research.c_cobalt = 1; state.autoCast = { on: true, value: 12, minRun: 300 }; state.stats.corpRunTime = 777;
     const o = JSON.parse(S.serialize()); assert.equal(o.v, 9);
     S.importSave(S.exportSave());
     assert.deepEqual(state.corp, { points: 7, total: 31, count: 4, shop: { c_eff: 2, c_heir: 3 }, history: [{ gain: 3, gussformen: 1e5, time: 1234, at: 99 }] });
-    assert.equal(state.research.c_cobalt, 1); assert.deepEqual(state.autoCast, { on: true, mode: 'time', value: 12 }); assert.equal(state.stats.corpRunTime, 777);
+    assert.equal(state.research.c_cobalt, 1); assert.deepEqual(state.autoCast, { on: true, value: 12, minRun: 300 }); assert.equal(state.stats.corpRunTime, 777);
   });
   test('Sanitize: unbekannte Shop-IDs, zu hohe Stufen, NaN/negativ, zu lange oder kaputte Chronik, korrupter autoCast', () => {
     const s = S.sanitize({
       corp: { points: NaN, total: -5, count: 'x', shop: { c_eff: 99, c_gain: -2, foo: 1, c_click: 2.7 },
         history: [null, { gain: 0 }, 'x', ...Array.from({ length: 15 }, (_, i) => ({ gain: i + 1, gussformen: 5, time: 1, at: 1 }))] },
-      autoCast: { on: 'ja', mode: 'zufall', value: -4 },
+      autoCast: { on: 'ja', mode: 'zufall', value: -4, minRun: 'x' },
     });
     assert.equal(s.corp.points, 0); assert.equal(s.corp.total, 0); assert.equal(s.corp.count, 0);
     assert.deepEqual(s.corp.shop, { c_eff: 4, c_click: 2 });
     assert.equal(s.corp.history.length, 10); assert.equal(s.corp.history.at(-1).gain, 15);
-    assert.deepEqual(s.autoCast, { on: false, mode: 'gain', value: 0 });
+    assert.deepEqual(s.autoCast, { on: false, value: 0, minRun: 0 });
     assert.deepEqual(S.sanitize({ corp: 5, autoCast: [] }).corp, { points: 0, total: 0, count: 0, shop: {}, history: [] });
   });
   test('Migration v5 -> v6: leere Defaults, Eingabe unverändert, alte Daten bleiben', () => {
@@ -341,7 +347,7 @@ describe('Save v6', () => {
     const m = S.migrate({ v: 5, t: 1, state: old });
     assert.equal(m.v, 9);
     assert.deepEqual(m.state.corp, { points: 0, total: 0, count: 0, shop: {}, history: [] });
-    assert.deepEqual(m.state.autoCast, { on: false, mode: 'gain', value: 0 });
+    assert.deepEqual(m.state.autoCast, { on: false, value: 0, minRun: 0 });
     assert.equal(old.corp, undefined);
     S.importSave(wrap(old, 5));
     assert.equal(state.res.ore, 5); assert.equal(state.prestige.count, 7); assert.equal(state.research.geology, 1);
